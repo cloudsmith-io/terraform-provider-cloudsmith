@@ -1,7 +1,7 @@
 Terraform Provider for Cloudsmith
 =================================
 
-<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
+Terraform provider for managing your Cloudsmith resources.
 
 Requirements
 ------------
