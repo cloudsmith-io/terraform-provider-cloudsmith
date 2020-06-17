@@ -137,7 +137,8 @@ func resourceRepository() *schema.Resource {
 			},
 			"slug": {
 				Type:         schema.TypeString,
-				Required:     true,
+				Optional:     true,
+				Computed:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"slug_perm": {
