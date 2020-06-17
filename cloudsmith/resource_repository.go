@@ -2,11 +2,19 @@
 package cloudsmith
 
 import (
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/antihax/optional"
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
+
+var errRepositoryDeleteTimedOut = errors.New("timed out")
+var repositoryDeletionTimeout = time.Minute * 20
+var repositoryDeletionCheckInterval = time.Second * 10
 
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -16,6 +24,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	namespace := d.Get("namespace").(string)
 	repositoryType := d.Get("repository_type").(string)
 	slug := d.Get("slug").(string)
+	storageRegion := d.Get("storage_region").(string)
 
 	opts := &cloudsmith.ReposCreateOpts{
 		Data: optional.NewInterface(cloudsmith.ReposCreate{
@@ -23,6 +32,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 			Name:              name,
 			RepositoryTypeStr: repositoryType,
 			Slug:              slug,
+			StorageRegion:     storageRegion,
 		}),
 	}
 
@@ -56,6 +66,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("repository_type", repository.RepositoryTypeStr)
 	d.Set("slug", repository.Slug)
 	d.Set("slug_perm", repository.SlugPerm)
+	d.Set("storage_region", repository.StorageRegion)
 
 	// namespace returned from the API is always the user-facing slug, but the
 	// resource may have been created in terraform with the slug_perm instead,
@@ -105,7 +116,34 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+	if d.Get("wait_for_deletion").(bool) {
+		if err := resourceRepositoryWaitUntilDeleted(d, m); err != nil {
+			return fmt.Errorf("error waiting for repository (%s) to be deleted: %w", d.Id(), err)
+		}
+	}
+
 	return nil
+}
+
+func resourceRepositoryWaitUntilDeleted(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+
+	namespace := d.Get("namespace").(string)
+
+	for start := time.Now(); time.Since(start) < repositoryDeletionTimeout; {
+		_, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+		if err != nil {
+			if err.Error() == "404 Not Found" {
+				return nil
+			}
+
+			return err
+		}
+
+		time.Sleep(repositoryDeletionCheckInterval)
+	}
+
+	return errRepositoryDeleteTimedOut
 }
 
 func resourceRepository() *schema.Resource {
@@ -147,6 +185,18 @@ func resourceRepository() *schema.Resource {
 			"slug_perm": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+			"storage_region": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"wait_for_deletion": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
 			},
 		},
 	}
