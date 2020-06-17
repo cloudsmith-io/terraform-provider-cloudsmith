@@ -16,6 +16,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_KEY", nil),
+				Sensitive:   true,
 			},
 			"api_host": {
 				Type:        schema.TypeString,
