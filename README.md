@@ -1,6 +1,8 @@
 Terraform Provider for Cloudsmith
 =================================
 
+![](https://cloudsmith.com/images/uploads/resources/cloudsmith-logo-master-color.svg)
+
 Terraform provider for managing your Cloudsmith resources.
 
 Requirements
