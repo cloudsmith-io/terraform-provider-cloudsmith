@@ -1,3 +1,4 @@
+// Package cloudsmith implements a Terraform provider for interacting with Cloudsmith.
 package cloudsmith
 
 import (
@@ -8,18 +9,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
-// Provider ...
+// Provider returns a terraform.ResourceProvider.
 func Provider() terraform.ResourceProvider {
 	p := &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"api_key": {
 				Type:        schema.TypeString,
+				Description: "The API key for authenticating with the Cloudsmith API.",
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_KEY", nil),
 				Sensitive:   true,
 			},
 			"api_host": {
 				Type:        schema.TypeString,
+				Description: "The API host to connect to (mostly useful for testing).",
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_HOST", "https://api.cloudsmith.io"),
 			},

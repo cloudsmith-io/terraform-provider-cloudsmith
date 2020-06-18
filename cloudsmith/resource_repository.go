@@ -1,4 +1,3 @@
-// Package cloudsmith ...
 package cloudsmith
 
 import (
@@ -12,9 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
-var errRepositoryDeleteTimedOut = errors.New("timed out")
-var repositoryDeletionTimeout = time.Minute * 20
-var repositoryDeletionCheckInterval = time.Second * 10
+var (
+	errRepositoryDeleteTimedOut     = errors.New("timed out")
+	repositoryDeletionTimeout       = time.Minute * 20
+	repositoryDeletionCheckInterval = time.Second * 10
+)
 
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -61,9 +62,16 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+	d.Set("cdn_url", repository.CdnUrl)
+	d.Set("created_at", repository.CreatedAt)
+	d.Set("deleted_at", repository.DeletedAt)
 	d.Set("description", repository.Description)
+	d.Set("index_files", repository.IndexFiles)
 	d.Set("name", repository.Name)
+	d.Set("namespace_url", repository.NamespaceUrl)
 	d.Set("repository_type", repository.RepositoryTypeStr)
+	d.Set("self_html_url", repository.SelfHtmlUrl)
+	d.Set("self_url", repository.SelfUrl)
 	d.Set("slug", repository.Slug)
 	d.Set("slug_perm", repository.SlugPerm)
 	d.Set("storage_region", repository.StorageRegion)
@@ -146,6 +154,7 @@ func resourceRepositoryWaitUntilDeleted(d *schema.ResourceData, m interface{}) e
 	return errRepositoryDeleteTimedOut
 }
 
+//nolint:funlen
 func resourceRepository() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepositoryCreate,
@@ -154,49 +163,99 @@ func resourceRepository() *schema.Resource {
 		Delete: resourceRepositoryDelete,
 
 		Schema: map[string]*schema.Schema{
+			"cdn_url": {
+				Type:        schema.TypeString,
+				Description: "Base URL from which packages and other artifacts are downloaded.",
+				Computed:    true,
+			},
+			"created_at": {
+				Type:        schema.TypeString,
+				Description: "ISO 8601 timestamp at which the repository was created.",
+				Computed:    true,
+			},
+			"deleted_at": {
+				Type: schema.TypeString,
+				Description: "ISO 8601 timestamp at which the repository was deleted " +
+					"(repositories are soft deleted temporarily to allow cancelling).",
+				Computed: true,
+			},
 			"description": {
 				Type:         schema.TypeString,
+				Description:  "A description of the repository's purpose/contents.",
 				Optional:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
+			"index_files": {
+				Type: schema.TypeBool,
+				Description: "If checked, files contained in packages will be indexed, which increase the " +
+					"synchronisation time required for packages. Note that it is recommended you keep this " +
+					"enabled unless the synchronisation time is significantly impacted.",
+				Optional: true,
+				Computed: true,
+			},
 			"name": {
 				Type:         schema.TypeString,
+				Description:  "A descriptive name for the repository.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
+				Description:  "Namespace to which this repository belongs.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
+			"namespace_url": {
+				Type:        schema.TypeString,
+				Description: "API endpoint where data about this namespace can be retrieved.",
+				Computed:    true,
+			},
 			"repository_type": {
-				Type:         schema.TypeString,
+				Type: schema.TypeString,
+				Description: "The repository type changes how it is accessed and billed. Private repositories " +
+					"can only be used on paid plans, but are visible only to you or authorised delegates. Public " +
+					"repositories are free to use on all plans and visible to all Cloudsmith users.",
 				Optional:     true,
 				Default:      "Private",
 				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
 			},
+			"self_html_url": {
+				Type:        schema.TypeString,
+				Description: "Website URL for this repository.",
+				Computed:    true,
+			},
+			"self_url": {
+				Type:        schema.TypeString,
+				Description: "API endpoint where data about this repository can be retrieved.",
+				Computed:    true,
+			},
 			"slug": {
 				Type:         schema.TypeString,
+				Description:  "The slug identifies the repository in URIs.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"slug_perm": {
-				Type:     schema.TypeString,
+				Type: schema.TypeString,
+				Description: "The slug_perm immutably identifies the repository. " +
+					"It will never change once a repository has been created.",
 				Computed: true,
 			},
 			"storage_region": {
 				Type:         schema.TypeString,
+				Description:  "The Cloudsmith region in which package files are stored.",
 				Optional:     true,
 				Computed:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"wait_for_deletion": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  true,
+				Type:        schema.TypeBool,
+				Description: "If true, terraform will wait for a repository to be permanently deleted before finishing.",
+				Optional:    true,
+				Default:     true,
 			},
 		},
 	}

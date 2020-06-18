@@ -1,8 +1,8 @@
-// Package cloudsmith ...
 package cloudsmith
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func dataSourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
@@ -30,20 +30,26 @@ func dataSourceNamespace() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "A descriptive name for the namespace.",
+				Computed:    true,
 			},
 			"slug": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:         schema.TypeString,
+				Description:  "The slug identifies the namespace in URIs.",
+				Required:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"slug_perm": {
-				Type:     schema.TypeString,
+				Type: schema.TypeString,
+				Description: "The slug_perm immutably identifies the namespace. " +
+					"It will never change once a namespace has been created.",
 				Computed: true,
 			},
 			"type_name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "Is this a user or an organization namespace?",
+				Computed:    true,
 			},
 		},
 	}
