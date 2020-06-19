@@ -17,10 +17,23 @@ var (
 	repositoryDeletionCheckInterval = time.Second * 10
 )
 
+func getIndexFilesFromResource(d *schema.ResourceData) *bool {
+	var indexFilesPtr *bool
+
+	indexFiles, exists := d.GetOkExists("index_files") //nolint:staticcheck
+	if exists {
+		indexFilesBool := indexFiles.(bool)
+		indexFilesPtr = &indexFilesBool
+	}
+
+	return indexFilesPtr
+}
+
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	description := d.Get("description").(string)
+	indexFiles := getIndexFilesFromResource(d)
 	name := d.Get("name").(string)
 	namespace := d.Get("namespace").(string)
 	repositoryType := d.Get("repository_type").(string)
@@ -30,6 +43,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	opts := &cloudsmith.ReposCreateOpts{
 		Data: optional.NewInterface(cloudsmith.ReposCreate{
 			Description:       description,
+			IndexFiles:        indexFiles,
 			Name:              name,
 			RepositoryTypeStr: repositoryType,
 			Slug:              slug,
@@ -90,6 +104,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	description := d.Get("description").(string)
+	indexFiles := getIndexFilesFromResource(d)
 	name := d.Get("name").(string)
 	namespace := d.Get("namespace").(string)
 	repositoryType := d.Get("repository_type").(string)
@@ -98,6 +113,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	opts := &cloudsmith.ReposPartialUpdateOpts{
 		Data: optional.NewInterface(cloudsmith.ReposPartialUpdate{
 			Description:       description,
+			IndexFiles:        indexFiles,
 			Name:              name,
 			RepositoryTypeStr: repositoryType,
 			Slug:              slug,
