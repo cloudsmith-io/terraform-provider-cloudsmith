@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	errMessage404                   = "404 Not Found"
 	errRepositoryDeleteTimedOut     = errors.New("timed out")
 	repositoryDeletionTimeout       = time.Minute * 20
 	repositoryDeletionCheckInterval = time.Second * 10
@@ -68,7 +69,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 
 	repository, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
 	if err != nil {
-		if err.Error() == "404 Not Found" {
+		if err.Error() == errMessage404 {
 			d.SetId("")
 			return nil
 		}
@@ -157,7 +158,7 @@ func resourceRepositoryWaitUntilDeleted(d *schema.ResourceData, m interface{}) e
 	for start := time.Now(); time.Since(start) < repositoryDeletionTimeout; {
 		_, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
 		if err != nil {
-			if err.Error() == "404 Not Found" {
+			if err.Error() == errMessage404 {
 				return nil
 			}
 
