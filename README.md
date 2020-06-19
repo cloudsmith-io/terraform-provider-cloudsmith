@@ -1,7 +1,9 @@
 Terraform Provider for Cloudsmith
 =================================
 
-<img src="https://cdn.rawgit.com/hashicorp/terraform-website/master/content/source/assets/images/logo-hashicorp.svg" width="600px">
+![](https://cloudsmith.com/images/uploads/resources/cloudsmith-logo-master-color.svg)
+
+Terraform provider for managing your Cloudsmith resources.
 
 Requirements
 ------------
@@ -28,7 +30,26 @@ $ go build
 Using the provider
 ------------------
 
-TODO
+Full docs: TODO
+
+Example: Create a repository
+
+```
+provider "cloudsmith" {
+    api_key = "my-api-key"
+}
+
+data "cloudsmith_namespace" "my_namespace" {
+    slug = "my-namespace"
+}
+
+resource "cloudsmith_repository" "my_repository" {
+    description = "A certifiably-awesome private package repository"
+    name        = "My Repository"
+    namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
+    slug        = "my-repository"
+}
+```
 
 Developing the Provider
 -----------------------
