@@ -32,7 +32,7 @@ Using the provider
 
 Full docs: TODO
 
-Example: Create a repository
+Example: Create a repository with a non-default entitlement
 
 ```
 provider "cloudsmith" {
@@ -48,6 +48,12 @@ resource "cloudsmith_repository" "my_repository" {
     name        = "My Repository"
     namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
     slug        = "my-repository"
+}
+
+resource "cloudsmith_entitlement" "my_entitlement" {
+    name       = "Test Entitlement"
+    namespace  = "${cloudsmith_repository.test.namespace}"
+    repository = "${cloudsmith_repository.test.slug_perm}"
 }
 ```
 
