@@ -51,9 +51,9 @@ resource "cloudsmith_repository" "my_repository" {
 }
 
 resource "cloudsmith_entitlement" "my_entitlement" {
-    name                = "Test Entitlement"
-    namespace           = "${cloudsmith_repository.test.namespace}"
-    repository          = "${cloudsmith_repository.test.slug_perm}"
+    name       = "Test Entitlement"
+    namespace  = "${cloudsmith_repository.test.namespace}"
+    repository = "${cloudsmith_repository.test.slug_perm}"
 }
 ```
 
