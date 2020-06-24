@@ -114,9 +114,9 @@ resource "cloudsmith_repository" "test" {
 }
 
 resource "cloudsmith_entitlement" "test" {
-    name                = "Test Entitlement"
-    namespace           = "${cloudsmith_repository.test.namespace}"
-    repository          = "${cloudsmith_repository.test.slug_perm}"
+    name       = "Test Entitlement"
+    namespace  = "${cloudsmith_repository.test.namespace}"
+    repository = "${cloudsmith_repository.test.slug_perm}"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
