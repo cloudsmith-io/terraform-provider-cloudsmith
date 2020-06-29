@@ -1,0 +1,36 @@
+name: Acceptance
+on:
+  push:
+    branches:
+    - "*"
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+    - name: Install Go 1.14
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.14
+      id: go
+
+    - uses: actions/checkout@master
+
+    - name: Wait for previous workflows to complete
+      uses: softprops/turnstyle@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.TURNSTYLE_TOKEN }}
+      with:
+        poll-interval-seconds: 10
+
+    - name: Run tests
+      run: |
+        TF_ACC=1 go test -v ./... -timeout=30m
+      env:
+        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+        CLOUDSMITH_NAMESPACE: terraform-provider-testing
