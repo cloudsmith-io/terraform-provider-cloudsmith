@@ -1,11 +1,8 @@
 name: Acceptance
 on:
-  pull_request:
-    branches:
-    - master
   push:
     branches:
-    - master
+    - "*"
   schedule:
     - cron: "0 0 * * *"
 
@@ -24,10 +21,12 @@ jobs:
 
     - uses: actions/checkout@master
 
-    - name: Turnstyle
+    - name: Wait for previous workflows to complete
       uses: softprops/turnstyle@v1
       env:
         GITHUB_TOKEN: ${{ secrets.TURNSTYLE_TOKEN }}
+      with:
+        poll-interval-seconds: 10
 
     - name: Run tests
       run: |
