@@ -28,10 +28,6 @@ jobs:
       with:
         poll-interval-seconds: 10
 
-    - name: Force fail
-      run: |
-        exit 1
-
     - name: Run tests
       run: |
         TF_ACC=1 go test -v ./... -timeout=30m
