@@ -24,7 +24,7 @@ jobs:
     - name: Wait for previous workflows to complete
       uses: softprops/turnstyle@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.TURNSTYLE_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         poll-interval-seconds: 10
 
@@ -34,3 +34,18 @@ jobs:
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_NAMESPACE: terraform-provider-testing
+
+    - name: Notify Slack on Success
+      if: success()
+      uses: rtCamp/action-slack-notify@v2.0.2
+      env:
+        SLACK_TITLE: Workflow Succeeded
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+    - name: Notify Slack on Failure
+      if: failure()
+      uses: rtCamp/action-slack-notify@v2.0.2
+      env:
+        SLACK_COLOR: danger
+        SLACK_TITLE: Workflow Failed
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
