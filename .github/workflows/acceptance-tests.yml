@@ -27,6 +27,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         poll-interval-seconds: 10
+        same-branch-only: false
 
     - name: Run tests
       run: |
