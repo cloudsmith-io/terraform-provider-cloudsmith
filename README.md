@@ -50,14 +50,43 @@ data "cloudsmith_namespace" "my_namespace" {
 resource "cloudsmith_repository" "my_repository" {
     description = "A certifiably-awesome private package repository"
     name        = "My Repository"
-    namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
+    namespace   = data.cloudsmith_namespace.my_namespace.slug_perm
     slug        = "my-repository"
 }
 
 resource "cloudsmith_entitlement" "my_entitlement" {
     name       = "Test Entitlement"
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
+    namespace  = cloudsmith_repository.test.namespace
+    repository = cloudsmith_repository.test.slug_perm
+}
+```
+
+
+Retrieve a list of packages from a repository
+
+```
+provider "cloudsmith" {
+    api_key = "my-api-key"
+}
+
+data "cloudsmith_namespace" "my_namespace" {
+  slug = "my-namespace"
+}
+
+data "cloudsmith_repository" "my_repository" {
+  namespace = data.cloudsmith_namespace.my_namespace.slug
+  name      = "My Repository"
+}
+
+data "cloudsmith_packages" "my_packages" {
+  namespace     = data.cloudsmith_repository.my_repository.namespace
+  repository    = data.cloudsmith_repository.my_repository.slug
+  package_group = "my-package"
+  filters       = ["format:docker"]
+}
+
+output "packages" {
+  value = formatlist("%s-%s", data.cloudsmith_packages.my_packages.packages.*.name, data.cloudsmith_packages.my_packages.packages.*.version)
 }
 ```
 
