@@ -36,11 +36,16 @@ func retrieveAllPackagesPages(pc *providerConfig, namespace string, repository s
 	return packagesList, nil
 }
 
-func buildQueryString(set *schema.Set) string {
+func buildQueryString(set *schema.Set, packageGroup string) string {
 	var query strings.Builder
 	for _, v := range set.List() {
 		query.WriteString(v.(string))
 		query.WriteString(" ")
+	}
+	if packageGroup != "" {
+		query.WriteString("name:^")
+		query.WriteString(packageGroup)
+		query.WriteString("$")
 	}
 	return query.String()
 }
@@ -50,7 +55,7 @@ func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 
 	namespace := d.Get("namespace").(string)
 	repository := d.Get("repository").(string)
-	query := buildQueryString(d.Get("filter").(*schema.Set))
+	query := buildQueryString(d.Get("filters").(*schema.Set), d.Get("package_group").(string))
 
 	packagesList, err := retrieveAllPackagesPages(pc, namespace, repository, query)
 	if err != nil {
@@ -109,7 +114,12 @@ func dataSourcePackages() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
-			"filter": &schema.Schema{
+			"package_group": {
+				Type:        schema.TypeString,
+				Description: "The namespace of the package",
+				Optional:    true,
+			},
+			"filters": &schema.Schema{
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
