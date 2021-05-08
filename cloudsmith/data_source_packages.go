@@ -1,29 +1,53 @@
 package cloudsmith
 
 import (
+	"log"
 	"strconv"
 	"time"
 
+	"github.com/antihax/optional"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
+func retrieveAllPackagesPages(pc *providerConfig, namespace string, repository string, query string) ([]cloudsmith.Package, error) {
+
+	paginationCount := int64(1)
+	paginationTotal := int64(1)
+	packagesList := []cloudsmith.Package{}
+
+	for paginationCount <= paginationTotal {
+		optional := cloudsmith.PackagesListOpts{Page: optional.NewInt64(paginationCount), PageSize: optional.NewInt64(100), Query: optional.NewString(query)}
+		packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
+		if err != nil {
+			return nil, err
+		}
+		paginationTotal, err = strconv.ParseInt(httpResponse.Header.Get("X-Pagination-Pagetotal"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		packagesList = append(packagesList, packagesPage...)
+		paginationCount++
+
+	}
+	return packagesList, nil
+}
+
 func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := d.Get("namespace").(string)
 	repository := d.Get("repository").(string)
-	optional := cloudsmith.PackagesListOpts{}
+	query := ""
 
-	packagesList, _, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
+	packagesList, err := retrieveAllPackagesPages(pc, namespace, repository, query)
 	if err != nil {
 		return err
 	}
-
 	packages := flattenPackages(&packagesList)
-	if err := d.Set("package", packages); err != nil {
+	if err := d.Set("packages", packages); err != nil {
 		return err
 	}
 
@@ -36,6 +60,7 @@ func flattenPackages(packages *[]cloudsmith.Package) []interface{} {
 	if packages != nil {
 		pkgs := make([]interface{}, len(*packages), len(*packages))
 		for i, packageItem := range *packages {
+			log.Printf("[DEBUG] package: %s", packageItem.Name)
 			pkg := make(map[string]interface{})
 			pkg["repository"] = packageItem.Repository
 			pkg["namespace"] = packageItem.Namespace
@@ -74,8 +99,8 @@ func dataSourcePackages() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
-			"package": {
-				Type:     schema.TypeSet,
+			"packages": &schema.Schema{
+				Type:     schema.TypeList,
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
