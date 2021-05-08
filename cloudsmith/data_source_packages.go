@@ -1,6 +1,9 @@
 package cloudsmith
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
@@ -23,6 +26,8 @@ func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 	if err := d.Set("package", packages); err != nil {
 		return err
 	}
+
+	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 
 	return nil
 }
