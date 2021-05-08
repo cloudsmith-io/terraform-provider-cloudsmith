@@ -13,24 +13,49 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
-func retrieveAllPackagesPages(pc *providerConfig, namespace string, repository string, query string) ([]cloudsmith.Package, error) {
+func retrievePackagesPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
+	optional := cloudsmith.PackagesListOpts{Page: optional.NewInt64(pageCount), PageSize: optional.NewInt64(pageSize), Query: optional.NewString(query)}
+	packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
+	if err != nil {
+		return nil, 0, err
+	}
+	pageTotal, err := strconv.ParseInt(httpResponse.Header.Get("X-Pagination-Pagetotal"), 10, 64)
+	if err != nil {
+		return nil, 0, err
+	}
+	return packagesPage, pageTotal, nil
+}
 
-	paginationCount := int64(1)
-	paginationTotal := int64(1)
+func retrievePackagesPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, error) {
+
+	var pageCurrentCount int64 = 1
+
+	// A negative or zero count is assumed to mean retrieve the largest size page
 	packagesList := []cloudsmith.Package{}
+	if pageSize == -1 || pageSize == 0 {
+		pageSize = 100
+	}
 
-	for paginationCount <= paginationTotal {
-		optional := cloudsmith.PackagesListOpts{Page: optional.NewInt64(paginationCount), PageSize: optional.NewInt64(100), Query: optional.NewString(query)}
-		packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
-		if err != nil {
-			return nil, err
-		}
-		paginationTotal, err = strconv.ParseInt(httpResponse.Header.Get("X-Pagination-Pagetotal"), 10, 64)
+	// If no count is supplied assmumed to mean retrieve all pages
+	// we have to retreive a page to get this count
+	if pageCount == -1 || pageCount == 0 {
+		var packagesPage []cloudsmith.Package
+		var err error
+		packagesPage, pageCount, err = retrievePackagesPage(pc, namespace, repository, query, pageSize, 1)
 		if err != nil {
 			return nil, err
 		}
 		packagesList = append(packagesList, packagesPage...)
-		paginationCount++
+		pageCurrentCount++
+	}
+
+	for pageCurrentCount <= pageCount {
+		packagesPage, _, err := retrievePackagesPage(pc, namespace, repository, query, pageSize, pageCount)
+		if err != nil {
+			return nil, err
+		}
+		packagesList = append(packagesList, packagesPage...)
+		pageCurrentCount++
 
 	}
 	return packagesList, nil
@@ -56,8 +81,13 @@ func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 	namespace := d.Get("namespace").(string)
 	repository := d.Get("repository").(string)
 	query := buildQueryString(d.Get("filters").(*schema.Set), d.Get("package_group").(string))
-
-	packagesList, err := retrieveAllPackagesPages(pc, namespace, repository, query)
+	mostRecent := d.Get("most_recent").(bool)
+	var pageCount, pageSize int64 = -1, -1
+	if mostRecent {
+		pageCount = 1
+		pageSize = 1
+	}
+	packagesList, err := retrievePackagesPages(pc, namespace, repository, query, pageSize, pageCount)
 	if err != nil {
 		return err
 	}
@@ -126,7 +156,11 @@ func dataSourcePackages() *schema.Resource {
 				},
 				Optional: true,
 			},
-
+			"most_recent": &schema.Schema{
+				Type:        schema.TypeBool,
+				Description: "Only return the most recent package",
+				Optional:    true,
+			},
 			"packages": &schema.Schema{
 				Type:     schema.TypeList,
 				Computed: true,
