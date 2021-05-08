@@ -3,6 +3,7 @@ package cloudsmith
 import (
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/antihax/optional"
@@ -35,12 +36,21 @@ func retrieveAllPackagesPages(pc *providerConfig, namespace string, repository s
 	return packagesList, nil
 }
 
+func buildQueryString(set *schema.Set) string {
+	var query strings.Builder
+	for _, v := range set.List() {
+		query.WriteString(v.(string))
+		query.WriteString(" ")
+	}
+	return query.String()
+}
+
 func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := d.Get("namespace").(string)
 	repository := d.Get("repository").(string)
-	query := ""
+	query := buildQueryString(d.Get("filter").(*schema.Set))
 
 	packagesList, err := retrieveAllPackagesPages(pc, namespace, repository, query)
 	if err != nil {
@@ -99,6 +109,14 @@ func dataSourcePackages() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
+			"filter": &schema.Schema{
+				Type: schema.TypeSet,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Optional: true,
+			},
+
 			"packages": &schema.Schema{
 				Type:     schema.TypeList,
 				Computed: true,
