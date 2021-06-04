@@ -28,9 +28,9 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"cloudsmith_namespace":  dataSourceNamespace(),
-			"cloudsmith_packages":   dataSourcePackages(),
-			"cloudsmith_repository": dataSourceRepository(),
+			"cloudsmith_namespace":    dataSourceNamespace(),
+			"cloudsmith_package_list": dataSourcePackageList(),
+			"cloudsmith_repository":   dataSourceRepository(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement": resourceEntitlement(),
