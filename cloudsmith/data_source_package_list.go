@@ -13,7 +13,7 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
-func retrievePackagesPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
+func retrievePackageListPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
 	optional := cloudsmith.PackagesListOpts{Page: optional.NewInt64(pageCount), PageSize: optional.NewInt64(pageSize), Query: optional.NewString(query)}
 	packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
 	if err != nil {
@@ -26,7 +26,7 @@ func retrievePackagesPage(pc *providerConfig, namespace string, repository strin
 	return packagesPage, pageTotal, nil
 }
 
-func retrievePackagesPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, error) {
+func retrievePackageListPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, error) {
 
 	var pageCurrentCount int64 = 1
 
@@ -41,7 +41,7 @@ func retrievePackagesPages(pc *providerConfig, namespace string, repository stri
 	if pageCount == -1 || pageCount == 0 {
 		var packagesPage []cloudsmith.Package
 		var err error
-		packagesPage, pageCount, err = retrievePackagesPage(pc, namespace, repository, query, pageSize, 1)
+		packagesPage, pageCount, err = retrievePackageListPage(pc, namespace, repository, query, pageSize, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -50,7 +50,7 @@ func retrievePackagesPages(pc *providerConfig, namespace string, repository stri
 	}
 
 	for pageCurrentCount <= pageCount {
-		packagesPage, _, err := retrievePackagesPage(pc, namespace, repository, query, pageSize, pageCount)
+		packagesPage, _, err := retrievePackageListPage(pc, namespace, repository, query, pageSize, pageCount)
 		if err != nil {
 			return nil, err
 		}
@@ -61,33 +61,28 @@ func retrievePackagesPages(pc *providerConfig, namespace string, repository stri
 	return packagesList, nil
 }
 
-func buildQueryString(set *schema.Set, packageGroup string) string {
+func buildQueryString(set *schema.Set) string {
 	var query strings.Builder
 	for _, v := range set.List() {
 		query.WriteString(v.(string))
 		query.WriteString(" ")
 	}
-	if packageGroup != "" {
-		query.WriteString("name:^")
-		query.WriteString(packageGroup)
-		query.WriteString("$")
-	}
 	return query.String()
 }
 
-func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
+func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := d.Get("namespace").(string)
 	repository := d.Get("repository").(string)
-	query := buildQueryString(d.Get("filters").(*schema.Set), d.Get("package_group").(string))
+	query := buildQueryString(d.Get("filters").(*schema.Set))
 	mostRecent := d.Get("most_recent").(bool)
 	var pageCount, pageSize int64 = -1, -1
 	if mostRecent {
 		pageCount = 1
 		pageSize = 1
 	}
-	packagesList, err := retrievePackagesPages(pc, namespace, repository, query, pageSize, pageCount)
+	packagesList, err := retrievePackageListPages(pc, namespace, repository, query, pageSize, pageCount)
 	if err != nil {
 		return err
 	}
@@ -103,7 +98,7 @@ func dataSourcePackagesRead(d *schema.ResourceData, m interface{}) error {
 
 func flattenPackages(packages *[]cloudsmith.Package) []interface{} {
 	if packages != nil {
-		pkgs := make([]interface{}, len(*packages), len(*packages))
+		pkgs := make([]interface{}, len(*packages))
 		for i, packageItem := range *packages {
 			log.Printf("[DEBUG] package: %s", packageItem.Name)
 			pkg := make(map[string]interface{})
@@ -127,41 +122,36 @@ func flattenPackages(packages *[]cloudsmith.Package) []interface{} {
 	return make([]interface{}, 0)
 }
 
-func dataSourcePackages() *schema.Resource {
+func dataSourcePackageList() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourcePackagesRead,
+		Read: dataSourcePackageListRead,
 
 		Schema: map[string]*schema.Schema{
 			"repository": {
 				Type:         schema.TypeString,
-				Description:  "The repository of the package",
+				Description:  "The repository to which the packages belong.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
-				Description:  "The namespace of the package",
+				Description:  "The namespace to which the packages belong.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
-			"package_group": {
-				Type:        schema.TypeString,
-				Description: "The namespace of the package",
-				Optional:    true,
-			},
-			"filters": &schema.Schema{
+			"filters": {
 				Type: schema.TypeSet,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
 				Optional: true,
 			},
-			"most_recent": &schema.Schema{
+			"most_recent": {
 				Type:        schema.TypeBool,
 				Description: "Only return the most recent package",
 				Optional:    true,
 			},
-			"packages": &schema.Schema{
+			"packages": {
 				Type:     schema.TypeList,
 				Computed: true,
 				Elem: &schema.Resource{

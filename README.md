@@ -74,15 +74,14 @@ data "cloudsmith_namespace" "my_namespace" {
 }
 
 data "cloudsmith_repository" "my_repository" {
-  namespace = data.cloudsmith_namespace.my_namespace.slug
-  name      = "My Repository"
+  namespace  = data.cloudsmith_namespace.my_namespace.slug
+  identifier = "my-repository"
 }
 
-data "cloudsmith_packages" "my_packages" {
+data "cloudsmith_package_list" "my_packages" {
   namespace     = data.cloudsmith_repository.my_repository.namespace
-  repository    = data.cloudsmith_repository.my_repository.slug
-  package_group = "my-package"
-  filters       = ["format:docker"]
+  repository    = data.cloudsmith_repository.my_repository.slug_perm
+  filters       = ["format:docker", "name:^my-package"]
 }
 
 output "packages" {

@@ -10,7 +10,7 @@ import (
 func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 	namespace := d.Get("namespace").(string)
-	name := d.Get("name").(string)
+	name := d.Get("identifier").(string)
 
 	repository, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, name)
 	if err != nil {
@@ -59,9 +59,14 @@ func dataSourceRepository() *schema.Resource {
 				Computed: true,
 			},
 			"description": {
+				Type:        schema.TypeString,
+				Description: "A description of the repository's purpose/contents.",
+				Computed:    true,
+			},
+			"identifier": {
 				Type:         schema.TypeString,
-				Description:  "A description of the repository's purpose/contents.",
-				Optional:     true,
+				Description:  "The identifier for this repository.",
+				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"index_files": {
@@ -69,14 +74,7 @@ func dataSourceRepository() *schema.Resource {
 				Description: "If checked, files contained in packages will be indexed, which increase the " +
 					"synchronisation time required for packages. Note that it is recommended you keep this " +
 					"enabled unless the synchronisation time is significantly impacted.",
-				Optional: true,
 				Computed: true,
-			},
-			"name": {
-				Type:         schema.TypeString,
-				Description:  "A descriptive name for the repository.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
@@ -94,9 +92,7 @@ func dataSourceRepository() *schema.Resource {
 				Description: "The repository type changes how it is accessed and billed. Private repositories " +
 					"can only be used on paid plans, but are visible only to you or authorised delegates. Public " +
 					"repositories are free to use on all plans and visible to all Cloudsmith users.",
-				Optional:     true,
-				Default:      "Private",
-				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
+				Computed: true,
 			},
 			"self_html_url": {
 				Type:        schema.TypeString,
@@ -109,11 +105,9 @@ func dataSourceRepository() *schema.Resource {
 				Computed:    true,
 			},
 			"slug": {
-				Type:         schema.TypeString,
-				Description:  "The slug identifies the repository in URIs.",
-				Optional:     true,
-				Computed:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "The slug identifies the repository in URIs.",
+				Computed:    true,
 			},
 			"slug_perm": {
 				Type: schema.TypeString,
@@ -122,12 +116,9 @@ func dataSourceRepository() *schema.Resource {
 				Computed: true,
 			},
 			"storage_region": {
-				Type:         schema.TypeString,
-				Description:  "The Cloudsmith region in which package files are stored.",
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "The Cloudsmith region in which package files are stored.",
+				Computed:    true,
 			},
 		},
 	}
