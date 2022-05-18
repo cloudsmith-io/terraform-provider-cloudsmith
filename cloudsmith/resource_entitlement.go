@@ -235,6 +235,7 @@ func resourceEntitlement() *schema.Resource {
 				Description:  "The literal value of the token to be created.",
 				Optional:     true,
 				Computed:     true,
+				Sensitive:    true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 		},
