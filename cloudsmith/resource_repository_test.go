@@ -52,7 +52,8 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 
 		pc := testAccProvider.Meta().(*providerConfig)
 
-		_, resp, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
 			if err.Error() == errMessage404 {
 				return nil
@@ -80,7 +81,8 @@ func testAccRepositoryCheckExists(resourceName string) resource.TestCheckFunc {
 
 		pc := testAccProvider.Meta().(*providerConfig)
 
-		_, resp, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
 			return err
 		}

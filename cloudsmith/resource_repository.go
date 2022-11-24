@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/antihax/optional"
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
@@ -18,46 +17,27 @@ var (
 	repositoryDeletionCheckInterval = time.Second * 10
 )
 
-func getIndexFilesFromResource(d *schema.ResourceData) *bool {
-	var indexFilesPtr *bool
-
-	indexFiles, exists := d.GetOkExists("index_files") //nolint:staticcheck
-	if exists {
-		indexFilesBool := indexFiles.(bool)
-		indexFilesPtr = &indexFilesBool
-	}
-
-	return indexFilesPtr
-}
-
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	description := d.Get("description").(string)
-	indexFiles := getIndexFilesFromResource(d)
-	name := d.Get("name").(string)
-	namespace := d.Get("namespace").(string)
-	repositoryType := d.Get("repository_type").(string)
-	slug := d.Get("slug").(string)
-	storageRegion := d.Get("storage_region").(string)
+	namespace := requiredString(d, "namespace")
 
-	opts := &cloudsmith.ReposCreateOpts{
-		Data: optional.NewInterface(cloudsmith.ReposCreate{
-			Description:       description,
-			IndexFiles:        indexFiles,
-			Name:              name,
-			RepositoryTypeStr: repositoryType,
-			Slug:              slug,
-			StorageRegion:     storageRegion,
-		}),
-	}
+	req := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace)
+	req = req.Data(cloudsmith.ReposCreate{
+		Description:       optionalString(d, "description"),
+		IndexFiles:        optionalBool(d, "index_files"),
+		Name:              requiredString(d, "name"),
+		RepositoryTypeStr: optionalString(d, "repository_type"),
+		Slug:              optionalString(d, "slug"),
+		StorageRegion:     optionalString(d, "storage_region"),
+	})
 
-	repository, _, err := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace, opts)
+	repository, _, err := pc.APIClient.ReposApi.ReposCreateExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.SetId(repository.SlugPerm)
+	d.SetId(repository.GetSlugPerm())
 
 	return resourceRepositoryRead(d, m)
 }
@@ -65,9 +45,10 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
+	namespace := requiredString(d, "namespace")
 
-	repository, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+	req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+	repository, _, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 	if err != nil {
 		if err.Error() == errMessage404 {
 			d.SetId("")
@@ -77,19 +58,19 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	d.Set("cdn_url", repository.CdnUrl)
-	d.Set("created_at", repository.CreatedAt)
-	d.Set("deleted_at", repository.DeletedAt)
-	d.Set("description", repository.Description)
-	d.Set("index_files", repository.IndexFiles)
-	d.Set("name", repository.Name)
-	d.Set("namespace_url", repository.NamespaceUrl)
-	d.Set("repository_type", repository.RepositoryTypeStr)
-	d.Set("self_html_url", repository.SelfHtmlUrl)
-	d.Set("self_url", repository.SelfUrl)
-	d.Set("slug", repository.Slug)
-	d.Set("slug_perm", repository.SlugPerm)
-	d.Set("storage_region", repository.StorageRegion)
+	d.Set("cdn_url", repository.GetCdnUrl())
+	d.Set("created_at", repository.GetCreatedAt())
+	d.Set("deleted_at", repository.GetDeletedAt())
+	d.Set("description", repository.GetDescription())
+	d.Set("index_files", repository.GetIndexFiles())
+	d.Set("name", repository.GetName())
+	d.Set("namespace_url", repository.GetNamespaceUrl())
+	d.Set("repository_type", repository.GetRepositoryTypeStr())
+	d.Set("self_html_url", repository.GetSelfHtmlUrl())
+	d.Set("self_url", repository.GetSelfUrl())
+	d.Set("slug", repository.GetSlug())
+	d.Set("slug_perm", repository.GetSlugPerm())
+	d.Set("storage_region", repository.GetStorageRegion())
 
 	// namespace returned from the API is always the user-facing slug, but the
 	// resource may have been created in terraform with the slug_perm instead,
@@ -104,29 +85,22 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	description := d.Get("description").(string)
-	indexFiles := getIndexFilesFromResource(d)
-	name := d.Get("name").(string)
-	namespace := d.Get("namespace").(string)
-	repositoryType := d.Get("repository_type").(string)
-	slug := d.Get("slug").(string)
+	namespace := requiredString(d, "namespace")
 
-	opts := &cloudsmith.ReposPartialUpdateOpts{
-		Data: optional.NewInterface(cloudsmith.ReposPartialUpdate{
-			Description:       description,
-			IndexFiles:        indexFiles,
-			Name:              name,
-			RepositoryTypeStr: repositoryType,
-			Slug:              slug,
-		}),
-	}
-
-	repository, _, err := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id(), opts)
+	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
+	req = req.Data(cloudsmith.ReposPartialUpdate{
+		Description:       optionalString(d, "description"),
+		IndexFiles:        optionalBool(d, "index_files"),
+		Name:              optionalString(d, "name"),
+		RepositoryTypeStr: optionalString(d, "repository_type"),
+		Slug:              optionalString(d, "slug"),
+	})
+	repository, _, err := pc.APIClient.ReposApi.ReposPartialUpdateExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.SetId(repository.SlugPerm)
+	d.SetId(repository.GetSlugPerm())
 
 	return resourceRepositoryRead(d, m)
 }
@@ -134,14 +108,15 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
+	namespace := requiredString(d, "namespace")
 
-	_, err := pc.APIClient.ReposApi.ReposDelete(pc.Auth, namespace, d.Id())
+	req := pc.APIClient.ReposApi.ReposDelete(pc.Auth, namespace, d.Id())
+	_, err := pc.APIClient.ReposApi.ReposDeleteExecute(req)
 	if err != nil {
 		return err
 	}
 
-	if d.Get("wait_for_deletion").(bool) {
+	if requiredBool(d, "wait_for_deletion") {
 		if err := resourceRepositoryWaitUntilDeleted(d, m); err != nil {
 			return fmt.Errorf("error waiting for repository (%s) to be deleted: %w", d.Id(), err)
 		}
@@ -153,10 +128,11 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 func resourceRepositoryWaitUntilDeleted(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
+	namespace := requiredString(d, "namespace")
 
 	for start := time.Now(); time.Since(start) < repositoryDeletionTimeout; {
-		_, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+		_, _, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
 			if err.Error() == errMessage404 {
 				return nil

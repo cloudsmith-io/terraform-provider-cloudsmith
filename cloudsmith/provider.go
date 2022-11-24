@@ -24,7 +24,7 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Description: "The API host to connect to (mostly useful for testing).",
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_HOST", "https://api.cloudsmith.io"),
+				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_HOST", "https://api.cloudsmith.io/v1"),
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
@@ -46,8 +46,8 @@ func Provider() terraform.ResourceProvider {
 			terraformVersion = "0.11+compatible"
 		}
 
-		apiHost := d.Get("api_host").(string)
-		apiKey := d.Get("api_key").(string)
+		apiHost := requiredString(d, "api_host")
+		apiKey := requiredString(d, "api_key")
 		userAgent := fmt.Sprintf("(%s %s) Terraform/%s", runtime.GOOS, runtime.GOARCH, terraformVersion)
 
 		return newProviderConfig(apiHost, apiKey, userAgent)
