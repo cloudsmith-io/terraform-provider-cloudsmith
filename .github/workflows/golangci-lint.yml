@@ -21,4 +21,4 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.50.1
-          args: --timeout=5m
+          args: --timeout=5m --exclude "Error return value of .(d.Set). is not checked"
