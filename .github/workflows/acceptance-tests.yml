@@ -4,13 +4,14 @@ on:
   push:
     branches:
     - "*"
-
-concurrency: global
+  pull_request:
 
 jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
+    concurrency:
+      group: global
     timeout-minutes: 60
     steps:
     - name: Install Go 1.19
