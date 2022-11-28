@@ -16,6 +16,8 @@ import (
 // variables, and verifies they've been set correctly before tearing down the
 // resources and verifying deletion.
 func TestAccEntitlement_basic(t *testing.T) {
+	t.Parallel()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,

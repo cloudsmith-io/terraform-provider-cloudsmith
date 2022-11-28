@@ -1,20 +1,13 @@
 package cloudsmith
 
 import (
-	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-)
-
-var (
-	errMessage404                   = "404 Not Found"
-	errRepositoryDeleteTimedOut     = errors.New("timed out")
-	repositoryDeletionTimeout       = time.Minute * 20
-	repositoryDeletionCheckInterval = time.Second * 10
 )
 
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
@@ -38,6 +31,20 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.SetId(repository.GetSlugPerm())
+
+	checkerFunc := func() error {
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+		if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
+			if resp.StatusCode == http.StatusNotFound {
+				return errKeepWaiting
+			}
+			return err
+		}
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
+		return fmt.Errorf("error waiting for repository (%s) to be created: %w", d.Id(), err)
+	}
 
 	return resourceRepositoryRead(d, m)
 }
@@ -102,6 +109,16 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(repository.GetSlugPerm())
 
+	checkerFunc := func() error {
+		// this is somewhat of a hack until we have a better way to poll for an
+		// repository being updated (changes incoming on the API side)
+		time.Sleep(time.Second * 5)
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for repository (%s) to be updated: %w", d.Id(), err)
+	}
+
 	return resourceRepositoryRead(d, m)
 }
 
@@ -117,34 +134,22 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	}
 
 	if requiredBool(d, "wait_for_deletion") {
-		if err := resourceRepositoryWaitUntilDeleted(d, m); err != nil {
+		checkerFunc := func() error {
+			req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+			if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
+				if resp.StatusCode == http.StatusNotFound {
+					return nil
+				}
+				return err
+			}
+			return errKeepWaiting
+		}
+		if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
 			return fmt.Errorf("error waiting for repository (%s) to be deleted: %w", d.Id(), err)
 		}
 	}
 
 	return nil
-}
-
-func resourceRepositoryWaitUntilDeleted(d *schema.ResourceData, m interface{}) error {
-	pc := m.(*providerConfig)
-
-	namespace := requiredString(d, "namespace")
-
-	for start := time.Now(); time.Since(start) < repositoryDeletionTimeout; {
-		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
-		_, _, err := pc.APIClient.ReposApi.ReposReadExecute(req)
-		if err != nil {
-			if err.Error() == errMessage404 {
-				return nil
-			}
-
-			return err
-		}
-
-		time.Sleep(repositoryDeletionCheckInterval)
-	}
-
-	return errRepositoryDeleteTimedOut
 }
 
 //nolint:funlen

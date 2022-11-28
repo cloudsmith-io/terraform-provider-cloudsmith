@@ -15,6 +15,8 @@ import (
 // name, and verifies it's been set correctly before tearing down the resource
 // and verifying deletion.
 func TestAccRepository_basic(t *testing.T) {
+	t.Parallel()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
