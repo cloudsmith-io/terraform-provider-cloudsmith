@@ -15,7 +15,7 @@ var (
 
 	defaultCreationTimeout  = time.Minute * 1
 	defaultCreationInterval = time.Second * 2
-	defaultDeletionTimeout  = time.Minute * 10
+	defaultDeletionTimeout  = time.Minute * 20
 	defaultDeletionInterval = time.Second * 10
 	defaultUpdateTimeout    = time.Minute * 1
 	defaultUpdateInterval   = time.Second * 2
