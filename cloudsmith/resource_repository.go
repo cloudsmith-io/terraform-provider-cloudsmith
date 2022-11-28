@@ -110,7 +110,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	d.SetId(repository.GetSlugPerm())
 
 	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for an
+		// this is somewhat of a hack until we have a better way to poll for a
 		// repository being updated (changes incoming on the API side)
 		time.Sleep(time.Second * 5)
 		return nil
