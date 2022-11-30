@@ -1,60 +1,55 @@
 package cloudsmith
 
 import (
-	"github.com/antihax/optional"
+	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
-func getIsActiveFromResource(d *schema.ResourceData) *bool {
-	var isActivePtr *bool
-
-	isActive, exists := d.GetOkExists("is_active") //nolint:staticcheck
-	if exists {
-		isActiveBool := isActive.(bool)
-		isActivePtr = &isActiveBool
-	}
-
-	return isActivePtr
-}
-
 func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	isActive := getIsActiveFromResource(d)
-	limitDateRangeFrom := d.Get("limit_date_range_from").(string)
-	limitDateRangeTo := d.Get("limit_date_range_to").(string)
-	limitNumClients := int64(d.Get("limit_num_clients").(int))
-	limitNumDownloads := int64(d.Get("limit_num_downloads").(int))
-	limitPackageQuery := d.Get("limit_package_query").(string)
-	limitPathQuery := d.Get("limit_path_query").(string)
-	namespace := d.Get("namespace").(string)
-	repository := d.Get("repository").(string)
-	name := d.Get("name").(string)
-	token := d.Get("token").(string)
+	namespace := requiredString(d, "namespace")
+	repository := requiredString(d, "repository")
 
-	opts := &cloudsmith.EntitlementsCreateOpts{
-		Data: optional.NewInterface(cloudsmith.EntitlementsCreate{
-			IsActive:           isActive,
-			LimitDateRangeFrom: limitDateRangeFrom,
-			LimitDateRangeTo:   limitDateRangeTo,
-			LimitNumClients:    limitNumClients,
-			LimitNumDownloads:  limitNumDownloads,
-			LimitPackageQuery:  limitPackageQuery,
-			LimitPathQuery:     limitPathQuery,
-			Name:               name,
-			Token:              token,
-		}),
-		ShowTokens: optional.NewBool(true),
-	}
+	req := pc.APIClient.EntitlementsApi.EntitlementsCreate(pc.Auth, namespace, repository)
+	req = req.Data(cloudsmith.EntitlementsCreate{
+		IsActive:           optionalBool(d, "is_active"),
+		LimitDateRangeFrom: optionalString(d, "limit_date_range_from"),
+		LimitDateRangeTo:   optionalString(d, "limit_date_range_to"),
+		LimitNumClients:    optionalInt64(d, "limit_num_clients"),
+		LimitNumDownloads:  optionalInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:  optionalString(d, "limit_package_query"),
+		LimitPathQuery:     optionalString(d, "limitPathQuery"),
+		Name:               requiredString(d, "name"),
+		Token:              optionalString(d, "token"),
+	})
+	req = req.ShowTokens(true)
 
-	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsCreate(pc.Auth, namespace, repository, opts)
+	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsCreateExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.SetId(entitlement.SlugPerm)
+	d.SetId(entitlement.GetSlugPerm())
+
+	checkerFunc := func() error {
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id())
+		if _, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req); err != nil {
+			if resp.StatusCode == http.StatusNotFound {
+				return errKeepWaiting
+			}
+			return err
+		}
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
+		return fmt.Errorf("error waiting for entitlement (%s) to be created: %w", d.Id(), err)
+	}
 
 	return resourceEntitlementRead(d, m)
 }
@@ -62,14 +57,13 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
-	repository := d.Get("repository").(string)
+	namespace := requiredString(d, "namespace")
+	repository := requiredString(d, "repository")
 
-	opts := &cloudsmith.EntitlementsReadOpts{
-		ShowTokens: optional.NewBool(true),
-	}
+	req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id())
+	req = req.ShowTokens(true)
 
-	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id(), opts)
+	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
 	if err != nil {
 		if err.Error() == errMessage404 {
 			d.SetId("")
@@ -79,15 +73,15 @@ func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	d.Set("is_active", entitlement.IsActive)
-	d.Set("limit_date_range_from", entitlement.LimitDateRangeFrom)
-	d.Set("limit_date_range_to", entitlement.LimitDateRangeTo)
-	d.Set("limit_num_clients", entitlement.LimitNumClients)
-	d.Set("limit_num_downloads", entitlement.LimitNumDownloads)
-	d.Set("limit_package_query", entitlement.LimitPackageQuery)
-	d.Set("limit_path_query", entitlement.LimitPathQuery)
-	d.Set("name", entitlement.Name)
-	d.Set("token", entitlement.Token)
+	d.Set("is_active", entitlement.GetIsActive())
+	d.Set("limit_date_range_from", entitlement.GetLimitDateRangeFrom())
+	d.Set("limit_date_range_to", entitlement.GetLimitDateRangeTo())
+	d.Set("limit_num_clients", entitlement.GetLimitNumClients())
+	d.Set("limit_num_downloads", entitlement.GetLimitNumDownloads())
+	d.Set("limit_package_query", entitlement.GetLimitPackageQuery())
+	d.Set("limit_path_query", entitlement.GetLimitPathQuery())
+	d.Set("name", entitlement.GetName())
+	d.Set("token", entitlement.GetToken())
 
 	// namespace and repository are not returned from the entitlement read
 	// endpoint, so we can use the values stored in resource state. We rely on
@@ -101,39 +95,39 @@ func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	isActive := getIsActiveFromResource(d)
-	limitDateRangeFrom := d.Get("limit_date_range_from").(string)
-	limitDateRangeTo := d.Get("limit_date_range_to").(string)
-	limitNumClients := int64(d.Get("limit_num_clients").(int))
-	limitNumDownloads := int64(d.Get("limit_num_downloads").(int))
-	limitPackageQuery := d.Get("limit_package_query").(string)
-	limitPathQuery := d.Get("limit_path_query").(string)
-	namespace := d.Get("namespace").(string)
-	repository := d.Get("repository").(string)
-	name := d.Get("name").(string)
-	token := d.Get("token").(string)
+	namespace := requiredString(d, "namespace")
+	repository := requiredString(d, "repository")
 
-	opts := &cloudsmith.EntitlementsPartialUpdateOpts{
-		Data: optional.NewInterface(cloudsmith.EntitlementsPartialUpdate{
-			IsActive:           isActive,
-			LimitDateRangeFrom: limitDateRangeFrom,
-			LimitDateRangeTo:   limitDateRangeTo,
-			LimitNumClients:    limitNumClients,
-			LimitNumDownloads:  limitNumDownloads,
-			LimitPackageQuery:  limitPackageQuery,
-			LimitPathQuery:     limitPathQuery,
-			Name:               name,
-			Token:              token,
-		}),
-		ShowTokens: optional.NewBool(true),
-	}
+	req := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdate(pc.Auth, namespace, repository, d.Id())
+	req = req.Data(cloudsmith.EntitlementsPartialUpdate{
+		IsActive:           optionalBool(d, "is_active"),
+		LimitDateRangeFrom: optionalString(d, "limit_date_range_from"),
+		LimitDateRangeTo:   optionalString(d, "limit_date_range_to"),
+		LimitNumClients:    optionalInt64(d, "limit_num_clients"),
+		LimitNumDownloads:  optionalInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:  optionalString(d, "limit_package_query"),
+		LimitPathQuery:     optionalString(d, "limit_path_query"),
+		Name:               optionalString(d, "name"),
+		Token:              optionalString(d, "token"),
+	})
+	req = req.ShowTokens(true)
 
-	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdate(pc.Auth, namespace, repository, d.Id(), opts)
+	entitlement, _, err := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdateExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.SetId(entitlement.SlugPerm)
+	d.SetId(entitlement.GetSlugPerm())
+
+	checkerFunc := func() error {
+		// this is somewhat of a hack until we have a better way to poll for an
+		// entitlement being updated (changes incoming on the API side)
+		time.Sleep(time.Second * 5)
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for entitlement (%s) to be updated: %w", d.Id(), err)
+	}
 
 	return resourceEntitlementRead(d, m)
 }
@@ -141,12 +135,27 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 func resourceEntitlementDelete(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
-	repository := d.Get("repository").(string)
+	namespace := requiredString(d, "namespace")
+	repository := requiredString(d, "repository")
 
-	_, err := pc.APIClient.EntitlementsApi.EntitlementsDelete(pc.Auth, namespace, repository, d.Id())
+	req := pc.APIClient.EntitlementsApi.EntitlementsDelete(pc.Auth, namespace, repository, d.Id())
+	_, err := pc.APIClient.EntitlementsApi.EntitlementsDeleteExecute(req)
 	if err != nil {
 		return err
+	}
+
+	checkerFunc := func() error {
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id())
+		if _, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req); err != nil {
+			if resp.StatusCode == http.StatusNotFound {
+				return nil
+			}
+			return err
+		}
+		return errKeepWaiting
+	}
+	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
+		return fmt.Errorf("error waiting for entitlement (%s) to be deleted: %w", d.Id(), err)
 	}
 
 	return nil

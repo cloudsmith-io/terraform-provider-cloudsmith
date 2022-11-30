@@ -9,31 +9,31 @@ import (
 
 func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
-	namespace := d.Get("namespace").(string)
-	name := d.Get("identifier").(string)
+	namespace := requiredString(d, "namespace")
+	name := requiredString(d, "identifier")
 
-	repository, _, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, name)
+	req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, name)
+	repository, _, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.Set("cdn_url", repository.CdnUrl)
-	d.Set("created_at", repository.CreatedAt)
-	d.Set("deleted_at", repository.DeletedAt)
-	d.Set("description", repository.Description)
-	d.Set("index_files", repository.IndexFiles)
-	d.Set("namespace_url", repository.NamespaceUrl)
-	d.Set("repository_type", repository.RepositoryTypeStr)
-	d.Set("self_html_url", repository.SelfHtmlUrl)
-	d.Set("self_url", repository.SelfUrl)
-	d.Set("slug", repository.Slug)
-	d.Set("slug_perm", repository.SlugPerm)
-	d.Set("storage_region", repository.StorageRegion)
+	d.Set("cdn_url", repository.GetCdnUrl())
+	d.Set("created_at", repository.GetCreatedAt())
+	d.Set("deleted_at", repository.GetDeletedAt())
+	d.Set("description", repository.GetDescription())
+	d.Set("index_files", repository.GetIndexFiles())
+	d.Set("namespace_url", repository.GetNamespaceUrl())
+	d.Set("repository_type", repository.GetRepositoryTypeStr())
+	d.Set("self_html_url", repository.GetSelfHtmlUrl())
+	d.Set("self_url", repository.GetSelfUrl())
+	d.Set("slug", repository.GetSlug())
+	d.Set("slug_perm", repository.GetSlugPerm())
+	d.Set("storage_region", repository.GetStorageRegion())
 
 	d.SetId(fmt.Sprintf("%s_%s", namespace, name))
 
 	return nil
-
 }
 
 //nolint:funlen

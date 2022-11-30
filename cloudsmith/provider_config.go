@@ -28,16 +28,21 @@ func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, erro
 	httpClient.Transport = logging.NewTransport("Cloudsmith", http.DefaultTransport)
 
 	config := cloudsmith.NewConfiguration()
-	config.BasePath = apiHost
 	config.Debug = logging.IsDebugOrHigher()
 	config.HTTPClient = httpClient
+	config.Servers = cloudsmith.ServerConfigurations{
+		{URL: apiHost},
+	}
 	config.UserAgent = userAgent
 
 	apiClient := cloudsmith.NewAPIClient(config)
+
 	auth := context.WithValue(
 		context.Background(),
-		cloudsmith.ContextAPIKey,
-		cloudsmith.APIKey{Key: apiKey},
+		cloudsmith.ContextAPIKeys,
+		map[string]cloudsmith.APIKey{
+			"apikey": {Key: apiKey},
+		},
 	)
 
 	return &providerConfig{Auth: auth, APIClient: apiClient}, nil

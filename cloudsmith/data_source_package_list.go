@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/antihax/optional"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
@@ -14,8 +13,12 @@ import (
 )
 
 func retrievePackageListPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
-	optional := cloudsmith.PackagesListOpts{Page: optional.NewInt64(pageCount), PageSize: optional.NewInt64(pageSize), Query: optional.NewString(query)}
-	packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository, &optional)
+	req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository)
+	req = req.Page(pageCount)
+	req = req.PageSize(pageSize)
+	req = req.Query(query)
+
+	packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesListExecute(req)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -73,10 +76,11 @@ func buildQueryString(set *schema.Set) string {
 func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
-	repository := d.Get("repository").(string)
+	namespace := requiredString(d, "namespace")
+	repository := requiredString(d, "repository")
 	query := buildQueryString(d.Get("filters").(*schema.Set))
-	mostRecent := d.Get("most_recent").(bool)
+	mostRecent := requiredBool(d, "most_recent")
+
 	var pageCount, pageSize int64 = -1, -1
 	if mostRecent {
 		pageCount = 1
@@ -86,7 +90,7 @@ func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		return err
 	}
-	packages := flattenPackages(&packagesList)
+	packages := flattenPackages(packagesList)
 	if err := d.Set("packages", packages); err != nil {
 		return err
 	}
@@ -96,30 +100,27 @@ func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func flattenPackages(packages *[]cloudsmith.Package) []interface{} {
-	if packages != nil {
-		pkgs := make([]interface{}, len(*packages))
-		for i, packageItem := range *packages {
-			log.Printf("[DEBUG] package: %s", packageItem.Name)
-			pkg := make(map[string]interface{})
-			pkg["repository"] = packageItem.Repository
-			pkg["namespace"] = packageItem.Namespace
-			pkg["name"] = packageItem.Name
-			pkg["slug"] = packageItem.Slug
-			pkg["slug_perm"] = packageItem.SlugPerm
-			pkg["format"] = packageItem.Format
-			pkg["version"] = packageItem.Version
-			pkg["is_sync_awaiting"] = packageItem.IsSyncAwaiting
-			pkg["is_sync_completed"] = packageItem.IsSyncCompleted
-			pkg["is_sync_failed"] = packageItem.IsSyncFailed
-			pkg["is_sync_in_progress"] = packageItem.IsSyncInProgress
-			pkg["is_sync_in_flight"] = packageItem.IsSyncInFlight
-			pkgs[i] = pkg
-		}
-
-		return pkgs
+func flattenPackages(packages []cloudsmith.Package) []interface{} {
+	pkgs := make([]interface{}, len(packages))
+	for i, packageItem := range packages {
+		log.Printf("[DEBUG] package: %s", packageItem.GetName())
+		pkg := make(map[string]interface{})
+		pkg["repository"] = packageItem.GetRepository()
+		pkg["namespace"] = packageItem.GetNamespace()
+		pkg["name"] = packageItem.GetName()
+		pkg["slug"] = packageItem.GetSlug()
+		pkg["slug_perm"] = packageItem.GetSlugPerm()
+		pkg["format"] = packageItem.GetFormat()
+		pkg["version"] = packageItem.GetVersion()
+		pkg["is_sync_awaiting"] = packageItem.GetIsSyncAwaiting()
+		pkg["is_sync_completed"] = packageItem.GetIsSyncCompleted()
+		pkg["is_sync_failed"] = packageItem.GetIsSyncFailed()
+		pkg["is_sync_in_progress"] = packageItem.GetIsSyncInProgress()
+		pkg["is_sync_in_flight"] = packageItem.GetIsSyncInFlight()
+		pkgs[i] = pkg
 	}
-	return make([]interface{}, 0)
+
+	return pkgs
 }
 
 func dataSourcePackageList() *schema.Resource {

@@ -16,6 +16,8 @@ import (
 // variables, and verifies they've been set correctly before tearing down the
 // resources and verifying deletion.
 func TestAccEntitlement_basic(t *testing.T) {
+	t.Parallel()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -59,7 +61,8 @@ func testAccEntitlementCheckDestroy(resourceName string) resource.TestCheckFunc 
 		repository := resourceState.Primary.Attributes["repository"]
 		entitlement := resourceState.Primary.ID
 
-		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, entitlement, nil)
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, entitlement)
+		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
 		if err != nil {
 			if err.Error() != errMessage404 {
 				return fmt.Errorf("unable to verify entitlement deletion: %w", err)
@@ -67,7 +70,8 @@ func testAccEntitlementCheckDestroy(resourceName string) resource.TestCheckFunc 
 		}
 		defer resp.Body.Close()
 
-		_, resp, err = pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, repository)
+		rreq := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, repository)
+		_, resp, err = pc.APIClient.ReposApi.ReposReadExecute(rreq)
 		if err != nil {
 			if err.Error() != errMessage404 {
 				return fmt.Errorf("unable to verify repository deletion: %w", err)
@@ -97,7 +101,8 @@ func testAccEntitlementCheckExists(resourceName string) resource.TestCheckFunc {
 		repository := resourceState.Primary.Attributes["repository"]
 		entitlement := resourceState.Primary.ID
 
-		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, entitlement, nil)
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, entitlement)
+		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
 		if err != nil {
 			return fmt.Errorf("unable to verify entitlement existence: %w", err)
 		}

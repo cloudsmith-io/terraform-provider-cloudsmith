@@ -1,15 +1,15 @@
 module github.com/cloudsmith-io/terraform-provider-cloudsmith
 
-go 1.18
+go 1.19
 
 require (
-	github.com/antihax/optional v1.0.0
-	github.com/cloudsmith-io/cloudsmith-api-go v0.0.13
+	github.com/cloudsmith-io/cloudsmith-api-go v0.0.16
 	github.com/hashicorp/terraform-plugin-sdk v1.14.0
 )
 
 require (
-	cloud.google.com/go v0.45.1 // indirect
+	cloud.google.com/go v0.65.0 // indirect
+	cloud.google.com/go/storage v1.10.0 // indirect
 	github.com/agext/levenshtein v1.2.2 // indirect
 	github.com/apparentlymart/go-cidr v1.0.1 // indirect
 	github.com/apparentlymart/go-textseg v1.0.0 // indirect
@@ -19,8 +19,9 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
-	github.com/golang/protobuf v1.3.4 // indirect
-	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
+	github.com/golang/protobuf v1.4.2 // indirect
+	github.com/google/go-cmp v0.5.1 // indirect
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
@@ -32,7 +33,6 @@ require (
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
 	github.com/hashicorp/go-uuid v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.2.0 // indirect
-	github.com/hashicorp/golang-lru v0.5.1 // indirect
 	github.com/hashicorp/hcl v0.0.0-20170504190234-a4b07c25de5f // indirect
 	github.com/hashicorp/hcl/v2 v2.0.0 // indirect
 	github.com/hashicorp/logutils v1.0.0 // indirect
@@ -42,6 +42,7 @@ require (
 	github.com/hashicorp/terraform-svchost v0.0.0-20191011084731-65d371908596 // indirect
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af // indirect
+	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.5 // indirect
 	github.com/mitchellh/cli v1.0.0 // indirect
@@ -59,14 +60,19 @@ require (
 	github.com/vmihailenco/msgpack v4.0.1+incompatible // indirect
 	github.com/zclconf/go-cty v1.2.1 // indirect
 	github.com/zclconf/go-cty-yaml v1.0.1 // indirect
-	go.opencensus.io v0.22.0 // indirect
-	golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586 // indirect
-	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
-	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
-	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/api v0.9.0 // indirect
-	google.golang.org/appengine v1.6.1 // indirect
-	google.golang.org/genproto v0.0.0-20200310143817-43be25429f5a // indirect
-	google.golang.org/grpc v1.27.1 // indirect
+	go.opencensus.io v0.22.4 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/lint v0.0.0-20200302205851-738671d3881b // indirect
+	golang.org/x/mod v0.3.0 // indirect
+	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
+	golang.org/x/oauth2 v0.0.0-20210323180902-22b0adad7558 // indirect
+	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
+	golang.org/x/text v0.3.3 // indirect
+	golang.org/x/tools v0.0.0-20200825202427-b303f430e36d // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	google.golang.org/api v0.30.0 // indirect
+	google.golang.org/appengine v1.6.6 // indirect
+	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
+	google.golang.org/grpc v1.31.0 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
 )

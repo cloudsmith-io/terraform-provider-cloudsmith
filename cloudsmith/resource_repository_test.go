@@ -15,6 +15,8 @@ import (
 // name, and verifies it's been set correctly before tearing down the resource
 // and verifying deletion.
 func TestAccRepository_basic(t *testing.T) {
+	t.Parallel()
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -52,7 +54,8 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 
 		pc := testAccProvider.Meta().(*providerConfig)
 
-		_, resp, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
 			if err.Error() == errMessage404 {
 				return nil
@@ -80,7 +83,8 @@ func testAccRepositoryCheckExists(resourceName string) resource.TestCheckFunc {
 
 		pc := testAccProvider.Meta().(*providerConfig)
 
-		_, resp, err := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
 			return err
 		}

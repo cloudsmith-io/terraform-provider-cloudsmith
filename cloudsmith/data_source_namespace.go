@@ -8,18 +8,19 @@ import (
 func dataSourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	slug := d.Get("slug").(string)
+	slug := requiredString(d, "slug")
 
-	namespace, _, err := pc.APIClient.NamespacesApi.NamespacesRead(pc.Auth, slug)
+	req := pc.APIClient.NamespacesApi.NamespacesRead(pc.Auth, slug)
+	namespace, _, err := pc.APIClient.NamespacesApi.NamespacesReadExecute(req)
 	if err != nil {
 		return err
 	}
 
-	d.SetId(namespace.SlugPerm)
-	d.Set("name", namespace.Name)
-	d.Set("slug", namespace.Slug)
-	d.Set("slug_perm", namespace.SlugPerm)
-	d.Set("type_name", namespace.TypeName)
+	d.SetId(namespace.GetSlugPerm())
+	d.Set("name", namespace.GetName())
+	d.Set("slug", namespace.GetSlug())
+	d.Set("slug_perm", namespace.GetSlugPerm())
+	d.Set("type_name", namespace.GetTypeName())
 
 	return nil
 }
