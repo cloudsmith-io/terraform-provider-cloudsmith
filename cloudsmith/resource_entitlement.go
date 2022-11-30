@@ -106,7 +106,7 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 		LimitNumClients:    optionalInt64(d, "limit_num_clients"),
 		LimitNumDownloads:  optionalInt64(d, "limit_num_downloads"),
 		LimitPackageQuery:  optionalString(d, "limit_package_query"),
-		LimitPathQuery:     optionalString(d, "limitPathQuery"),
+		LimitPathQuery:     optionalString(d, "limit_path_query"),
 		Name:               optionalString(d, "name"),
 		Token:              optionalString(d, "token"),
 	})
