@@ -6,7 +6,8 @@ import (
 	"net/http"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/logging"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 )
 
 var errMissingCredentials = errors.New("credentials required for Cloudsmith provider")
@@ -19,9 +20,9 @@ type providerConfig struct {
 	APIClient *cloudsmith.APIClient
 }
 
-func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, error) {
+func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag.Diagnostics) {
 	if apiKey == "" {
-		return nil, errMissingCredentials
+		return nil, diag.FromErr(errMissingCredentials)
 	}
 
 	httpClient := http.DefaultClient
