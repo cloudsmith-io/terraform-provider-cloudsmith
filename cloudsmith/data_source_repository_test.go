@@ -30,7 +30,7 @@ func TestAccRepository_data(t *testing.T) {
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "contextual_auth_realm", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "docker_refresh_tokens_enabled", "false"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_own", "true"),
-					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_packages", "Write"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_packages", "Admin"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
 				),
 			},
