@@ -2,7 +2,6 @@ package cloudsmith
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -23,11 +22,11 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
 	d.Set("copy_own", repository.GetCopyOwn())
 	d.Set("copy_packages", repository.GetCopyPackages())
-	d.Set("created_at", repository.GetCreatedAt().Format(time.RFC3339))
+	d.Set("created_at", timeToString(repository.GetCreatedAt()))
 	d.Set("default_privilege", repository.GetDefaultPrivilege())
 	d.Set("delete_own", repository.GetDeleteOwn())
 	d.Set("delete_packages", repository.GetDeletePackages())
-	d.Set("deleted_at", repository.GetDeletedAt().Format(time.RFC3339))
+	d.Set("deleted_at", timeToString(repository.GetDeletedAt()))
 	d.Set("description", repository.GetDescription())
 	d.Set("docker_refresh_tokens_enabled", repository.GetDockerRefreshTokensEnabled())
 	d.Set("index_files", repository.GetIndexFiles())
