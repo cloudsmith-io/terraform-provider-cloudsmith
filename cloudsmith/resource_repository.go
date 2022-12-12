@@ -2,7 +2,6 @@ package cloudsmith
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -16,7 +15,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 
 	req := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace)
-	req = req.Data(cloudsmith.ReposCreate{
+	req = req.Data(cloudsmith.RepositoryCreateRequest{
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
@@ -63,7 +62,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	checkerFunc := func() error {
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
 		if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
-			if resp.StatusCode == http.StatusNotFound {
+			if is404(resp) {
 				return errKeepWaiting
 			}
 			return err
@@ -83,9 +82,9 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 
 	req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
-	repository, _, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+	repository, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 	if err != nil {
-		if err.Error() == errMessage404 {
+		if is404(resp) {
 			d.SetId("")
 			return nil
 		}
@@ -97,12 +96,12 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
 	d.Set("copy_own", repository.GetCopyOwn())
 	d.Set("copy_packages", repository.GetCopyPackages())
-	d.Set("created_at", repository.GetCreatedAt())
+	d.Set("created_at", repository.GetCreatedAt().Format(time.RFC3339))
 	d.Set("default_privilege", repository.GetDefaultPrivilege())
 	d.Set("delete_own", repository.GetDeleteOwn())
 	d.Set("delete_packages", repository.GetDeletePackages())
 	d.Set("docker_refresh_tokens_enabled", repository.GetDockerRefreshTokensEnabled())
-	d.Set("deleted_at", repository.GetDeletedAt())
+	d.Set("deleted_at", repository.GetDeletedAt().Format(time.RFC3339))
 	d.Set("description", repository.GetDescription())
 	d.Set("index_files", repository.GetIndexFiles())
 	d.Set("is_open_source", repository.GetIsOpenSource())
@@ -154,7 +153,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 
 	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
-	req = req.Data(cloudsmith.ReposPartialUpdate{
+	req = req.Data(cloudsmith.RepositoryRequestPatch{
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
@@ -224,7 +223,7 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 		checkerFunc := func() error {
 			req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
 			if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
-				if resp.StatusCode == http.StatusNotFound {
+				if is404(resp) {
 					return nil
 				}
 				return err

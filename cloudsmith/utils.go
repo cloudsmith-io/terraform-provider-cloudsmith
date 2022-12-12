@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -10,7 +11,6 @@ import (
 
 var (
 	errKeepWaiting = errors.New("keep waiting")
-	errMessage404  = "404 Not Found"
 	errTimedOut    = errors.New("timed out")
 
 	defaultCreationTimeout  = time.Minute * 1
@@ -20,6 +20,38 @@ var (
 	defaultUpdateTimeout    = time.Minute * 1
 	defaultUpdateInterval   = time.Second * 2
 )
+
+func is404(resp *http.Response) bool {
+	if resp == nil {
+		return false
+	}
+
+	return resp.StatusCode == http.StatusNotFound
+}
+
+func nullableInt64(d *schema.ResourceData, name string) cloudsmith.NullableInt64 {
+	i := optionalInt64(d, name)
+	return *cloudsmith.NewNullableInt64(i)
+}
+
+func nullableString(d *schema.ResourceData, name string) cloudsmith.NullableString {
+	s := optionalString(d, name)
+	return *cloudsmith.NewNullableString(s)
+}
+
+func nullableTime(d *schema.ResourceData, name string) cloudsmith.NullableTime {
+	s := optionalString(d, name)
+
+	if s == nil {
+		return *cloudsmith.NewNullableTime(nil)
+	}
+	t, err := time.Parse(time.RFC3339, *s)
+	if err != nil {
+		panic(err)
+	}
+
+	return *cloudsmith.NewNullableTime(&t)
+}
 
 // optionalBool retrieves an optional/nullable boolean from Terraform state
 func optionalBool(d *schema.ResourceData, name string) *bool {
@@ -62,6 +94,15 @@ func requiredBool(d *schema.ResourceData, name string) bool {
 // requiredString retrieves a string from Terraform state
 func requiredString(d *schema.ResourceData, name string) string {
 	return d.Get(name).(string)
+}
+
+// timeToString converts a time.Time object to a string
+func timeToString(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+
+	return t.Format(time.RFC3339)
 }
 
 // waitFunc should be implemented by callers that want to wait on a particular

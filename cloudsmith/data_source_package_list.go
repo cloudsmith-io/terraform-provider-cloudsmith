@@ -12,7 +12,7 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
-func retrievePackageListPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
+func retrievePackageListPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.PackageResponse, int64, error) {
 	req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository)
 	req = req.Page(pageCount)
 	req = req.PageSize(pageSize)
@@ -29,12 +29,12 @@ func retrievePackageListPage(pc *providerConfig, namespace string, repository st
 	return packagesPage, pageTotal, nil
 }
 
-func retrievePackageListPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, error) {
+func retrievePackageListPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.PackageResponse, error) {
 
 	var pageCurrentCount int64 = 1
 
 	// A negative or zero count is assumed to mean retrieve the largest size page
-	packagesList := []cloudsmith.Package{}
+	packagesList := []cloudsmith.PackageResponse{}
 	if pageSize == -1 || pageSize == 0 {
 		pageSize = 100
 	}
@@ -42,7 +42,7 @@ func retrievePackageListPages(pc *providerConfig, namespace string, repository s
 	// If no count is supplied assmumed to mean retrieve all pages
 	// we have to retreive a page to get this count
 	if pageCount == -1 || pageCount == 0 {
-		var packagesPage []cloudsmith.Package
+		var packagesPage []cloudsmith.PackageResponse
 		var err error
 		packagesPage, pageCount, err = retrievePackageListPage(pc, namespace, repository, query, pageSize, 1)
 		if err != nil {
@@ -100,7 +100,7 @@ func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func flattenPackages(packages []cloudsmith.Package) []interface{} {
+func flattenPackages(packages []cloudsmith.PackageResponse) []interface{} {
 	pkgs := make([]interface{}, len(packages))
 	for i, packageItem := range packages {
 		log.Printf("[DEBUG] package: %s", packageItem.GetName())
