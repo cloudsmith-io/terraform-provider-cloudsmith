@@ -79,10 +79,9 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
 		if err != nil {
-			if err.Error() == errMessage404 {
+			if is404(resp) {
 				return nil
 			}
-
 			return err
 		}
 		defer resp.Body.Close()
