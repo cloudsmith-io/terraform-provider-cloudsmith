@@ -63,19 +63,19 @@ func testAccEntitlementCheckDestroy(resourceName string) resource.TestCheckFunc 
 
 		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, entitlement)
 		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
-		if err != nil {
-			if !is404(resp) {
-				return fmt.Errorf("unable to verify entitlement deletion: %w", err)
-			}
+		if err != nil && !is404(resp) {
+			return fmt.Errorf("unable to verify entitlement deletion: %w", err)
+		} else if is200(resp) {
+			return fmt.Errorf("unable to verify entitlement deletion: still exists: %s/%s/%s", namespace, repository, entitlement)
 		}
 		defer resp.Body.Close()
 
 		rreq := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, repository)
 		_, resp, err = pc.APIClient.ReposApi.ReposReadExecute(rreq)
-		if err != nil {
-			if !is404(resp) {
-				return fmt.Errorf("unable to verify repository deletion: %w", err)
-			}
+		if err != nil && !is404(resp) {
+			return fmt.Errorf("unable to verify repository deletion: %w", err)
+		} else if is200(resp) {
+			return fmt.Errorf("unable to verify repository deletion: still exists: %s/%s", namespace, repository)
 		}
 		defer resp.Body.Close()
 

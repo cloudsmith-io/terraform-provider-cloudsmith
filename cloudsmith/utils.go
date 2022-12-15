@@ -21,6 +21,14 @@ var (
 	defaultUpdateInterval   = time.Second * 2
 )
 
+func is200(resp *http.Response) bool {
+	if resp == nil {
+		return false
+	}
+
+	return resp.StatusCode == http.StatusOK
+}
+
 func is404(resp *http.Response) bool {
 	if resp == nil {
 		return false
