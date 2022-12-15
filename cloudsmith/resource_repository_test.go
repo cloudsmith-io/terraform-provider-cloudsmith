@@ -78,15 +78,14 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
-		if err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
+		if err != nil && !is404(resp) {
+			return fmt.Errorf("unable to verify repository deletion: %w", err)
+		} else if is200(resp) {
+			return fmt.Errorf("unable to verify repository deletion: still exists: %s/%s", os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		}
 		defer resp.Body.Close()
 
-		return fmt.Errorf("repository still exists")
+		return nil
 	}
 }
 

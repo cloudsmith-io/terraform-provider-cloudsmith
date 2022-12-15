@@ -36,6 +36,7 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement": resourceEntitlement(),
 			"cloudsmith_repository":  resourceRepository(),
+			"cloudsmith_webhook":     resourceWebhook(),
 		},
 	}
 
