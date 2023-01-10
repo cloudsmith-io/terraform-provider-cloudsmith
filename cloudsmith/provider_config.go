@@ -26,7 +26,7 @@ func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag
 	}
 
 	httpClient := http.DefaultClient
-	httpClient.Transport = logging.NewTransport("Cloudsmith", http.DefaultTransport)
+	httpClient.Transport = logging.NewSubsystemLoggingHTTPTransport("Cloudsmith", http.DefaultTransport)
 
 	config := cloudsmith.NewConfiguration()
 	config.Debug = logging.IsDebugOrHigher()

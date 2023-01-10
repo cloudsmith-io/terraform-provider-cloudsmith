@@ -30,6 +30,7 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"cloudsmith_namespace":    dataSourceNamespace(),
+			"cloudsmith_organization": dataSourceOrganization(),
 			"cloudsmith_package_list": dataSourcePackageList(),
 			"cloudsmith_repository":   dataSourceRepository(),
 		},
