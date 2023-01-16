@@ -8,16 +8,16 @@ See [help.cloudsmith.io](https://help.cloudsmith.io/docs/service-accounts) for f
 
 ```hcl
 provider "cloudsmith" {
-    api_key = "my-api-key"
+	api_key = "my-api-key"
 }
 
 data "cloudsmith_organization" "my_org" {
-    slug = "my-org"
+	slug = "my-org"
 }
 
 resource "cloudsmith_team" "my_team" {
-    organization = data.cloudsmith_organization.my_org.slug_perm
-    name         = "My Team"
+	organization = data.cloudsmith_organization.my_org.slug_perm
+	name         = "My Team"
 }
 
 resource "cloudsmith_service" "my_service" {
@@ -40,7 +40,7 @@ The following arguments are supported:
 * `role` - (Optional) The service's role in the organization. If defined, must be one of `Member` or `Manager`.
 * `team` - (Optional) Variable number of blocks containing team assignments for this service.
 	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
-    * `slug` - (Required) The team the service should be added to.
+	* `slug` - (Required) The team the service should be added to.
 
 ## Attribute Reference
 
