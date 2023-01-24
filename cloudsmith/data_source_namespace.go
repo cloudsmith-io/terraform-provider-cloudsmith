@@ -27,6 +27,8 @@ func dataSourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
 
 func dataSourceNamespace() *schema.Resource {
 	return &schema.Resource{
+		DeprecationMessage: "use cloudsmith_organization data source instead",
+
 		Read: dataSourceNamespaceRead,
 
 		Schema: map[string]*schema.Schema{

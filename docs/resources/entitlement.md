@@ -11,14 +11,14 @@ provider "cloudsmith" {
     api_key = "my-api-key"
 }
 
-data "cloudsmith_namespace" "my_namespace" {
-    slug = "my-namespace"
+data "cloudsmith_organization" "my_organization" {
+    slug = "my-organization"
 }
 
 resource "cloudsmith_repository" "my_repository" {
     description = "A certifiably-awesome private package repository"
     name        = "My Repository"
-    namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
+    namespace   = "${data.cloudsmith_organization.my_organization.slug_perm}"
     slug        = "my-repository"
 }
 
@@ -39,7 +39,7 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 * `limit_package_query` - (Optional) The package-based search query to apply to restrict downloads to. This uses the same syntax as the standard search used for repositories, and also supports boolean logic operators such as OR/AND/NOT and parentheses for grouping. This will still allow access to non-package files, such as metadata.
 * `limit_path_query` - (Optional) The path-based search query to apply to restrict downloads to. This supports boolean logic operators such as OR/AND/NOT and parentheses for grouping. The path evaluated does not include the domain name, the namespace, the entitlement code used, the package format, etc. and it always starts with a forward slash.
 * `name` - (Required) A descriptive name for the entitlement.
-* `namespace` - (Required) Namespace to which this entitlement belongs.
+* `namespace` - (Required) Namespace (or organization) to which this entitlement belongs.
 * `repository` - (Required) Repository to which this entitlement belongs.
 * `token` - (Optional) The literal value of the token to be created.
 

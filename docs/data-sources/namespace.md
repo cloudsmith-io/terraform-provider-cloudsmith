@@ -1,5 +1,7 @@
 # Namespace Data Source
 
+!> **WARNING:** This data source is deprecated and will be removed in future. Use `cloudsmith_organization` instead.
+
 The `namespace` data source allows fetching of metadata about a given Cloudsmith namespace. The fetched data can be used to resolve permanent identifiers from a namespace's user-facing name. These identifiers can then be passed to other resources to allow more consistent identification as user-facing names can change.
 
 ## Example Usage
