@@ -11,14 +11,14 @@ provider "cloudsmith" {
     api_key = "my-api-key"
 }
 
-data "cloudsmith_namespace" "my_namespace" {
-    slug = "my-namespace"
+data "cloudsmith_organization" "my_organization" {
+    slug = "my-organization"
 }
 
 resource "cloudsmith_repository" "my_repository" {
     description = "A certifiably-awesome private package repository"
     name        = "My Repository"
-    namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
+    namespace   = "${data.cloudsmith_organization.my_organization.slug_perm}"
     slug        = "my-repository"
 }
 ```
@@ -38,7 +38,7 @@ repository. This does not include collaborators, but applies to any member of th
 * `move_own` - (Optional) If checked, users can move any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `move_packages` - (Optional) This defines the minimum level of privilege required for a user to move packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific move setting.
 * `name` - (Required) A descriptive name for the repository.
-* `namespace` - (Required) Namespace to which this repository belongs.
+* `namespace` - (Required) Namespace (or organization) to which this repository belongs.
 * `proxy_npmjs` - (Optional) If checked, Npm packages that are not in the repository when requested by clients will automatically be proxied from the public npmjs.org registry. If there is at least one version for a package, others will not be proxied.
 * `proxy_pypi` - (Optional) If checked, Python packages that are not in the repository when requested by clients will automatically be proxied from the public pypi.python.org registry. If there is at least one version for a package, others will not be proxied.
 * `raw_package_index_enabled` - (Optional) If checked, HTML and JSON indexes will be generated that list all available raw packages in the repository.

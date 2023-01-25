@@ -11,14 +11,14 @@ provider "cloudsmith" {
     api_key = "my-api-key"
 }
 
-data "cloudsmith_namespace" "my_namespace" {
-    slug = "my-namespace"
+data "cloudsmith_organization" "my_organization" {
+    slug = "my-organization"
 }
 
 resource "cloudsmith_repository" "my_repository" {
     description = "A certifiably-awesome private package repository"
     name        = "My Repository"
-    namespace   = "${data.cloudsmith_namespace.my_namespace.slug_perm}"
+    namespace   = "${data.cloudsmith_organization.my_organization.slug_perm}"
     slug        = "my-repository"
 }
 
@@ -46,7 +46,7 @@ resource "cloudsmith_webhook" "my_webhook" {
 
 * `events` - (Required) List of events for which this webhook will be fired.
 * `is_active` - (Optional) If enabled, the webhook will trigger on subscribed events and send payloads to the configured target URL.
-* `namespace` - (Required) Namespace to which this webhook belongs.
+* `namespace` - (Required) Namespace (or organization) to which this webhook belongs.
 * `package_query` - (Optional) The package-based search query for webhooks to fire. This uses the same syntax as the standard search used for repositories, and also supports boolean logic operators such as OR/AND/NOT and parentheses for grouping. If a package does not match, the webhook will not fire.
 * `repository` - (Required) Repository to which this webhook belongs.
 * `request_body_format` - (Optional) The format of the payloads for webhook requests.
