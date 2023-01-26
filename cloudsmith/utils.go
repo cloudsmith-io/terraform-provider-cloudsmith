@@ -121,6 +121,12 @@ type waitFunc func() error
 // action. This is mostly useful for actions that change state and may not be
 // immediately reflected in the API for any reason.
 func waiter(checker waitFunc, timeout, interval time.Duration) error {
+	// the initial sleep here helps avoid issues with cross-region database
+	// replication. Most endpoints deal with this fine, but there are still a
+	// few edge cases that we need to fix in the APIs before we can safely
+	// remove this.
+	time.Sleep(interval)
+
 	for start := time.Now(); time.Since(start) < timeout; {
 		if err := checker(); err != nil {
 			if err == errKeepWaiting {
