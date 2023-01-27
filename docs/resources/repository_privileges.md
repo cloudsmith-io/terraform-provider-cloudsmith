@@ -25,18 +25,18 @@ resource "cloudsmith_repository" "my_repository" {
 }
 
 resource "cloudsmith_team" "my_team" {
-	organization = data.cloudsmith_organization.my_org.slug_perm
+	organization = data.cloudsmith_organization.my_organization.slug_perm
 	name         = "My Team"
 }
 
 resource "cloudsmith_team" "my_other_team" {
-	organization = data.cloudsmith_organization.my_org.slug_perm
+	organization = data.cloudsmith_organization.my_organization.slug_perm
 	name         = "My Other Team"
 }
 
 resource "cloudsmith_service" "my_service" {
 	name         = "My Service"
-	organization = data.cloudsmith_organization.my_org.slug_perm
+	organization = data.cloudsmith_organization.my_organization.slug_perm
 }
 
 resource "cloudsmith_repository_privileges" "privs" {
@@ -45,7 +45,7 @@ resource "cloudsmith_repository_privileges" "privs" {
 
 	service {
 		privilege = "Write"
-		slug      = cloudsmith_service.test.slug
+		slug      = cloudsmith_service.my_service.slug
 	}
 
 	team {
