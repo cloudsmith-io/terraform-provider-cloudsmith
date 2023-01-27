@@ -20,7 +20,7 @@ data "cloudsmith_organization" "my_organization" {
 resource "cloudsmith_repository" "my_repository" {
     description = "A certifiably-awesome private package repository"
     name        = "My Repository"
-    namespace   = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    namespace   = data.cloudsmith_organization.my_organization.slug_perm
     slug        = "my-repository"
 }
 
@@ -40,8 +40,8 @@ resource "cloudsmith_service" "my_service" {
 }
 
 resource "cloudsmith_repository_privileges" "privs" {
-    organization = data.cloudsmith_organization.test.slug
-    repository   = cloudsmith_repository.test.slug
+    organization = data.cloudsmith_organization.my_organization.slug
+    repository   = cloudsmith_repository.my_repository.slug
 
 	service {
 		privilege = "Write"
