@@ -131,7 +131,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			CidrAllow: {
 				Type:        schema.TypeSet,
-				Description: "The list of IP Addresses and/or CIDR masks for which to allow access.",
+				Description: "The list of IP Addresses for which to allow access, expressed in CIDR notation.",
 				Required:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
@@ -140,7 +140,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			},
 			CidrDeny: {
 				Type:        schema.TypeSet,
-				Description: "The list of IP Addresses and/or CIDR masks for which to deny access.",
+				Description: "The list of IP Addresses for which to deny access, expressed in CIDR notation.",
 				Required:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
@@ -149,7 +149,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			},
 			CountryCodeAllow: {
 				Type:        schema.TypeSet,
-				Description: "The list of countries for which to allow access, using ISO 3166-1 country codes.",
+				Description: "The list of countries for which to allow access, expressed in ISO 3166-1 country codes.",
 				Required:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
@@ -158,7 +158,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			},
 			CountryCodeDeny: {
 				Type:        schema.TypeSet,
-				Description: "The list of countries for which to deny access, using ISO 3166-1 country codes.",
+				Description: "The list of countries for which to deny access, expressed in ISO 3166-1 country codes.",
 				Required:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
@@ -167,7 +167,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			},
 			Namespace: {
 				Type:         schema.TypeString,
-				Description:  "Namespace to which these Geo/IP rules belong.",
+				Description:  "Organization to which the Repository belongs.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,

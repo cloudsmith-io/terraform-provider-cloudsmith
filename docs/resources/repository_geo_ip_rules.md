@@ -49,9 +49,9 @@ resource "cloudsmith_repository_geo_ip_rules" "my_rules" {
 
 The following arguments are supported:
 
-* `namespace` - (Required) Organization to which this repository belongs.
-* `repository` - (Required) Repository to which these privileges apply.
-* `cidr_allow` - (Required) The list of IP addresses/ranges for which to allow access to the Repository.
-* `cidr_deny` - (Required) The list of IP addresses/ranges for which to deny access to the Repository.
-* `country_code_allow` - (Required) The list of countries for which to allow access to the Repository.
-* `country_code_deny` - (Required) The list of countries for which to deny access to the Repository.
+* `namespace` - (Required) Organization to which the Repository belongs.
+* `repository` - (Required) Repository to which these Geo/IP rules apply.
+* `cidr_allow` - (Required) The list of IP Addresses for which to allow access to the Repository, expressed in CIDR notation.
+* `cidr_deny` - (Required) The list of IP Addresses for which to deny access to the Repository, expressed in CIDR notation.
+* `country_code_allow` - (Required) The list of countries for which to allow access to the Repository, expressed in ISO 3166-1 country codes.
+* `country_code_deny` - (Required) The list of countries for which to deny access to the Repository, expressed in ISO 3166-1 country codes.
