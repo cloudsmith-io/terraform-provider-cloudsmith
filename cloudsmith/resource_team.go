@@ -185,5 +185,9 @@ func resourceTeam() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{"Visible", "Hidden"}, false),
 			},
 		},
+
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }

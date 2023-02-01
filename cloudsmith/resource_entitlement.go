@@ -249,5 +249,9 @@ func resourceEntitlement() *schema.Resource {
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 		},
+
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 	}
 }
