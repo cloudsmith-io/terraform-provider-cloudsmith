@@ -48,3 +48,11 @@ In addition to all arguments above, the following attributes are exported:
 
 * `key` - The service's API key.
 * `slug` - The slug identifies the service in URIs or where a username is required.
+
+## Import
+
+This resource can be imported using an ID made up of the slug:
+
+```shell
+terraform import cloudsmith_service.my_service my-service-slug
+```

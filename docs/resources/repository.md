@@ -109,3 +109,11 @@ repository. This does not include collaborators, but applies to any member of th
 * `use_vulnerability_scanning` - If checked, vulnerability scanning will be enabled for all supported packages within this repository.
 * `user_entitlements_enabled` - If checked, users can use and manage their own user-specific entitlement token for the repository (if private). Otherwise, user-specific entitlements are disabled for all users.
 * `view_statistics` - This defines the minimum level of privilege required for a user to view repository statistics, to include entitlement-based usage, if applicable. If a user does not have the permission, they won't be able to view any statistics, either via the UI, API or CLI.
+
+## Import
+
+This resource can be imported using an ID made up of the slug:
+
+```shell
+terraform import cloudsmith_repository.my_repository my-repository-slug
+```
