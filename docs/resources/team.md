@@ -36,3 +36,11 @@ The following arguments are supported:
 In addition to all arguments above, the following attributes are exported:
 
 * `slug_perm` - The slug_perm immutably identifies the team. It will never change once a team has been created.
+
+## Import
+
+This resource can be imported using an ID made up of the slug:
+
+```shell
+terraform import cloudsmith_team.my_team my-team-slug
+```
