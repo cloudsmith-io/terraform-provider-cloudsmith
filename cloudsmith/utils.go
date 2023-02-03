@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"errors"
+	"github.com/samber/lo"
 	"net/http"
 	"time"
 
@@ -20,6 +21,25 @@ var (
 	defaultUpdateTimeout    = time.Minute * 1
 	defaultUpdateInterval   = time.Second * 2
 )
+
+// expandStrings retrieves a *schema.Set from TF state and converts it to
+// a slice of strings which we can use with the API bindings.
+func expandStrings(d *schema.ResourceData, key string) []string {
+	set := d.Get(key).(*schema.Set)
+	return lo.Map(set.List(), func(item interface{}, _ int) string {
+		return item.(string)
+	})
+}
+
+// flattenStrings converts a slice of strings such as might be returned by the
+// API bindings to a *schema.Set which can be stored in TF state.
+func flattenStrings(strings []string) *schema.Set {
+	set := schema.NewSet(schema.HashString, []interface{}{})
+	for _, s := range strings {
+		set.Add(s)
+	}
+	return set
+}
 
 func is200(resp *http.Response) bool {
 	if resp == nil {
@@ -102,6 +122,16 @@ func requiredBool(d *schema.ResourceData, name string) bool {
 // requiredString retrieves a string from Terraform state
 func requiredString(d *schema.ResourceData, name string) string {
 	return d.Get(name).(string)
+}
+
+// contains returns true if value equals any element in the slice.
+func contains[T comparable](slice []T, value T) bool {
+	for _, elem := range slice {
+		if elem == value {
+			return true
+		}
+	}
+	return false
 }
 
 // timeToString converts a time.Time object to a string
