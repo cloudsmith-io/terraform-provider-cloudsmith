@@ -19,7 +19,18 @@ const InitialCountryCodeAllow string = "BV"
 const UpdatedCountryCodeAllow string = "FO"
 const InitialCountryCodeDeny string = "CX"
 const UpdatedCountryCodeDeny string = "CK"
-const configTemplate string = `
+const configTemplateWithoutRules string = `
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-repository-geo-ip-rules"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+}
+`
+const configTemplateWithRules string = `
 resource "cloudsmith_repository" "test" {
 	name      = "terraform-acc-test-repository-geo-ip-rules"
 	namespace = "%s"
@@ -36,8 +47,9 @@ resource "cloudsmith_repository_geo_ip_rules" "test" {
 `
 
 var namespace = os.Getenv("CLOUDSMITH_NAMESPACE")
-var testAccRepositoryGeoIpRulesConfigCreate = fmt.Sprintf(configTemplate, namespace, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
-var testAccRepositoryGeoIpRulesConfigUpdate = fmt.Sprintf(configTemplate, namespace, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
+var testAccRepositoryGeoIpRulesConfigCreate = fmt.Sprintf(configTemplateWithRules, namespace, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
+var testAccRepositoryGeoIpRulesConfigUpdate = fmt.Sprintf(configTemplateWithRules, namespace, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
+var testAccRepositoryGeoIpRulesConfigDefault = fmt.Sprintf(configTemplateWithoutRules, namespace)
 
 // TestAccRepositoryGeoIpRules_basic spins up a repository with all default options,
 // creates a set of geo/ip rules for the repository and verifies they exist. Then it
@@ -61,6 +73,12 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 				Config: testAccRepositoryGeoIpRulesConfigUpdate,
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny),
+				),
+			},
+			{
+				Config: testAccRepositoryGeoIpRulesConfigDefault,
+				Check: resource.ComposeTestCheckFunc(
+					testAccRepositoryGeoIpRulesCheckExists(ResourceName, "", "", "", ""),
 				),
 			},
 		},
@@ -130,22 +148,30 @@ func testAccRepositoryGeoIpRulesCheckExists(resourceName string, expectedCidrAll
 
 		cidr := geoIpRules.GetCidr()
 
-		if !contains(cidr.GetAllow(), expectedCidrAllow) {
+		if len(expectedCidrAllow) > 0 && !contains(cidr.GetAllow(), expectedCidrAllow) {
 			return fmt.Errorf("expected cidr_allow not found in rules")
+		} else if len(expectedCidrAllow) == 0 && len(cidr.GetAllow()) > 0 {
+			return fmt.Errorf("expected cidr_allow rules to be empty")
 		}
 
-		if !contains(cidr.GetDeny(), expectedCidrDeny) {
+		if len(expectedCidrDeny) > 0 && !contains(cidr.GetDeny(), expectedCidrDeny) {
 			return fmt.Errorf("expected cidr_deny not found in rules")
+		} else if len(expectedCidrDeny) == 0 && len(cidr.GetDeny()) > 0 {
+			return fmt.Errorf("expected cidr_deny rules to be empty")
 		}
 
 		countryCode := geoIpRules.GetCountryCode()
 
-		if !contains(countryCode.GetAllow(), expectedCountryCodeAllow) {
+		if len(expectedCountryCodeAllow) > 0 && !contains(countryCode.GetAllow(), expectedCountryCodeAllow) {
 			return fmt.Errorf("expected country_code_allow not found in rules")
+		} else if len(expectedCountryCodeAllow) == 0 && len(countryCode.GetAllow()) > 0 {
+			return fmt.Errorf("expected country_code_allow rules to be empty")
 		}
 
-		if !contains(countryCode.GetDeny(), expectedCountryCodeDeny) {
+		if len(expectedCountryCodeDeny) > 0 && !contains(countryCode.GetDeny(), expectedCountryCodeDeny) {
 			return fmt.Errorf("expected country_code_deny not found in rules")
+		} else if len(expectedCountryCodeDeny) == 0 && len(countryCode.GetDeny()) > 0 {
+			return fmt.Errorf("expected country_code_deny rules to be empty")
 		}
 
 		return nil

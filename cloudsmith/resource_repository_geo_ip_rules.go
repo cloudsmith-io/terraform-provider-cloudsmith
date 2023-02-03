@@ -132,7 +132,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			CidrAllow: {
 				Type:        schema.TypeSet,
 				Description: "The list of IP Addresses for which to allow access, expressed in CIDR notation.",
-				Required:    true,
+				Optional:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
 					ValidateFunc: validation.StringIsNotEmpty,
@@ -141,7 +141,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			CidrDeny: {
 				Type:        schema.TypeSet,
 				Description: "The list of IP Addresses for which to deny access, expressed in CIDR notation.",
-				Required:    true,
+				Optional:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
 					ValidateFunc: validation.StringIsNotEmpty,
@@ -150,7 +150,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			CountryCodeAllow: {
 				Type:        schema.TypeSet,
 				Description: "The list of countries for which to allow access, expressed in ISO 3166-1 country codes.",
-				Required:    true,
+				Optional:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
 					ValidateFunc: validation.StringIsNotEmpty,
@@ -159,7 +159,7 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 			CountryCodeDeny: {
 				Type:        schema.TypeSet,
 				Description: "The list of countries for which to deny access, expressed in ISO 3166-1 country codes.",
-				Required:    true,
+				Optional:    true,
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
 					ValidateFunc: validation.StringIsNotEmpty,
