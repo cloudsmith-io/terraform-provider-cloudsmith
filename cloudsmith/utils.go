@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/samber/lo"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -21,6 +22,16 @@ var (
 	defaultUpdateTimeout    = time.Minute * 1
 	defaultUpdateInterval   = time.Second * 2
 )
+
+// contains returns true if value equals any element in the slice.
+func contains[T comparable](slice []T, value T) bool {
+	for _, elem := range slice {
+		if elem == value {
+			return true
+		}
+	}
+	return false
+}
 
 // expandStrings retrieves a *schema.Set from TF state and converts it to
 // a slice of strings which we can use with the API bindings.
@@ -124,14 +135,24 @@ func requiredString(d *schema.ResourceData, name string) string {
 	return d.Get(name).(string)
 }
 
-// contains returns true if value equals any element in the slice.
-func contains[T comparable](slice []T, value T) bool {
-	for _, elem := range slice {
-		if elem == value {
-			return true
+// stringSlicesAreEqual compares two string slices and returns true if they are equal.
+func stringSlicesAreEqual(x, y []string, sortSlices bool) bool {
+	if len(x) != len(y) {
+		return false
+	}
+
+	if sortSlices {
+		sort.Strings(x)
+		sort.Strings(y)
+	}
+
+	for i, v := range x {
+		if v != y[i] {
+			return false
 		}
 	}
-	return false
+
+	return true
 }
 
 // timeToString converts a time.Time object to a string

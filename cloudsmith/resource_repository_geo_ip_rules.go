@@ -72,8 +72,7 @@ func resourceRepositoryGeoIpRulesUpdate(d *schema.ResourceData, m interface{}) e
 	namespace := requiredString(d, Namespace)
 	repository := requiredString(d, Repository)
 
-	req := pc.APIClient.ReposApi.ReposGeoipUpdate(pc.Auth, namespace, repository)
-	req = req.Data(cloudsmith.ReposGeoipRead200Response{
+	updateData := cloudsmith.ReposGeoipRead200Response{
 		CountryCode: &cloudsmith.ReposGeoipRead200ResponseCountryCode{
 			Allow: expandStrings(d, CountryCodeAllow),
 			Deny:  expandStrings(d, CountryCodeDeny),
@@ -82,14 +81,55 @@ func resourceRepositoryGeoIpRulesUpdate(d *schema.ResourceData, m interface{}) e
 			Allow: expandStrings(d, CidrAllow),
 			Deny:  expandStrings(d, CidrDeny),
 		},
-	})
+	}
 
-	_, err := pc.APIClient.ReposApi.ReposGeoipUpdateExecute(req)
-	if err != nil {
-		return err
+	updateRequest := pc.APIClient.ReposApi.ReposGeoipUpdate(pc.Auth, namespace, repository)
+	updateRequest = updateRequest.Data(updateData)
+
+	_, updateErr := pc.APIClient.ReposApi.ReposGeoipUpdateExecute(updateRequest)
+	if updateErr != nil {
+		return updateErr
 	}
 
 	d.SetId(fmt.Sprintf("%s_%s_geo_ip_rules", namespace, repository))
+
+	// Workaround for replication lag
+	checkerFunc := func() error {
+		// Call the read endpoint
+		readRequest := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, namespace, repository)
+		readData, _, readErr := pc.APIClient.ReposApi.ReposGeoipReadExecute(readRequest)
+		if readErr != nil {
+			return readErr
+		}
+
+		// Check that the read response data matches our earlier update request data
+		readCidr := readData.GetCidr()
+		updateCidr := updateData.GetCidr()
+
+		if !stringSlicesAreEqual(readCidr.GetAllow(), updateCidr.GetAllow(), true) {
+			return errKeepWaiting
+		}
+		if !stringSlicesAreEqual(readCidr.GetDeny(), updateCidr.GetDeny(), true) {
+			return errKeepWaiting
+		}
+
+		readCountryCode := readData.GetCountryCode()
+		updateCountryCode := updateData.GetCountryCode()
+
+		if !stringSlicesAreEqual(readCountryCode.GetAllow(), updateCountryCode.GetAllow(), true) {
+			return errKeepWaiting
+		}
+		if !stringSlicesAreEqual(readCountryCode.GetDeny(), updateCountryCode.GetDeny(), true) {
+			return errKeepWaiting
+		}
+
+		return nil
+	}
+
+	waitErr := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval)
+	if waitErr != nil {
+		return waitErr
+	}
 
 	return resourceRepositoryGeoIpRulesRead(d, m)
 }
