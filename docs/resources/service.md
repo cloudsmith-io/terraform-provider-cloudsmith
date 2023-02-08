@@ -56,3 +56,5 @@ This resource can be imported using the organization slug, and the service slug:
 ```shell
 terraform import cloudsmith_service.my_service my-organization.my-service
 ```
+
+NOTE: It's not possible to retrieve a service's API key via the Cloudsmith API after creation, so when we import a service the key is unavailable. If the API key is needed for use within Terraform (to be passed to other resources) then the resource needs to be tainted and recreated (or otherwise created fresh within Terraform).
