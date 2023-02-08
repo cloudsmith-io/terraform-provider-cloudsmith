@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -19,9 +18,6 @@ func importEntitlement(ctx context.Context, d *schema.ResourceData, m interface{
 			"invalid import ID, must be of the form <organization_slug>.<repository_slug>.<entitlement_slug>, got: %s", d.Id(),
 		)
 	}
-
-	tflog.Error(ctx, "ohno")
-	tflog.Error(ctx, d.Id())
 
 	d.Set("namespace", idParts[0])
 	d.Set("repository", idParts[1])
