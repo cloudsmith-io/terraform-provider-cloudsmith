@@ -58,6 +58,20 @@ func TestAccRepository_basic(t *testing.T) {
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 				),
 			},
+			{
+				ResourceName: "cloudsmith_repository.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_repository.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["namespace"],
+						resourceState.Primary.Attributes["slug"],
+					), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
+			},
 		},
 	})
 }

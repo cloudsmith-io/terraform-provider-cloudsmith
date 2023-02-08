@@ -72,8 +72,8 @@ resource "cloudsmith_webhook" "my_webhook" {
 
 ## Import
 
-This resource can be imported using an ID made up of the slug:
+This resource can be imported using the organization slug, the repository slug, and the webhook slug:
 
 ```shell
-terraform import cloudsmith_webhook.my_webhook my-webhook-slug
+terraform import cloudsmith_webhook.my_webhook my-organization.my-repository.w3bh0okS1uG
 ```

@@ -12,7 +12,7 @@ provider "cloudsmith" {
 }
 
 data "cloudsmith_organization" "my_org" {
-    slug = "my-org"
+    slug = "my-organization"
 }
 
 resource "cloudsmith_team" "my_team" {
@@ -39,8 +39,8 @@ In addition to all arguments above, the following attributes are exported:
 
 ## Import
 
-This resource can be imported using an ID made up of the slug:
+This resource can be imported using the organization slug, and the team slug:
 
 ```shell
-terraform import cloudsmith_team.my_team my-team-slug
+terraform import cloudsmith_team.my_team my-organization.my-team
 ```

@@ -56,3 +56,11 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 * `namespace` - Namespace to which this entitlement belongs.
 * `repository` - Repository to which this entitlement belongs.
 * `token` - The literal value of the token to be created.
+
+## Import
+
+This resource can be imported using the organization slug, the repository slug, and the entitlement slug:
+
+```shell
+terraform import cloudsmith_entitlement.my_entitlement my-organization.my-repository.3nt1lem3nT
+```

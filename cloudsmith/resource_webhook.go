@@ -1,7 +1,9 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -132,6 +134,20 @@ func flattenTemplates(templates []cloudsmith.WebhookTemplate) *schema.Set {
 		})
 	}
 	return set
+}
+
+func importWebhook(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 3 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>.<webhook_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.Set("repository", idParts[1])
+	d.SetId(idParts[2])
+	return []*schema.ResourceData{d}, nil
 }
 
 func resourceWebhookCreate(d *schema.ResourceData, m interface{}) error {
@@ -303,6 +319,10 @@ func resourceWebhook() *schema.Resource {
 		Update: resourceWebhookUpdate,
 		Delete: resourceWebhookDelete,
 
+		Importer: &schema.ResourceImporter{
+			StateContext: importWebhook,
+		},
+
 		Schema: map[string]*schema.Schema{
 			"created_at": {
 				Type:        schema.TypeString,
@@ -449,10 +469,6 @@ func resourceWebhook() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-		},
-
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
 }

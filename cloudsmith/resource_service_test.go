@@ -51,6 +51,20 @@ func TestAccService_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_service.test", "team.0.role", "Manager"),
 				),
 			},
+			{
+				ResourceName: "cloudsmith_service.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_service.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["organization"],
+						resourceState.Primary.Attributes["slug"],
+					), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"key"},
+			},
 		},
 	})
 }

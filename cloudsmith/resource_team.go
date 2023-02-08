@@ -1,13 +1,30 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+func importTeam(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	tflog.Error(ctx, "importing ohno")
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<team_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("organization", idParts[0])
+	d.SetId(idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
 
 func resourceTeamCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -72,6 +89,12 @@ func resourceTeamRead(d *schema.ResourceData, m interface{}) error {
 	// the value stored in resource state. We rely on ForceNew to ensure if it
 	// changes a new resource is created.
 	d.Set("organization", org)
+
+	// since we allow import using either the slug or the slug_perm, we want to
+	// normalize the ID and always use the slug_perm when we can. This reset
+	// allows us to set the ID unconditionally, regardless of what the user
+	// passed.
+	d.SetId(team.GetSlugPerm())
 
 	return nil
 }
@@ -144,6 +167,10 @@ func resourceTeam() *schema.Resource {
 		Update: resourceTeamUpdate,
 		Delete: resourceTeamDelete,
 
+		Importer: &schema.ResourceImporter{
+			StateContext: importTeam,
+		},
+
 		Schema: map[string]*schema.Schema{
 			"description": {
 				Type:         schema.TypeString,
@@ -184,10 +211,6 @@ func resourceTeam() *schema.Resource {
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Visible", "Hidden"}, false),
 			},
-		},
-
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
 }

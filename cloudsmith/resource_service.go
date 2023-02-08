@@ -2,6 +2,8 @@ package cloudsmith
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -13,7 +15,8 @@ import (
 )
 
 var (
-	roles = []string{
+	importSentinel = "__import__"
+	roles          = []string{
 		"Manager",
 		"Member",
 	}
@@ -56,6 +59,25 @@ func flattenTeams(teams []cloudsmith.ServiceTeams) *schema.Set {
 		})
 	}
 	return set
+}
+
+func importService(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<service_slug>, got: %s", d.Id(),
+		)
+	}
+
+	// it's not possible to retrieve a service's API key via API after creation,
+	// so when we import a service the key is unavailable. Setting to a known
+	// sentinel value here allows us to detect this case later and warn the user
+	// that things may not work as expected.
+	d.Set("key", importSentinel)
+
+	d.Set("organization", idParts[0])
+	d.SetId(idParts[1])
+	return []*schema.ResourceData{d}, nil
 }
 
 func resourceServiceCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -130,17 +152,30 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 	// they'll need to recreate the resource if they want to pull the new key
 	// into Terraform. This can be accomplished by tainting.
 	var diags diag.Diagnostics
-	existingLastFour := requiredString(d, "key")[len(requiredString(d, "key"))-4:]
-	newLastFour := service.GetKey()[len(service.GetKey())-4:]
-	if existingLastFour != newLastFour {
+	existingKey := requiredString(d, "key")
+	if existingKey == importSentinel {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
-			Summary:  "API key has changed",
-			Detail: "API key for this service has changed outside of Terraform. If this " +
-				"key is used within Terraform the resource must be tainted or otherwise " +
-				"recreated to retrieve the new value.",
+			Summary:  "API key unavailable for imported services",
+			Detail: "API keys are only available via the Cloudsmith API at the time a service " +
+				"is created, and therefore it is not possible to retrieve the current API key for " +
+				"a service which has been imported. If the API key value is needed within Terraform" +
+				"then the resource can be tainted post-import to recreate it and store the key.",
 			AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 		})
+	} else {
+		existingLastFour := existingKey[len(existingKey)-4:]
+		newLastFour := service.GetKey()[len(service.GetKey())-4:]
+		if existingLastFour != newLastFour {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "API key has changed",
+				Detail: "API key for this service has changed outside of Terraform. If this " +
+					"key is used within Terraform the resource must be tainted or otherwise " +
+					"recreated to retrieve the new value.",
+				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
+			})
+		}
 	}
 
 	// organization is not returned from the service read endpoint, so we can
@@ -220,6 +255,10 @@ func resourceService() *schema.Resource {
 		UpdateContext: resourceServiceUpdate,
 		DeleteContext: resourceServiceDelete,
 
+		Importer: &schema.ResourceImporter{
+			StateContext: importService,
+		},
+
 		Schema: map[string]*schema.Schema{
 			"description": {
 				Type:         schema.TypeString,
@@ -280,10 +319,6 @@ func resourceService() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 			},
-		},
-
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
 		},
 	}
 }

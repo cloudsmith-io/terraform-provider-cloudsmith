@@ -112,8 +112,8 @@ repository. This does not include collaborators, but applies to any member of th
 
 ## Import
 
-This resource can be imported using an ID made up of the slug:
+This resource can be imported using the organization slug, and the repository slug:
 
 ```shell
-terraform import cloudsmith_repository.my_repository my-repository-slug
+terraform import cloudsmith_repository.my_repository my-organization.my-repository
 ```
