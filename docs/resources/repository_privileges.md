@@ -80,3 +80,11 @@ The following arguments are supported:
 * `user` - (Optional) Variable number of blocks containing users that should have repository privileges.
 	* `privilege` - (Required) The user's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
 	* `slug` - (Required) The slug/identifier of the user.
+
+## Import
+
+This resource can be imported using the organization slug, and the repository slug:
+
+```shell
+terraform import cloudsmith_repository_privileges.privs my-organization.my-repository
+```

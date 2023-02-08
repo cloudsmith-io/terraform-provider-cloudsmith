@@ -51,6 +51,20 @@ func TestAccWebhook_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_webhook.test", "template.1.template", "flap"),
 				),
 			},
+			{
+				ResourceName: "cloudsmith_webhook.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_webhook.test"]
+					return fmt.Sprintf(
+						"%s.%s.%s",
+						resourceState.Primary.Attributes["namespace"],
+						resourceState.Primary.Attributes["repository"],
+						resourceState.Primary.ID,
+					), nil
+				},
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

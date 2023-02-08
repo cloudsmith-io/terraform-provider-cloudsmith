@@ -39,6 +39,20 @@ func TestAccEntitlement_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_num_downloads", "100"),
 				),
 			},
+			{
+				ResourceName: "cloudsmith_entitlement.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_entitlement.test"]
+					return fmt.Sprintf(
+						"%s.%s.%s",
+						resourceState.Primary.Attributes["namespace"],
+						resourceState.Primary.Attributes["repository"],
+						resourceState.Primary.ID,
+					), nil
+				},
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

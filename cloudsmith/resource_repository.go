@@ -1,13 +1,28 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+func importRepository(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.SetId(idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
 
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -144,6 +159,12 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	// created.
 	d.Set("namespace", namespace)
 
+	// since we allow import using either the slug or the slug_perm, we want to
+	// normalize the ID and always use the slug_perm when we can. This reset
+	// allows us to set the ID unconditionally, regardless of what the user
+	// passed.
+	d.SetId(repository.GetSlugPerm())
+
 	return nil
 }
 
@@ -245,6 +266,10 @@ func resourceRepository() *schema.Resource {
 		Read:   resourceRepositoryRead,
 		Update: resourceRepositoryUpdate,
 		Delete: resourceRepositoryDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepository,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"cdn_url": {

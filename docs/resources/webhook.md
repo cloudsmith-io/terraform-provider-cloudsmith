@@ -69,3 +69,11 @@ resource "cloudsmith_webhook" "my_webhook" {
 * `slug_perm` - The slug_perm immutably identifies the webhook. It will never change once a webhook has been created.
 * `updated_at` - ISO 8601 timestamp at which the webhook was updated.
 * `updated_by` - The user/account that updated the webhook.
+
+## Import
+
+This resource can be imported using the organization slug, the repository slug, and the webhook slug:
+
+```shell
+terraform import cloudsmith_webhook.my_webhook my-organization.my-repository.w3bh0okS1uG
+```

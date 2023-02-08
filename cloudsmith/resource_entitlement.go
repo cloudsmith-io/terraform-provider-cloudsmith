@@ -1,13 +1,29 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+func importEntitlement(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 3 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>.<entitlement_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.Set("repository", idParts[1])
+	d.SetId(idParts[2])
+	return []*schema.ResourceData{d}, nil
+}
 
 func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -167,6 +183,10 @@ func resourceEntitlement() *schema.Resource {
 		Read:   resourceEntitlementRead,
 		Update: resourceEntitlementUpdate,
 		Delete: resourceEntitlementDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importEntitlement,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"is_active": {

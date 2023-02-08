@@ -1,7 +1,9 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -123,6 +125,19 @@ func flattenRepositoryPrivilegeUsers(privileges []cloudsmith.RepositoryPrivilege
 	return set
 }
 
+func importRepositoryPrivileges(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("organization", idParts[0])
+	d.Set("repository", idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
+
 func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
@@ -144,7 +159,7 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 		return err
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", organization, repository))
+	d.SetId(fmt.Sprintf("%s.%s", organization, repository))
 
 	checkerFunc := func() error {
 		// this is somewhat of a hack until we have a better way to poll for
@@ -231,6 +246,10 @@ func resourceRepositoryPrivileges() *schema.Resource {
 		Read:   resourceRepositoryPrivilegesRead,
 		Update: resourceRepositoryPrivilegesCreateUpdate,
 		Delete: resourceRepositoryPrivilegesDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepositoryPrivileges,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"organization": {

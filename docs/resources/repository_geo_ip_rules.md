@@ -55,3 +55,11 @@ The following arguments are supported:
 * `cidr_deny` - (Optional) The list of IP Addresses for which to deny access to the Repository, expressed in CIDR notation.
 * `country_code_allow` - (Optional) The list of countries for which to allow access to the Repository, expressed in ISO 3166-1 country codes.
 * `country_code_deny` - (Optional) The list of countries for which to deny access to the Repository, expressed in ISO 3166-1 country codes.
+
+## Import
+
+This resource can be imported using the organization slug, and the repository slug:
+
+```shell
+terraform import cloudsmith_repository_geo_ip_rules.my_rules my-organization.my-repository
+```

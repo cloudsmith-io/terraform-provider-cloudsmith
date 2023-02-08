@@ -76,6 +76,19 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 				),
 			},
 			{
+				ResourceName: ResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[ResourceName]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["namespace"],
+						resourceState.Primary.Attributes["repository"],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+			{
 				Config: testAccRepositoryGeoIpRulesConfigDefault,
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, "", "", "", ""),

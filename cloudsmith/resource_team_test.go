@@ -54,6 +54,19 @@ func TestAccTeam_basic(t *testing.T) {
 					testAccTeamCheckExists("cloudsmith_team.test"),
 				),
 			},
+			{
+				ResourceName: "cloudsmith_team.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_team.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["organization"],
+						resourceState.Primary.Attributes["slug"],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

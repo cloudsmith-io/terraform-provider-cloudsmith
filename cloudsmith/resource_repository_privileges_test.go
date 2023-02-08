@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 // TestAccRepositoryPrivileges_basic spins up a repository with default options,
@@ -52,6 +53,19 @@ func TestAccRepositoryPrivileges_basic(t *testing.T) {
 						"slug":      "tf-test-team-privs-1",
 					}),
 				),
+			},
+			{
+				ResourceName: "cloudsmith_repository_privileges.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_repository_privileges.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["organization"],
+						resourceState.Primary.Attributes["repository"],
+					), nil
+				},
+				ImportStateVerify: true,
 			},
 		},
 	})
