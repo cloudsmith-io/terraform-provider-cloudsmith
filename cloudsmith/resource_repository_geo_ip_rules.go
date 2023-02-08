@@ -1,7 +1,10 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
+	"strings"
+
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -13,6 +16,19 @@ const CidrAllow string = "cidr_allow"
 const CidrDeny string = "cidr_deny"
 const CountryCodeAllow string = "country_code_allow"
 const CountryCodeDeny string = "country_code_deny"
+
+func importRepositoryGeoIpRules(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.Set("repository", idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
 
 func resourceRepositoryGeoIpRulesCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -91,7 +107,7 @@ func resourceRepositoryGeoIpRulesUpdate(d *schema.ResourceData, m interface{}) e
 		return updateErr
 	}
 
-	d.SetId(fmt.Sprintf("%s_%s_geo_ip_rules", namespace, repository))
+	d.SetId(fmt.Sprintf("%s.%s", namespace, repository))
 
 	// Workaround for replication lag
 	checkerFunc := func() error {
@@ -167,6 +183,10 @@ func resourceRepositoryGeoIpRules() *schema.Resource {
 		Read:   resourceRepositoryGeoIpRulesRead,
 		Update: resourceRepositoryGeoIpRulesUpdate,
 		Delete: resourceRepositoryGeoIpRulesDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepositoryGeoIpRules,
+		},
 
 		Schema: map[string]*schema.Schema{
 			CidrAllow: {
