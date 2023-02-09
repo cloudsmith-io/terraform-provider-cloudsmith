@@ -88,12 +88,12 @@ func resourceRepositoryGeoIpRulesUpdate(d *schema.ResourceData, m interface{}) e
 	namespace := requiredString(d, Namespace)
 	repository := requiredString(d, Repository)
 
-	updateData := cloudsmith.ReposGeoipRead200Response{
-		CountryCode: &cloudsmith.ReposGeoipRead200ResponseCountryCode{
+	updateData := cloudsmith.RepositoryGeoIpRules{
+		CountryCode: &cloudsmith.RepositoryGeoIpCountryCodeRules{
 			Allow: expandStrings(d, CountryCodeAllow),
 			Deny:  expandStrings(d, CountryCodeDeny),
 		},
-		Cidr: &cloudsmith.ReposGeoipRead200ResponseCountryCode{
+		Cidr: &cloudsmith.RepositoryGeoIpCidrRules{
 			Allow: expandStrings(d, CidrAllow),
 			Deny:  expandStrings(d, CidrDeny),
 		},
@@ -158,12 +158,12 @@ func resourceRepositoryGeoIpRulesDelete(d *schema.ResourceData, m interface{}) e
 
 	// There isn't a DELETE endpoint, so just update the rules to be empty.
 	req := pc.APIClient.ReposApi.ReposGeoipUpdate(pc.Auth, namespace, repository)
-	req = req.Data(cloudsmith.ReposGeoipRead200Response{
-		CountryCode: &cloudsmith.ReposGeoipRead200ResponseCountryCode{
+	req = req.Data(cloudsmith.RepositoryGeoIpRules{
+		CountryCode: &cloudsmith.RepositoryGeoIpCountryCodeRules{
 			Allow: []string{},
 			Deny:  []string{},
 		},
-		Cidr: &cloudsmith.ReposGeoipRead200ResponseCountryCode{
+		Cidr: &cloudsmith.RepositoryGeoIpCidrRules{
 			Allow: []string{},
 			Deny:  []string{},
 		},
