@@ -155,7 +155,7 @@ resource "cloudsmith_service" "test" {
 
 var testAccServiceConfigBasicAddToTeam = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
-	name         = "TF Test Team"
+	name         = "TF Test Team Svc"
 	organization = "%s"
 }
 
