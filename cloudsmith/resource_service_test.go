@@ -49,7 +49,7 @@ func TestAccService_basic(t *testing.T) {
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
 					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team",
+						"slug": "tf-test-team-svc",
 						"role": "Member",
 					}),
 				),
@@ -60,11 +60,11 @@ func TestAccService_basic(t *testing.T) {
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
 					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team",
+						"slug": "tf-test-team-svc",
 						"role": "Member",
 					}),
 					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team-2",
+						"slug": "tf-test-team-svc-2",
 						"role": "Manager",
 					}),
 				),
@@ -172,12 +172,12 @@ resource "cloudsmith_service" "test" {
 
 var testAccServiceConfigBasicAddAnotherToTeam = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
-	name         = "TF Test Team"
+	name         = "TF Test Team Svc"
 	organization = "%s"
 }
 
 resource "cloudsmith_team" "test2" {
-	name         = "TF Test Team 2"
+	name         = "TF Test Team Svc 2"
 	organization = "%s"
 }
 
