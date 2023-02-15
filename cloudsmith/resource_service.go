@@ -317,7 +317,6 @@ func resourceService() *schema.Resource {
 					},
 				},
 				Optional: true,
-				ForceNew: true,
 			},
 		},
 	}

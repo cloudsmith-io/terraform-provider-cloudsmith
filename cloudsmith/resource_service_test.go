@@ -48,7 +48,25 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-					resource.TestCheckResourceAttr("cloudsmith_service.test", "team.0.role", "Manager"),
+					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
+						"slug": "tf-test-team-svc",
+						"role": "Member",
+					}),
+				),
+			},
+			{
+				Config: testAccServiceConfigBasicAddAnotherToTeam,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
+					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
+						"slug": "tf-test-team-svc",
+						"role": "Member",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
+						"slug": "tf-test-team-svc-2",
+						"role": "Manager",
+					}),
 				),
 			},
 			{
@@ -137,7 +155,7 @@ resource "cloudsmith_service" "test" {
 
 var testAccServiceConfigBasicAddToTeam = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
-	name         = "TF Test Team"
+	name         = "TF Test Team Svc"
 	organization = "%s"
 }
 
@@ -151,3 +169,30 @@ resource "cloudsmith_service" "test" {
 	}
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicAddAnotherToTeam = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	name         = "TF Test Team Svc"
+	organization = "%s"
+}
+
+resource "cloudsmith_team" "test2" {
+	name         = "TF Test Team Svc 2"
+	organization = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service"
+	organization = "%s"
+	role         = "Manager"
+
+	team {
+		slug = cloudsmith_team.test.slug
+	}
+
+	team {
+		role = "Manager"
+		slug = cloudsmith_team.test2.slug
+	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
