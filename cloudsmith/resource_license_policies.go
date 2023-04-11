@@ -190,7 +190,7 @@ func resourceLicensePolicies() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			CreatedAt: {
 				Type:        schema.TypeString,
-				Description: "The time the policy was created at",
+				Description: "The time the policy was created at.",
 				Computed:    true,
 			},
 			Description: {
@@ -201,7 +201,7 @@ func resourceLicensePolicies() *schema.Resource {
 			},
 			Name: {
 				Type:         schema.TypeString,
-				Description:  "The name of the license policy",
+				Description:  "The name of the license policy.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
@@ -213,12 +213,12 @@ func resourceLicensePolicies() *schema.Resource {
 			},
 			SlugPerm: {
 				Type:        schema.TypeString,
-				Description: "Organization to which the license policies belong.",
+				Description: "Slug-perm of the license policy",
 				Computed:    true,
 			},
 			SpdxIdentifiers: {
 				Type:        schema.TypeSet,
-				Description: "Organization to which the license policies belong.",
+				Description: "The licenses to deny.",
 				Elem: &schema.Schema{
 					Type:         schema.TypeString,
 					ValidateFunc: validation.StringIsNotEmpty,
@@ -227,12 +227,12 @@ func resourceLicensePolicies() *schema.Resource {
 			},
 			UpdatedAt: {
 				Type:        schema.TypeString,
-				Description: "Organization to which the license policies belong.",
+				Description: "The time the policy last updated at.",
 				Computed:    true,
 			},
 			Organization: {
 				Type:         schema.TypeString,
-				Description:  "Organization to which this entitlement belongs.",
+				Description:  "Organization to which this policy belongs.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
