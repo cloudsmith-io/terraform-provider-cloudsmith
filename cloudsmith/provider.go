@@ -36,13 +36,14 @@ func Provider() *schema.Provider {
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":             resourceEntitlement(),
+			"cloudsmith_license_policy":          resourceLicensePolicy(),
 			"cloudsmith_repository":              resourceRepository(),
 			"cloudsmith_repository_geo_ip_rules": resourceRepositoryGeoIpRules(),
 			"cloudsmith_repository_privileges":   resourceRepositoryPrivileges(),
 			"cloudsmith_service":                 resourceService(),
 			"cloudsmith_team":                    resourceTeam(),
+			"cloudsmith_vulnerability_policy":    resourceVulnerabilityPolicy(),
 			"cloudsmith_webhook":                 resourceWebhook(),
-			"cloudsmith_license_policy":          resourceLicensePolicy(),
 		},
 	}
 
