@@ -15,13 +15,6 @@ data "cloudsmith_organization" "my_organization" {
     slug = "my-organization"
 }
 
-resource "cloudsmith_repository" "my_repository" {
-    description = "A certifiably-awesome private package repository"
-    name        = "My Repository"
-    namespace   = "my-organization"
-    slug        = "my-repository"
-}
-
 resource "cloudsmith_license_policy" "my_license_policy" {
     name                    = "My Policy"
     description             = "My license policy"
