@@ -210,13 +210,13 @@ func resourceLicensePolicy() *schema.Resource {
 				Type:        schema.TypeBool,
 				Description: "On violation of the license policy, quarantine violating packages.",
 				Optional:    true,
-				Default:     true,
+				Computed:    true,
 			},
 			AllowUnknownLicenses: {
 				Type:        schema.TypeBool,
 				Description: "Allow unknown licenses within the policy.",
 				Optional:    true,
-				Default:     true,
+				Computed:    true,
 			},
 			SlugPerm: {
 				Type:        schema.TypeString,

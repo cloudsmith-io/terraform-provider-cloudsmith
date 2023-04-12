@@ -1,8 +1,6 @@
-# License Policies Resource
+# License Policy Resource
 
-The repository geo/ip rules resource allows the management of geo/ip rules for a given Cloudsmith repository. Using this resource it is possible to allow and/or deny access to a repository using CIDR notation, two-character ISO 3166-1 country codes or a combination thereof.
-
-The license policies resource allows the management of license policies for a given cloudsmith organization. This resource allows creation and management of license policies within a Cloudsmith organization
+The license policy resource allows the management of license policies for a given cloudsmith organization. This resource allows creation and management of license policies within a Cloudsmith organization
 
 See [help.cloudsmith.io](https://help.cloudsmith.io/docs/license-policies) for the full license policies documentation.
 
@@ -24,9 +22,9 @@ resource "cloudsmith_repository" "my_repository" {
     slug        = "my-repository"
 }
 
-resource "cloudsmith_license_policies" "my_license_policies" {
-    name                    = "TF Test Policy Updated"
-    description             = "TF Test Policy Description Updated"
+resource "cloudsmith_license_policy" "my_license_policy" {
+    name                    = "My Policy"
+    description             = "My license policy"
     spdx_identifiers        = ["Apache-2.0"]
     on_violation_quarantine = true
     organization            = "%s"
@@ -49,5 +47,5 @@ The following arguments are supported:
 This resource can be imported using the organization slug.
 
 ```shell
-terraform import cloudsmith_license_policies.my_policies my-organization
+terraform import cloudsmith_license_policy.my_policy my-organization
 ```
