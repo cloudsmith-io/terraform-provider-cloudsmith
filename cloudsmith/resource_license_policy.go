@@ -24,7 +24,7 @@ const (
 	Organization          string = "organization"
 )
 
-func importLicensePolicies(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+func importLicensePolicy(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.Split(d.Id(), ".")
 	if len(idParts) != 2 {
 		return nil, fmt.Errorf(
@@ -37,7 +37,7 @@ func importLicensePolicies(ctx context.Context, d *schema.ResourceData, m interf
 	return []*schema.ResourceData{d}, nil
 }
 
-func resourceLicensePoliciesCreate(d *schema.ResourceData, m interface{}) error {
+func resourceLicensePolicyCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
@@ -75,23 +75,23 @@ func resourceLicensePoliciesCreate(d *schema.ResourceData, m interface{}) error 
 		return fmt.Errorf("error waiting for license policy (%s) to be created: %s", d.Id(), err)
 	}
 
-	return resourceLicensePoliciesRead(d, m)
+	return resourceLicensePolicyRead(d, m)
 }
 
-func resourceLicensePoliciesUpdate(d *schema.ResourceData, m interface{}) error {
+func resourceLicensePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
-	req := pc.APIClient.OrgsApi.OrgsLicensePolicyPartialUpdate(pc.Auth, org, d.Id())
-	req = req.Data(cloudsmith.OrganizationPackageLicensePolicyRequestPatch{
+	req := pc.APIClient.OrgsApi.OrgsLicensePolicyUpdate(pc.Auth, org, d.Id())
+	req = req.Data(cloudsmith.OrganizationPackageLicensePolicyRequest{
 		AllowUnknownLicenses:  optionalBool(d, AllowUnknownLicenses),
 		Description:           nullableString(d, Description),
-		Name:                  optionalString(d, Name),
+		Name:                  requiredString(d, Name),
 		OnViolationQuarantine: optionalBool(d, OnViolationQuarantine),
 		SpdxIdentifiers:       expandStrings(d, SpdxIdentifiers),
 	})
-	licensePolicy, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyPartialUpdateExecute(req)
+	licensePolicy, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyUpdateExecute(req)
 	if err != nil {
 		if resp.StatusCode == http.StatusUnprocessableEntity {
 			return fmt.Errorf("invalid spdx_identifiers: %v", expandStrings(d, SpdxIdentifiers))
@@ -111,10 +111,10 @@ func resourceLicensePoliciesUpdate(d *schema.ResourceData, m interface{}) error 
 		return fmt.Errorf("error waiting for license policy (%s) to be updated: %w", d.Id(), err)
 	}
 
-	return resourceLicensePoliciesRead(d, m)
+	return resourceLicensePolicyRead(d, m)
 }
 
-func resourceLicensePoliciesDelete(d *schema.ResourceData, m interface{}) error {
+func resourceLicensePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
@@ -142,14 +142,14 @@ func resourceLicensePoliciesDelete(d *schema.ResourceData, m interface{}) error 
 	return nil
 }
 
-func resourceLicensePoliciesRead(d *schema.ResourceData, m interface{}) error {
+func resourceLicensePolicyRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
 	req := pc.APIClient.OrgsApi.OrgsLicensePolicyRead(pc.Auth, org, d.Id())
 
-	licensePolicies, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)
+	licensePolicy, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)
 	if err != nil {
 		if is404(resp) {
 			d.SetId("")
@@ -159,13 +159,14 @@ func resourceLicensePoliciesRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	_ = d.Set(CreatedAt, licensePolicies.GetCreatedAt().String())
-	_ = d.Set(Description, licensePolicies.GetDescription())
-	_ = d.Set(Name, licensePolicies.GetName())
-	_ = d.Set(OnViolationQuarantine, licensePolicies.GetOnViolationQuarantine())
-	_ = d.Set(SlugPerm, licensePolicies.GetSlugPerm())
-	_ = d.Set(SpdxIdentifiers, flattenStrings(licensePolicies.GetSpdxIdentifiers()))
-	_ = d.Set(UpdatedAt, licensePolicies.GetUpdatedAt().String())
+	_ = d.Set(CreatedAt, licensePolicy.GetCreatedAt().String())
+	_ = d.Set(Description, licensePolicy.GetDescription())
+	_ = d.Set(Name, licensePolicy.GetName())
+	_ = d.Set(OnViolationQuarantine, licensePolicy.GetOnViolationQuarantine())
+	_ = d.Set(AllowUnknownLicenses, licensePolicy.GetAllowUnknownLicenses())
+	_ = d.Set(SlugPerm, licensePolicy.GetSlugPerm())
+	_ = d.Set(SpdxIdentifiers, flattenStrings(licensePolicy.GetSpdxIdentifiers()))
+	_ = d.Set(UpdatedAt, licensePolicy.GetUpdatedAt().String())
 
 	// organization is not returned from the read
 	// endpoint, so we can use the values stored in resource state. We rely on
@@ -176,15 +177,15 @@ func resourceLicensePoliciesRead(d *schema.ResourceData, m interface{}) error {
 }
 
 //nolint:funlen
-func resourceLicensePolicies() *schema.Resource {
+func resourceLicensePolicy() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceLicensePoliciesCreate,
-		Read:   resourceLicensePoliciesRead,
-		Update: resourceLicensePoliciesUpdate,
-		Delete: resourceLicensePoliciesDelete,
+		Create: resourceLicensePolicyCreate,
+		Read:   resourceLicensePolicyRead,
+		Update: resourceLicensePolicyUpdate,
+		Delete: resourceLicensePolicyDelete,
 
 		Importer: &schema.ResourceImporter{
-			StateContext: importLicensePolicies,
+			StateContext: importLicensePolicy,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -208,6 +209,12 @@ func resourceLicensePolicies() *schema.Resource {
 			OnViolationQuarantine: {
 				Type:        schema.TypeBool,
 				Description: "On violation of the license policy, quarantine violating packages.",
+				Optional:    true,
+				Default:     true,
+			},
+			AllowUnknownLicenses: {
+				Type:        schema.TypeBool,
+				Description: "Allow unknown licenses within the policy.",
 				Optional:    true,
 				Default:     true,
 			},

@@ -11,47 +11,45 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-func TestOrgLicensePolicies_basic(t *testing.T) {
+func TestAccOrgLicensePolicy_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
-		CheckDestroy: testOrgLicensePoliciesCheckDestroy("cloudsmith_license_policies.test"),
+		CheckDestroy: testOrgLicensePolicyCheckDestroy("cloudsmith_license_policy.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testOrgLicensePoliciesBasic,
+				Config: testOrgLicensePolicyBasic,
 				Check: resource.ComposeTestCheckFunc(
-					testOrgLicensePoliciesCheckExists("cloudsmith_license_policies.test"),
-					// check properties have been set correctly
-					resource.TestCheckResourceAttr("cloudsmith_license_policies.test", "description", "TF Test Policy Description"),
-					resource.TestCheckResourceAttr("cloudsmith_license_policies.test", "name", "TF Test Policy"),
-					resource.TestCheckResourceAttrSet("cloudsmith_license_policies.test", "on_violation_quarantine"),
-					resource.TestCheckResourceAttrSet("cloudsmith_license_policies.test", "spdx_identifiers.#"),
-					resource.TestCheckResourceAttrSet("cloudsmith_license_policies.test", "created_at"),
-					resource.TestCheckResourceAttrSet("cloudsmith_license_policies.test", "updated_at"),
-					resource.TestCheckResourceAttrSet("cloudsmith_license_policies.test", "slug_perm"),
+					testOrgLicensePolicyCheckExists("cloudsmith_license_policy.test"),
+					// check computed properties have been set correctly
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "allow_unknown_licenses"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "on_violation_quarantine"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "created_at"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "updated_at"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "slug_perm"),
 				),
 			},
 			{
-				Config:      testOrgLicensePoliciesBasicInvalidSpdx,
+				Config:      testOrgLicensePolicyBasicInvalidSpdx,
 				ExpectError: regexp.MustCompile("invalid spdx_identifiers:"),
 			},
 			{
-				Config: testOrgLicensePoliciesBasicUpdate,
+				Config: testOrgLicensePolicyBasicUpdate,
 				Check: resource.ComposeTestCheckFunc(
-					testOrgLicensePoliciesCheckExists("cloudsmith_license_policies.test"),
-					// check values have been updated
-					resource.TestCheckResourceAttr("cloudsmith_license_policies.test", "description", "TF Test Policy Description Updated"),
-					resource.TestCheckResourceAttr("cloudsmith_license_policies.test", "name", "TF Test Policy Updated"),
-					resource.TestCheckResourceAttr("cloudsmith_license_policies.test", "on_violation_quarantine", "true"),
+					testOrgLicensePolicyCheckExists("cloudsmith_license_policy.test"),
+					// check computed properties have been set correctly
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "created_at"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "updated_at"),
+					resource.TestCheckResourceAttrSet("cloudsmith_license_policy.test", "slug_perm"),
 				),
 			},
 			{
-				ResourceName: "cloudsmith_license_policies.test",
+				ResourceName: "cloudsmith_license_policy.test",
 				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
-					resourceState := s.RootModule().Resources["cloudsmith_license_policies.test"]
+					resourceState := s.RootModule().Resources["cloudsmith_license_policy.test"]
 					return fmt.Sprintf(
 						"%s.%s",
 						resourceState.Primary.Attributes["organization"],
@@ -65,7 +63,7 @@ func TestOrgLicensePolicies_basic(t *testing.T) {
 }
 
 //nolint:goerr113
-func testOrgLicensePoliciesCheckDestroy(resourceName string) resource.TestCheckFunc {
+func testOrgLicensePolicyCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
 		if !ok {
@@ -92,7 +90,7 @@ func testOrgLicensePoliciesCheckDestroy(resourceName string) resource.TestCheckF
 }
 
 //nolint:goerr113
-func testOrgLicensePoliciesCheckExists(resourceName string) resource.TestCheckFunc {
+func testOrgLicensePolicyCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
 		if !ok {
@@ -116,8 +114,8 @@ func testOrgLicensePoliciesCheckExists(resourceName string) resource.TestCheckFu
 	}
 }
 
-var testOrgLicensePoliciesBasic = fmt.Sprintf(`
-resource "cloudsmith_license_policies" "test" {
+var testOrgLicensePolicyBasic = fmt.Sprintf(`
+resource "cloudsmith_license_policy" "test" {
 	name             = "TF Test Policy"
 	description      = "TF Test Policy Description"
 	spdx_identifiers = ["Apache-1.0"]
@@ -125,8 +123,8 @@ resource "cloudsmith_license_policies" "test" {
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
-var testOrgLicensePoliciesBasicInvalidSpdx = fmt.Sprintf(`
-resource "cloudsmith_license_policies" "test" {
+var testOrgLicensePolicyBasicInvalidSpdx = fmt.Sprintf(`
+resource "cloudsmith_license_policy" "test" {
 	name             = "TF Test Policy"
 	description      = "TF Test Policy Description"
 	spdx_identifiers = ["Not a spdx"]
@@ -134,12 +132,13 @@ resource "cloudsmith_license_policies" "test" {
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
-var testOrgLicensePoliciesBasicUpdate = fmt.Sprintf(`
-resource "cloudsmith_license_policies" "test" {
+var testOrgLicensePolicyBasicUpdate = fmt.Sprintf(`
+resource "cloudsmith_license_policy" "test" {
 	name                    = "TF Test Policy Updated"
 	description             = "TF Test Policy Description Updated"
 	spdx_identifiers        = ["Apache-2.0"]
 	on_violation_quarantine = true
+	allow_unknown_licenses  = true
 	organization            = "%s"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))

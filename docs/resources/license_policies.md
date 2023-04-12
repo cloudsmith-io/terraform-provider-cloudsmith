@@ -42,6 +42,7 @@ The following arguments are supported:
 * `description` - (Required) The description of the license policy.
 * `spdx_identifiers` - (Required) The licenses to deny.
 * `on_violation_quarantine` - (Optional) On violation of the license policy, quarantine violating packages.
+* `allow_unknown_licenses` - (Optional) Allow unknown licenses within the policy.
 
 ## Import
 

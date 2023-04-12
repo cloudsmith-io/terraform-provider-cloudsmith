@@ -42,7 +42,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_service":                 resourceService(),
 			"cloudsmith_team":                    resourceTeam(),
 			"cloudsmith_webhook":                 resourceWebhook(),
-			"cloudsmith_license_policies":        resourceLicensePolicies(),
+			"cloudsmith_license_policy":          resourceLicensePolicy(),
 		},
 	}
 
