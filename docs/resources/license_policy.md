@@ -1,6 +1,6 @@
 # License Policy Resource
 
-The license policy resource allows the management of license policies for a given cloudsmith organization. This resource allows creation and management of license policies within a Cloudsmith organization
+The license policy resource allows for creation and management of license policies within a Cloudsmith organization.
 
 See [help.cloudsmith.io](https://help.cloudsmith.io/docs/license-policies) for the full license policies documentation.
 
@@ -27,7 +27,7 @@ resource "cloudsmith_license_policy" "my_license_policy" {
     description             = "My license policy"
     spdx_identifiers        = ["Apache-2.0"]
     on_violation_quarantine = true
-    organization            = "%s"
+    organization            = "my-organization"
 }
 ```
 
