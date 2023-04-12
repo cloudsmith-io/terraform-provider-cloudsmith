@@ -28,7 +28,7 @@ func importLicensePolicy(ctx context.Context, d *schema.ResourceData, m interfac
 	idParts := strings.Split(d.Id(), ".")
 	if len(idParts) != 2 {
 		return nil, fmt.Errorf(
-			"invalid import ID, must be of the form <organization_slug>, got: %s", d.Id(),
+			"invalid import ID, must be of the form <organization_slug>.<policy_id>, got: %s", d.Id(),
 		)
 	}
 
