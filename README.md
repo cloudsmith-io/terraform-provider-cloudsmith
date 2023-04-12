@@ -113,10 +113,6 @@ data "cloudsmith_package_download" "my_package" {
   query             = "tag:your_custom_tag"
   destination_path  = "/path/to/download"
 }
-
-output "downloaded_file_path" {
-  value = data.cloudsmith_package_download.my_package.cdn_url
-}
 ```
 
 Testing the Provider
