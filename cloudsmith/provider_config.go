@@ -48,3 +48,8 @@ func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag
 
 	return &providerConfig{Auth: auth, APIClient: apiClient}, nil
 }
+
+func (pc *providerConfig) GetAPIKey() string {
+	apiKeys, _ := pc.Auth.Value(cloudsmith.ContextAPIKeys).(map[string]cloudsmith.APIKey)
+	return apiKeys["apikey"].Key
+}
