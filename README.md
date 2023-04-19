@@ -89,6 +89,32 @@ output "packages" {
 }
 ```
 
+Download the raw file for a package, the package version should equal to the package version visible in UI:
+
+```
+provider "cloudsmith" {
+  api_key = "my-api-key"
+}
+
+data "cloudsmith_namespace" "my_namespace" {
+  slug = "my-namespace"
+}
+
+data "cloudsmith_repository" "my_repository" {
+  namespace  = data.cloudsmith_namespace.my_namespace.slug
+  identifier = "my-repository"
+}
+
+data "cloudsmith_package_download" "my_package" {
+  namespace         = data.cloudsmith_repository.my_repository.namespace
+  repository        = data.cloudsmith_repository.my_repository.slug_perm
+  package_name      = "my-package"
+  package_version   = "latest"
+  query             = "tag:your_custom_tag"
+  destination_path  = "/path/to/download"
+}
+```
+
 Testing the Provider
 -----------------------
 
