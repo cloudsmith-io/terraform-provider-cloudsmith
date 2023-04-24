@@ -12,45 +12,40 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// Hit the API with function PackagesListExecute with the following query: name and version (defaults to latest unless otherwise specified)
-func getPackageURL(pc *providerConfig, namespace string, repository string, query string, packageName string, packageVersion string) (string, string, error) {
-	req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository)
+// getPackageURL calls the API with function PackagesListExecute
+func getPackageURL(pc *providerConfig, organization string, repository string, query string, packageName string) (string, string, string, error) {
+	req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, organization, repository)
 
-	queryString := query
-
-	if packageVersion != "" {
-		queryWithVersion := fmt.Sprintf("%s version:%s", query, packageVersion)
-		queryString = queryWithVersion
-	}
-
-	req = req.Query(queryString)
+	req = req.Query(query)
 	req = req.PageSize(1)
 
 	packagesList, _, err := pc.APIClient.PackagesApi.PackagesListExecute(req)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	for _, pkg := range packagesList {
-		if pkg.GetName() == packageName {
-			return pkg.GetCdnUrl(), pkg.GetFilename(), nil
-		}
+	if len(packagesList) > 0 && packagesList[0].GetName() == packageName {
+		return packagesList[0].GetCdnUrl(), packagesList[0].GetFilename(), packagesList[0].GetSlugPerm(), nil
 	}
 
-	return "", "", errors.New("package not found")
+	return "", "", "", errors.New("package not found")
 }
 
 func dataSourcePackageDownloadRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	namespace := d.Get("namespace").(string)
+	organization := d.Get("organization").(string)
 	repository := d.Get("repository").(string)
 	query := d.Get("query").(string)
 	packageName := d.Get("package_name").(string)
-	packageVersion := d.Get("package_version").(string)
 	destinationPath := d.Get("destination_path").(string)
 
-	cdnURL, filename, err := getPackageURL(pc, namespace, repository, query, packageName, packageVersion)
+	// Add this check for destinationPath
+	if destinationPath == "" {
+		return errors.New("destination_path must be provided")
+	}
+
+	cdnURL, filename, slugPerm, err := getPackageURL(pc, organization, repository, query, packageName)
 	if err != nil {
 		return err
 	}
@@ -66,7 +61,7 @@ func dataSourcePackageDownloadRead(d *schema.ResourceData, m interface{}) error 
 		return err
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s/%s", namespace, repository, packageName))
+	d.SetId(slugPerm)
 	return nil
 }
 
@@ -110,9 +105,9 @@ func dataSourcePackageDownload() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
-			"namespace": {
+			"organization": {
 				Type:         schema.TypeString,
-				Description:  "The namespace to which the package belongs.",
+				Description:  "The organization to which the package belongs.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
@@ -127,12 +122,6 @@ func dataSourcePackageDownload() *schema.Resource {
 				Description:  "The name of the package to download.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
-			},
-			"package_version": {
-				Type:        schema.TypeString,
-				Description: "The version of the package to download. Defaults to the latest version if not specified.",
-				Optional:    true,
-				Default:     "",
 			},
 			"cdn_url": {
 				Type:        schema.TypeString,

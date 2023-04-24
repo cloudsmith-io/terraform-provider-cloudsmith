@@ -8,12 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccPackageDownload_data(t *testing.T) {
@@ -42,17 +40,19 @@ func TestAccPackageDownload_data(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					createHelloWorldFile(fileName)
+					createHelloWorldFile(fileName, packageVersion)
 					uploadPackageToCloudsmith(apiKey, namespace, repoName, fileName, packageName, packageVersion, userName)
+					slugPerm := getPackageSlugPerm(apiKey, namespace, repoName, fileName, userName)
+					client := &http.Client{}
+					waitForPackageSync(client, apiKey, namespace, repoName, slugPerm, userName)
 				},
 				Config: testAccPackageDownloadData(namespace, repoName, packageName, packageVersion, destinationPath),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "namespace", namespace),
+					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "organization", namespace),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "repository", repoName),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "package_name", packageName),
-					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "package_version", packageVersion),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "destination_path", destinationPath),
-					checkDownloadedFile(namespace, repoName, packageName, packageVersion, destinationPath, "Hello world"),
+					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "query", fmt.Sprintf("version:%s", packageVersion)),
 				),
 			},
 		},
@@ -68,8 +68,8 @@ resource "cloudsmith_repository" "test" {
 `, repoName, namespace)
 }
 
-func createHelloWorldFile(filename string) {
-	content := []byte("Hello world")
+func createHelloWorldFile(filename string, fileVersion string) {
+	content := []byte(fmt.Sprintf("Hello world v%s", fileVersion))
 	err := os.WriteFile(filename, content, 0644)
 	if err != nil {
 		panic(err)
@@ -155,41 +155,100 @@ func uploadPackageToCloudsmith(apiKey, namespace, repoName, fileName, packageNam
 	if err != nil {
 		panic(err)
 	}
-	time.Sleep(50 * time.Second)
 }
 
-func checkDownloadedFile(namespace, repository, packageName, packageVersion, destinationPath, expectedContent string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		filename := fmt.Sprintf("%s.txt", packageName)
-		filepath := filepath.Join(destinationPath, filename)
-
-		// Check if file exists
-		if _, err := os.Stat(filepath); os.IsNotExist(err) {
-			return fmt.Errorf("file not found: %s", filepath)
-		}
-
-		// Read the file content
-		content, err := os.ReadFile(filepath)
-		if err != nil {
-			return fmt.Errorf("error reading file: %s", err.Error())
-		}
-
-		// Check if the content matches the expected content
-		if string(content) != expectedContent {
-			return fmt.Errorf("file content does not match expected content")
-		}
-
-		return nil
+func waitForPackageSync(client *http.Client, apiKey, namespace, repoName, identifier, userName string) {
+	statusURL := fmt.Sprintf("https://api.cloudsmith.io/v1/packages/%s/%s/%s/status/", namespace, repoName, identifier)
+	request, err := http.NewRequest("GET", statusURL, nil)
+	if err != nil {
+		panic(err)
 	}
+	request.SetBasicAuth(userName, apiKey)
+
+	for {
+		response, err := client.Do(request)
+		if err != nil {
+			panic(err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			panic(fmt.Errorf("failed to get package status: %s", response.Status))
+		}
+
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		var statusResponse map[string]interface{}
+		err = json.Unmarshal(body, &statusResponse)
+		if err != nil {
+			panic(err)
+		}
+
+		stageStr, ok := statusResponse["stage_str"].(string)
+		if ok && stageStr == "Fully Synchronised" {
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func getPackageSlugPerm(apiKey, namespace, repoName, fileName, userName string) string {
+	client := &http.Client{}
+
+	// Prepare API request
+	url := fmt.Sprintf("https://api.cloudsmith.io/v1/packages/%s/%s/?page_size=1&query=filename:%s", namespace, repoName, fileName)
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		panic(err)
+	}
+	request.SetBasicAuth(userName, apiKey)
+
+	// Send API request
+	response, err := client.Do(request)
+	if err != nil {
+		panic(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("failed to get package list: %s", response.Status))
+	}
+
+	// Read and parse API response
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	var packages []map[string]interface{}
+	err = json.Unmarshal(body, &packages)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(packages) == 0 {
+		panic(fmt.Errorf("no package found with filename: %s", fileName))
+	}
+
+	slugPerm, ok := packages[0]["slug_perm"].(string)
+	if !ok {
+		panic(fmt.Errorf("failed to get slug_perm from package: %v", packages[0]))
+	}
+
+	return slugPerm
 }
 
 func testAccPackageDownloadData(namespace, repository, packageName, packageVersion, destinationPath string) string {
 	return fmt.Sprintf(`
 data "cloudsmith_package_download" "test" {
-	namespace        = "%s"
+	organization     = "%s"
 	repository       = "%s"
 	package_name     = "%s"
-	package_version  = "%s"
+	query            = "version:%s"
 	destination_path = "%s"
 }
 `, namespace, repository, packageName, packageVersion, destinationPath)

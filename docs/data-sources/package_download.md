@@ -1,6 +1,6 @@
 # Package Download Data Source
 
-The `package_download` data source allows you to download a specific package within a given repository.
+The `package_download` data source allows you to download a specific package from a given repository.
 
 ## Example Usage
 
@@ -23,7 +23,7 @@ data "cloudsmith_package_download" "my_package" {
   repository        = data.cloudsmith_repository.my_repository.slug_perm
   package_name      = "my-package"
   package_version   = "latest"
-  query             = "tag:your_custom_tag"
+  query             = "version:1.0"
   destination_path  = "/path/to/download"
 }
 ```
