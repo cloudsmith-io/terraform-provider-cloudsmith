@@ -12,45 +12,49 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 const (
 	apiBaseURL        = "https://api.cloudsmith.io/v1"
 	uploadBaseURL     = "https://upload.cloudsmith.io"
 	apiPackageBaseURL = "https://api-prd.cloudsmith.io/v1"
+	repository        = "terraform-acc-test-download-3"
+	packageName       = "test-package"
+	packageVersion    = "1.0.0"
+	destinationPath   = "."
+	fileName          = "hello.txt"
 )
 
 func TestAccPackageDownload_data(t *testing.T) {
 	t.Parallel()
-
 	namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 	apiKey := os.Getenv("CLOUDSMITH_API_KEY")
-	userName := "token"
-	repoName := "terraform-acc-download"
-	fileName := "hello.txt"
-	packageName := "hello"
-	packageVersion := "1.0"
-	destinationPath := "."
+	userName := os.Getenv("CLOUDSMITH_USERNAME")
 
+	// Create the test repository using HCL configuration
+	repoHCL := createTestRepository(namespace)
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				PreConfig: func() {
-					repoSlug := createRepository(apiKey, namespace, repoName, userName)
-					createHelloWorldFile(fileName, packageVersion)
-					uploadPackageToCloudsmith(apiKey, namespace, repoName, fileName, packageName, packageVersion, userName)
-					slugPerm := getPackageSlugPerm(apiKey, namespace, repoName, fileName, userName)
-					client := &http.Client{}
-					waitForPackageSync(client, apiKey, namespace, repoName, slugPerm, userName)
-
-					defer deleteRepository(apiKey, namespace, repoSlug, userName) // Delete repository after test
-				},
-				Config: testAccPackageDownloadData(namespace, repoName, packageName, packageVersion, destinationPath),
+				Config: repoHCL,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", repository),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "namespace", namespace),
+					// Custom TestCheckFunc to upload the package and wait for sync after repository creation
+					func(s *terraform.State) error {
+						uploadAndSyncPackage(apiKey, namespace, repository, fileName, packageName, packageVersion, userName)
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccPackageDownloadData(namespace, repository, packageName, packageVersion, destinationPath),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "organization", namespace),
-					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "repository", repoName),
+					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "repository", repository),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "package_name", packageName),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "destination_path", destinationPath),
 					resource.TestCheckResourceAttr("data.cloudsmith_package_download.test", "query", fmt.Sprintf("version:%s", packageVersion)),
@@ -60,81 +64,20 @@ func TestAccPackageDownload_data(t *testing.T) {
 	})
 }
 
-func createRepository(apiKey, namespace, repoName, userName string) string {
+func uploadAndSyncPackage(apiKey, namespace, repository, fileName, packageName, packageVersion, userName string) {
+	createHelloWorldFile(fileName, packageVersion)
+	uploadPackageToCloudsmith(apiKey, namespace, repository, fileName, packageName, packageVersion, userName)
+	slugPerm := getPackageSlugPerm(apiKey, namespace, repository, fileName, userName)
 	client := &http.Client{}
-
-	createRepoURL := fmt.Sprintf("%s/repos/%s/", apiBaseURL, namespace)
-	repoDetails := map[string]interface{}{
-		"name":                repoName,
-		"repository_type_str": "Private",
-		"content_kind":        "Standard",
-		"copy_packages":       "Read",
-		"default_privilege":   "None",
-		"delete_packages":     "Admin",
-		"move_packages":       "Admin",
-		"replace_packages":    "Write",
-		"resync_packages":     "Admin",
-		"scan_packages":       "Read",
-		"storage_region":      "default",
-		"view_statistics":     "Read",
-	}
-
-	repoDetailsJSON, err := json.Marshal(repoDetails)
-	if err != nil {
-		panic(err)
-	}
-
-	request, err := http.NewRequest("POST", createRepoURL, bytes.NewReader(repoDetailsJSON))
-	if err != nil {
-		panic(err)
-	}
-	request.SetBasicAuth(userName, apiKey)
-
-	request.Header.Set("Content-Type", "application/json")
-
-	response, err := client.Do(request)
-	if err != nil {
-		panic(err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusCreated {
-		panic(fmt.Errorf("failed to create repository: %s", response.Status))
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	var repoResponse map[string]interface{}
-	err = json.Unmarshal(body, &repoResponse)
-	if err != nil {
-		panic(err)
-	}
-
-	return repoResponse["slug_perm"].(string)
+	waitForPackageSync(client, apiKey, namespace, repository, slugPerm, userName)
 }
 
-func deleteRepository(apiKey, namespace, repoSlug, userName string) {
-	client := &http.Client{}
-
-	deleteRepoURL := fmt.Sprintf("%s/repos/%s/%s/", apiBaseURL, namespace, repoSlug)
-	request, err := http.NewRequest("DELETE", deleteRepoURL, nil)
-	if err != nil {
-		panic(err)
-	}
-	request.SetBasicAuth(userName, apiKey)
-
-	response, err := client.Do(request)
-	if err != nil {
-		panic(err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		panic(fmt.Errorf("failed to delete repository: %s", response.Status))
-	}
+func createTestRepository(namespace string) string {
+	return fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name = "%s"
+		namespace = "%s"
+	}`, repository, namespace)
 }
 
 func createHelloWorldFile(filename string, fileVersion string) {
@@ -198,6 +141,7 @@ func uploadPackageToCloudsmith(apiKey, namespace, repoName, fileName, packageNam
 		"summary":      "Test Package",
 		"version":      packageVersion,
 	}
+
 	packageDetailsJSON, err := json.Marshal(packageDetails)
 	if err != nil {
 		panic(err)
