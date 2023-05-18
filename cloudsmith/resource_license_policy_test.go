@@ -139,6 +139,7 @@ resource "cloudsmith_license_policy" "test" {
 	spdx_identifiers        = ["Apache-2.0"]
 	on_violation_quarantine = true
 	allow_unknown_licenses  = true
+	package_query_string = "format:python AND downloads:>50"
 	organization            = "%s"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))

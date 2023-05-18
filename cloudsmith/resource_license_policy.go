@@ -20,6 +20,7 @@ const (
 	OnViolationQuarantine string = "on_violation_quarantine"
 	SlugPerm              string = "slug_perm"
 	SpdxIdentifiers       string = "spdx_identifiers"
+	PackageQueryString    string = "package_query_string"
 	UpdatedAt             string = "updated_at"
 	Organization          string = "organization"
 )
@@ -49,6 +50,7 @@ func resourceLicensePolicyCreate(d *schema.ResourceData, m interface{}) error {
 		Name:                  requiredString(d, Name),
 		OnViolationQuarantine: optionalBool(d, OnViolationQuarantine),
 		SpdxIdentifiers:       expandStrings(d, SpdxIdentifiers),
+		PackageQueryString:    nullableString(d, PackageQueryString),
 	})
 
 	licensePolicy, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyCreateExecute(req)
@@ -90,6 +92,7 @@ func resourceLicensePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 		Name:                  requiredString(d, Name),
 		OnViolationQuarantine: optionalBool(d, OnViolationQuarantine),
 		SpdxIdentifiers:       expandStrings(d, SpdxIdentifiers),
+		PackageQueryString:    nullableString(d, PackageQueryString),
 	})
 	licensePolicy, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyUpdateExecute(req)
 	if err != nil {
@@ -166,6 +169,7 @@ func resourceLicensePolicyRead(d *schema.ResourceData, m interface{}) error {
 	_ = d.Set(AllowUnknownLicenses, licensePolicy.GetAllowUnknownLicenses())
 	_ = d.Set(SlugPerm, licensePolicy.GetSlugPerm())
 	_ = d.Set(SpdxIdentifiers, flattenStrings(licensePolicy.GetSpdxIdentifiers()))
+	_ = d.Set(PackageQueryString, licensePolicy.GetPackageQueryString())
 	_ = d.Set(UpdatedAt, licensePolicy.GetUpdatedAt().String())
 
 	// organization is not returned from the read
@@ -231,6 +235,11 @@ func resourceLicensePolicy() *schema.Resource {
 					ValidateFunc: validation.StringIsNotEmpty,
 				},
 				Required: true,
+			},
+			PackageQueryString: {
+				Type:        schema.TypeString,
+				Description: "A search / filter string of packages to include in the policy.",
+				Optional:    true,
 			},
 			UpdatedAt: {
 				Type:        schema.TypeString,
