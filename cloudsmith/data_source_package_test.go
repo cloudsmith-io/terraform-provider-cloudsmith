@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -106,12 +106,13 @@ func uploadPackage(pc *providerConfig) error {
 		Identifier string `json:"identifier"`
 	}
 
-	rbody, err := ioutil.ReadAll(response.Body)
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, response.Body)
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(rbody, &rbodyStruct); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &rbodyStruct); err != nil {
 		return err
 	}
 
