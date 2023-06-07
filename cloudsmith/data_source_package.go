@@ -40,14 +40,6 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
-	if download && outputPath == "" {
-		tempDir := os.TempDir()
-		if tempDir == "" {
-			return fmt.Errorf("failed to determine the default temporary directory")
-		}
-		outputPath = tempDir
-	}
-
 	if download {
 		err := downloadPackage(pkg.GetCdnUrl(), outputPath, pc.GetAPIKey())
 		if err != nil {
@@ -164,7 +156,7 @@ func dataSourcePackage() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "The path to save the downloaded package",
 				Optional:    true,
-				Default:     "",
+				Default:     os.TempDir(),
 			},
 			"slug": {
 				Type:        schema.TypeString,

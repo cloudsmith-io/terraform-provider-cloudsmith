@@ -194,7 +194,6 @@ func testAccPackageDataReadPackageDownload(namespace, repository string) string 
 			namespace        = "%s"
 			identifier       = data.cloudsmith_package_list.test.packages[0].slug_perm
 			download 		 = true
-			output_path      = "."
 		}
 		`, repository, namespace, repository, namespace, repository, namespace)
 }
