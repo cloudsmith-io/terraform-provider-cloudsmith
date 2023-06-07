@@ -156,7 +156,7 @@ func dataSourcePackage() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "The path to save the downloaded package",
 				Optional:    true,
-				Default:     "",
+				Default:     "/tmp/",
 			},
 			"slug": {
 				Type:        schema.TypeString,
