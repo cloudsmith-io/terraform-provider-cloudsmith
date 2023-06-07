@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -53,7 +54,7 @@ func TestAccPackage_data(t *testing.T) {
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
 					// Custom TestCheckFunc to check if the file exists at the output path
 					func(s *terraform.State) error {
-						filePath := "hello.txt" // Replace with the output path used in the test
+						filePath := filepath.Join(os.TempDir(), "hello.txt")
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
 							return fmt.Errorf("file does not exist at path: %s", filePath)
 						}
