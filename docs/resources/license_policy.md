@@ -20,6 +20,7 @@ resource "cloudsmith_license_policy" "my_license_policy" {
     description             = "My license policy"
     spdx_identifiers        = ["Apache-2.0"]
     on_violation_quarantine = true
+    package_query_string    = "format:python AND downloads:>50" 
     organization            = "my-organization"
 }
 ```
@@ -34,6 +35,7 @@ The following arguments are supported:
 * `spdx_identifiers` - (Required) The licenses to deny.
 * `on_violation_quarantine` - (Optional) On violation of the license policy, quarantine violating packages.
 * `allow_unknown_licenses` - (Optional) Allow unknown licenses within the policy.
+* `package_query_string` - (Optional) A search / filter string of packages to include in the policy.
 
 ## Import
 
