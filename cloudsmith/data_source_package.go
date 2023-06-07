@@ -2,6 +2,11 @@ package cloudsmith
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"path"
+
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -12,6 +17,8 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
 	identifier := requiredString(d, "identifier")
+	download := d.Get("download").(bool)
+	outputPath := d.Get("output_path").(string)
 
 	req := pc.APIClient.PackagesApi.PackagesRead(pc.Auth, namespace, repository, identifier)
 	pkg, _, err := pc.APIClient.PackagesApi.PackagesReadExecute(req)
@@ -32,6 +39,53 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("version", pkg.GetVersion())
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
+
+	if download {
+		err := downloadPackage(pkg.GetCdnUrl(), outputPath, pc.GetAPIKey())
+		if err != nil {
+			return err
+		}
+	} else {
+		d.Set("output_path", pkg.GetCdnUrl())
+	}
+
+	return nil
+}
+
+func downloadPackage(url string, outputPath string, apiKey string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Authorization", fmt.Sprintf("Token %s", apiKey))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download file: %s, status code: %d", url, resp.StatusCode)
+	}
+
+	// Extract filename from CDN URL
+	filename := path.Base(url)
+	outputPath = path.Join(outputPath, filename)
+
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	_, err = io.Copy(outputFile, resp.Body)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -44,6 +98,12 @@ func dataSourcePackage() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "The URL of the package to download.",
 				Computed:    true,
+			},
+			"download": {
+				Type:        schema.TypeBool,
+				Description: "If set to true, download the package",
+				Optional:    true,
+				Default:     false,
 			},
 			"format": {
 				Type:        schema.TypeString,
@@ -91,6 +151,12 @@ func dataSourcePackage() *schema.Resource {
 				Description:  "The namespace of the package",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"output_path": {
+				Type:        schema.TypeString,
+				Description: "The path to save the downloaded package",
+				Optional:    true,
+				Default:     "",
 			},
 			"slug": {
 				Type:        schema.TypeString,
