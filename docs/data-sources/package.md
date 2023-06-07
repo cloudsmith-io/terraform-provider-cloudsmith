@@ -38,5 +38,5 @@ data "cloudsmith_package" "test" {
 * `repository` (Required): The repository of the package.
 * `identifier` (Required): The identifier for the package.
 * `download` (Optional): If set to true, the package will be downloaded. Defaults to false. If set to false, the CDN url will be available in the `output_path`.
-* `output_path` (Optional): The local file system path where the downloaded package will be stored. Defaults to `/tmp/` if no `output_path` is provided and `download` set to true.
+* `output_path` (Optional): The local file system path where the downloaded package will be stored. Defaults to OS's temp direcotry if no `output_path` is provided and `download` set to true.
 
