@@ -1,6 +1,6 @@
-# Package Download Data Source
+# Package Data Source
 
-The `package_download` data source allows you to download a specific package from a given repository.
+The `cloudsmith_package` data source allows you to list details and download a specific package from a given repository.
 
 ## Example Usage
 
@@ -9,31 +9,34 @@ provider "cloudsmith" {
   api_key = "my-api-key"
 }
 
-data "cloudsmith_namespace" "my_namespace" {
-  slug = "my-namespace"
+resource "cloudsmith_repository" "test" {
+  name      = "terraform-acc-test-package"
+  namespace = "<your-namespace>"
 }
 
-data "cloudsmith_repository" "my_repository" {
-  namespace  = data.cloudsmith_namespace.my_namespace.slug
-  identifier = "my-repository"
+data "cloudsmith_package_list" "test" {
+  repository = cloudsmith_repository.test.name
+  namespace  = cloudsmith_repository.test.namespace
+  filters = [
+				"name:dummy-package",
+				"version:1.0.48",
+			  ]
 }
 
-data "cloudsmith_package_download" "my_package" {
-  namespace         = data.cloudsmith_repository.my_repository.namespace
-  repository        = data.cloudsmith_repository.my_repository.slug_perm
-  package_name      = "my-package"
-  package_version   = "latest"
-  query             = "version:1.0"
-  destination_path  = "/path/to/download"
+data "cloudsmith_package" "test" {
+  repository  = cloudsmith_repository.test.name
+  namespace   = cloudsmith_repository.test.namespace
+  identifier  = data.cloudsmith_package_list.test.packages[0].slug_perm
+  download    = true
+  output_path = "/path/to/save/package"
 }
 ```
 
 ## Argument Reference
 
-* `namespace` - (Required) Namespace to which the package belongs.
-* `repository` - (Required) Repository slug_perm to which the package belongs.
-* `package_name` - (Required) Name of the package to download.
-* `package_version` - (Required) Version of the package to download.
-* `query` - (Optional) Specific tag for a package
-* `destination_path` - (Required) Local file system path where the downloaded package will be stored.
+* `namespace` (Required): The namespace of the package.
+* `repository` (Required): The repository of the package.
+* `identifier` (Required): The identifier for the package.
+* `download` (Optional): If set to true, the package will be downloaded. Defaults to false. If set to false, the CDN url will be available in the `output_path`.
+* `output_path` (Optional): The local file system path where the downloaded package will be stored.
 
