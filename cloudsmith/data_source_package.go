@@ -17,8 +17,8 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
 	identifier := requiredString(d, "identifier")
-	download := d.Get("download").(bool)
-	outputPath := d.Get("output_path").(string)
+	download := requiredBool(d, "download")
+	outputPath := requiredString(d, "output_path")
 
 	req := pc.APIClient.PackagesApi.PackagesRead(pc.Auth, namespace, repository, identifier)
 	pkg, _, err := pc.APIClient.PackagesApi.PackagesReadExecute(req)
@@ -40,14 +40,20 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
+	var computedOutputPath string
+
 	if download {
 		err := downloadPackage(pkg.GetCdnUrl(), outputPath, pc.GetAPIKey())
 		if err != nil {
 			return err
 		}
+
+		computedOutputPath = outputPath
 	} else {
-		d.Set("output_path", pkg.GetCdnUrl())
+		computedOutputPath = pkg.GetCdnUrl()
 	}
+
+	d.Set("output_path", computedOutputPath)
 
 	return nil
 }
