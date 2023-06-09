@@ -186,15 +186,15 @@ func testAccPackageDataReadPackageDownload(namespace, repository string) string 
 		}
 
 		data "cloudsmith_package_list" "test" {
-			repository       = "%s"
-			namespace        = "%s"
+			repository = "%s"
+			namespace  = "%s"
 		}
 
 		data "cloudsmith_package" "test" {
-			repository       = "%s"
-			namespace        = "%s"
-			identifier       = data.cloudsmith_package_list.test.packages[0].slug_perm
-			download 		 = true
+			repository = "%s"
+			namespace  = "%s"
+			identifier = data.cloudsmith_package_list.test.packages[0].slug_perm
+			download   = true
 		}
 		`, repository, namespace, repository, namespace, repository, namespace)
 }

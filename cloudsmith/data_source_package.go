@@ -3,10 +3,9 @@ package cloudsmith
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
-
-	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -18,7 +17,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	repository := requiredString(d, "repository")
 	identifier := requiredString(d, "identifier")
 	download := requiredBool(d, "download")
-	outputPath := requiredString(d, "output_path")
+	downloadDir := requiredString(d, "download_dir")
 
 	req := pc.APIClient.PackagesApi.PackagesRead(pc.Auth, namespace, repository, identifier)
 	pkg, _, err := pc.APIClient.PackagesApi.PackagesReadExecute(req)
@@ -40,28 +39,25 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
-	var computedOutputPath string
-
 	if download {
-		err := downloadPackage(pkg.GetCdnUrl(), outputPath, pc.GetAPIKey())
+		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc.GetAPIKey())
 		if err != nil {
 			return err
 		}
-
-		computedOutputPath = outputPath
+		d.Set("output_path", outputPath)
+		d.Set("output_directory", downloadDir)
 	} else {
-		computedOutputPath = pkg.GetCdnUrl()
+		d.Set("output_path", pkg.GetCdnUrl())
+		d.Set("output_directory", "")
 	}
-
-	d.Set("output_path", computedOutputPath)
 
 	return nil
 }
 
-func downloadPackage(url string, outputPath string, apiKey string) error {
+func downloadPackage(url string, downloadDir string, apiKey string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	req.Header.Add("Authorization", fmt.Sprintf("Token %s", apiKey))
@@ -69,30 +65,30 @@ func downloadPackage(url string, outputPath string, apiKey string) error {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file: %s, status code: %d", url, resp.StatusCode)
+		return "", fmt.Errorf("failed to download file: %s, status code: %d", url, resp.StatusCode)
 	}
 
 	// Extract filename from CDN URL
 	filename := path.Base(url)
-	outputPath = path.Join(outputPath, filename)
+	outputPath := path.Join(downloadDir, filename)
 
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer outputFile.Close()
 
 	_, err = io.Copy(outputFile, resp.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return outputPath, nil
 }
 
 func dataSourcePackage() *schema.Resource {
@@ -160,9 +156,19 @@ func dataSourcePackage() *schema.Resource {
 			},
 			"output_path": {
 				Type:        schema.TypeString,
-				Description: "The path to save the downloaded package",
+				Description: "The location of the package",
+				Computed:    true,
+			},
+			"download_dir": {
+				Type:        schema.TypeString,
+				Description: "The directory where the file will be downloaded if download is set to true",
 				Optional:    true,
 				Default:     os.TempDir(),
+			},
+			"output_directory": {
+				Type:        schema.TypeString,
+				Description: "The directory where the file is downloaded",
+				Computed:    true,
 			},
 			"slug": {
 				Type:        schema.TypeString,
