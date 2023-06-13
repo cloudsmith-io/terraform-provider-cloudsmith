@@ -40,7 +40,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
 	if download {
-		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc.GetAPIKey())
+		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc)
 		if err != nil {
 			return err
 		}
@@ -54,15 +54,15 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func downloadPackage(url string, downloadDir string, apiKey string) (string, error) {
+func downloadPackage(url string, downloadDir string, pc *providerConfig) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Token %s", apiKey))
+	req.Header.Add("Authorization", fmt.Sprintf("Token %s", pc.GetAPIKey()))
 
-	client := &http.Client{}
+	client := pc.APIClient.GetConfig().HTTPClient
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
