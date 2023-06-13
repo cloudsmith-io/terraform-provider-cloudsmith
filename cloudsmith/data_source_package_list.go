@@ -193,6 +193,11 @@ func dataSourcePackageList() *schema.Resource {
 							Description: "The version of the package",
 							Computed:    true,
 						},
+						"cdn_url": {
+							Type:        schema.TypeString,
+							Description: "The CDN URL of the package to download.",
+							Computed:    true,
+						},
 						"is_sync_awaiting": {
 							Type:        schema.TypeBool,
 							Description: "Is the package awaiting synchronisation",
