@@ -36,6 +36,10 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("slug", pkg.GetSlug())
 	d.Set("slug_perm", pkg.GetSlugPerm())
 	d.Set("version", pkg.GetVersion())
+	d.Set("checksum_md5", pkg.GetChecksumMd5())
+	d.Set("checksum_sha1", pkg.GetChecksumSha1())
+	d.Set("checksum_sha256", pkg.GetChecksumSha256())
+	d.Set("checksum_sha512", pkg.GetChecksumSha512())
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
@@ -99,6 +103,26 @@ func dataSourcePackage() *schema.Resource {
 			"cdn_url": {
 				Type:        schema.TypeString,
 				Description: "The URL of the package to download.",
+				Computed:    true,
+			},
+			"checksum_md5": {
+				Type:        schema.TypeString,
+				Description: "MD5 hash of the package",
+				Computed:    true,
+			},
+			"checksum_sha1": {
+				Type:        schema.TypeString,
+				Description: "SHA1 hash of the package",
+				Computed:    true,
+			},
+			"checksum_sha256": {
+				Type:        schema.TypeString,
+				Description: "SHA256 hash of the package",
+				Computed:    true,
+			},
+			"checksum_sha512": {
+				Type:        schema.TypeString,
+				Description: "SHA512 hash of the package",
 				Computed:    true,
 			},
 			"download": {
