@@ -41,6 +41,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_repository":              resourceRepository(),
 			"cloudsmith_repository_geo_ip_rules": resourceRepositoryGeoIpRules(),
 			"cloudsmith_repository_privileges":   resourceRepositoryPrivileges(),
+			"cloudsmith_repository_upstream":     resourceRepositoryUpstream(),
 			"cloudsmith_service":                 resourceService(),
 			"cloudsmith_team":                    resourceTeam(),
 			"cloudsmith_vulnerability_policy":    resourceVulnerabilityPolicy(),
