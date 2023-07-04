@@ -100,9 +100,9 @@ func importUpstream(_ context.Context, d *schema.ResourceData, _ interface{}) ([
 		)
 	}
 
-	_ = d.Set("namespace", idParts[0])
-	_ = d.Set("repository", idParts[1])
-	_ = d.Set("upstream_type", idParts[2])
+	_ = d.Set(Namespace, idParts[0])
+	_ = d.Set(Repository, idParts[1])
+	_ = d.Set(UpstreamType, idParts[2])
 	d.SetId(idParts[3])
 	return []*schema.ResourceData{d}, nil
 }
