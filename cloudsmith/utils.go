@@ -164,6 +164,15 @@ func timeToString(t time.Time) string {
 	return t.Format(time.RFC3339)
 }
 
+// stringToTime converts a string to a time.Time object
+func stringToTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+
 // waitFunc should be implemented by callers that want to wait on a particular
 // action
 type waitFunc func() error
