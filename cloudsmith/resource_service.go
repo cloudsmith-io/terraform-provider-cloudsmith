@@ -153,28 +153,31 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 	// into Terraform. This can be accomplished by tainting.
 	var diags diag.Diagnostics
 	existingKey := requiredString(d, "key")
-	if existingKey == importSentinel {
-		diags = append(diags, diag.Diagnostic{
-			Severity: diag.Warning,
-			Summary:  "API key unavailable for imported services",
-			Detail: "API keys are only available via the Cloudsmith API at the time a service " +
-				"is created, and therefore it is not possible to retrieve the current API key for " +
-				"a service which has been imported. If the API key value is needed within Terraform" +
-				"then the resource can be tainted post-import to recreate it and store the key.",
-			AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
-		})
-	} else {
-		existingLastFour := existingKey[len(existingKey)-4:]
-		newLastFour := service.GetKey()[len(service.GetKey())-4:]
-		if existingLastFour != newLastFour {
+	if (requiredBool(d, "warn_on_key_difference")) {
+		if existingKey == importSentinel {
+
 			diags = append(diags, diag.Diagnostic{
 				Severity: diag.Warning,
-				Summary:  "API key has changed",
-				Detail: "API key for this service has changed outside of Terraform. If this " +
-					"key is used within Terraform the resource must be tainted or otherwise " +
-					"recreated to retrieve the new value.",
+				Summary:  "API key unavailable for imported services",
+				Detail: "API keys are only available via the Cloudsmith API at the time a service " +
+					"is created, and therefore it is not possible to retrieve the current API key for " +
+					"a service which has been imported. If the API key value is needed within Terraform" +
+					"then the resource can be tainted post-import to recreate it and store the key.",
 				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 			})
+		} else {
+			existingLastFour := existingKey[len(existingKey)-4:]
+			newLastFour := service.GetKey()[len(service.GetKey())-4:]
+			if existingLastFour != newLastFour {
+				diags = append(diags, diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  "API key has changed",
+					Detail: "API key for this service has changed outside of Terraform. If this " +
+						"key is used within Terraform the resource must be tainted or otherwise " +
+						"recreated to retrieve the new value.",
+					AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
+				})
+			}
 		}
 	}
 
@@ -271,6 +274,12 @@ func resourceService() *schema.Resource {
 				Description: "The service's API key.",
 				Computed:    true,
 				Sensitive:   true,
+			},
+			"warn_on_key_difference": {
+				Type:        schema.TypeBool,
+				Description: "Whether to warn if service's current key differs from key in state.",
+				Optional:    true,
+				Default:     true,
 			},
 			"name": {
 				Type:         schema.TypeString,
