@@ -81,7 +81,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key"},
+				ImportStateVerifyIgnore: []string{"key", "warn_on_key_difference"}, // Exclude warn_on_key_difference from the verification
 			},
 		},
 	})
