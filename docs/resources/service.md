@@ -41,6 +41,7 @@ The following arguments are supported:
 * `team` - (Optional) Variable number of blocks containing team assignments for this service.
 	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
 	* `slug` - (Required) The team the service should be added to.
+* `warn_on_key_difference` - (Optional) Whether to warn if service's current key differs from key in state.
 
 ## Attribute Reference
 

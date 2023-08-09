@@ -275,12 +275,6 @@ func resourceService() *schema.Resource {
 				Computed:    true,
 				Sensitive:   true,
 			},
-			"warn_on_key_difference": {
-				Type:        schema.TypeBool,
-				Description: "Whether to warn if service's current key differs from key in state.",
-				Optional:    true,
-				Default:     true,
-			},
 			"name": {
 				Type:         schema.TypeString,
 				Description:  "A descriptive name for the service.",
@@ -326,6 +320,12 @@ func resourceService() *schema.Resource {
 					},
 				},
 				Optional: true,
+			},
+			"warn_on_key_difference": {
+				Type:        schema.TypeBool,
+				Description: "Whether to warn if service's current key differs from key in state.",
+				Optional:    true,
+				Default:     true,
 			},
 		},
 	}
