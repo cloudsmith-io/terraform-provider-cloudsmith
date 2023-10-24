@@ -17,6 +17,7 @@ import (
 // NOTE: It is not necessary to check properties that have been explicitly set
 // as Terraform performs a drift/plan check after every step anyway. Only
 // computed properties need explicitly checked.
+// TestAccService_basic runs a series of tests for the cloudsmith_service resource.
 func TestAccService_basic(t *testing.T) {
 	t.Parallel()
 
@@ -70,6 +71,14 @@ func TestAccService_basic(t *testing.T) {
 				),
 			},
 			{
+				Config: testAccServiceConfigNoAPIKey,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					// check that the key attribute is explicitly an empty string
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "disabled"),
+				),
+			},
+			{
 				ResourceName: "cloudsmith_service.test",
 				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
@@ -81,7 +90,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key"},
+				ImportStateVerifyIgnore: []string{"key", "return_api_key"},
 			},
 		},
 	})
@@ -138,6 +147,14 @@ func testAccServiceCheckExists(resourceName string) resource.TestCheckFunc {
 		return nil
 	}
 }
+
+var testAccServiceConfigNoAPIKey = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name            = "TF Test Service No API Key"
+	organization    = "%s"
+	return_api_key  = false
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
 var testAccServiceConfigBasic = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
