@@ -132,6 +132,8 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 
 	req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, org, d.Id())
 
+	const lastFourChars = 4
+
 	service, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
 	if err != nil {
 		if is404(resp) {
@@ -166,9 +168,8 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 			})
 		} else {
-			d.Set("key", "**redacted**")
-			existingLastFour := existingKey[len(existingKey)-4:]
-			newLastFour := service.GetKey()[len(service.GetKey())-4:]
+			existingLastFour := existingKey[len(existingKey)-lastFourChars:]
+			newLastFour := service.GetKey()[len(service.GetKey())-lastFourChars:]
 			if existingLastFour != newLastFour {
 				diags = append(diags, diag.Diagnostic{
 					Severity: diag.Warning,
@@ -180,6 +181,8 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 				})
 			}
 		}
+	} else {
+		d.Set("key", "**redacted**")
 	}
 
 	// organization is not returned from the service read endpoint, so we can
