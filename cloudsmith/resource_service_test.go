@@ -75,7 +75,7 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					// check that the key attribute is explicitly an empty string
-					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "disabled"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "**redacted**"),
 				),
 			},
 			{
@@ -90,7 +90,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key", "return_api_key"},
+				ImportStateVerifyIgnore: []string{"key", "store_api_key"},
 			},
 		},
 	})
@@ -152,7 +152,7 @@ var testAccServiceConfigNoAPIKey = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
 	name            = "TF Test Service No API Key"
 	organization    = "%s"
-	return_api_key  = false
+	store_api_key  = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 

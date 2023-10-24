@@ -105,7 +105,7 @@ func resourceServiceCreate(ctx context.Context, d *schema.ResourceData, m interf
 	// Unfortunately this means that if the user needs to rotate the service's
 	// API key then the only way to do it and have it reflected properly in
 	// Terraform is to taint the whole resource and let Terraform recreate it.
-	if requiredBool(d, "return_api_key") {
+	if requiredBool(d, "store_api_key") {
 		d.Set("key", service.GetKey())
 	}
 	checkerFunc := func() error {
@@ -153,7 +153,7 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 	// they'll need to recreate the resource if they want to pull the new key
 	// into Terraform. This can be accomplished by tainting.
 	var diags diag.Diagnostics
-	if requiredBool(d, "return_api_key") {
+	if requiredBool(d, "store_api_key") {
 		existingKey := requiredString(d, "key")
 		if existingKey == importSentinel {
 			diags = append(diags, diag.Diagnostic{
@@ -166,7 +166,7 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 			})
 		} else {
-			d.Set("key", "disabled")
+			d.Set("key", "**redacted**")
 			existingLastFour := existingKey[len(existingKey)-4:]
 			newLastFour := service.GetKey()[len(service.GetKey())-4:]
 			if existingLastFour != newLastFour {
@@ -322,7 +322,7 @@ func resourceService() *schema.Resource {
 				},
 				Optional: true,
 			},
-			"return_api_key": {
+			"store_api_key": {
 				Type:        schema.TypeBool,
 				Description: "Whether to include the service's API key in Terraform state.",
 				Optional:    true,
