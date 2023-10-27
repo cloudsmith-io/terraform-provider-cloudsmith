@@ -41,12 +41,13 @@ The following arguments are supported:
 * `team` - (Optional) Variable number of blocks containing team assignments for this service.
 	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
 	* `slug` - (Required) The team the service should be added to.
-* `store_api_key` - (Optional) The service's API key to be returned in state. Defaults to `true`. If set to `false`, the "key" value is replaced with `disabled`
+* `store_api_key` - (Optional) The service's API key to be returned in state. Defaults to `true`. If set to `false`, the "key" value is replaced with `**redacted**`. **NOTE:** This will only be applied to newly created service accounts, **this won't take effect for existing service accounts**.
+
 ## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
-* `key` - The service's API key. If `store_api_key` is set to false, the value returned will equal to `disabled`
+* `key` - The service's API key. If `store_api_key` is set to false, the value returned will equal to `**redacted**`
 * `slug` - The slug identifies the service in URIs or where a username is required.
 
 ## Import
