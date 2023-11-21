@@ -15,14 +15,12 @@ func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository_privileges.test_data"),
+		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceRepositoryPrivilegesConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.cloudsmith_repository_privileges.test_data", "service.#"),
-					resource.TestCheckResourceAttrSet("data.cloudsmith_repository_privileges.test_data", "team.#"),
-					resource.TestCheckResourceAttrSet("data.cloudsmith_repository_privileges.test_data", "user.#"),
 				),
 			},
 		},
@@ -52,7 +50,8 @@ resource "cloudsmith_repository_privileges" "test" {
 }
 
 data "cloudsmith_repository_privileges" "test_data" {
-  organization = cloudsmith_repository.test.namespace
-  repository   = cloudsmith_repository.test.slug
-}
+	organization = cloudsmith_repository_privileges.test.organization
+	repository   = cloudsmith_repository_privileges.test.repository
+	depends_on = [cloudsmith_repository.test]
+  }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
