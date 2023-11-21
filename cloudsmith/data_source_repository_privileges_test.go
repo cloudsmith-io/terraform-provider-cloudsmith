@@ -31,7 +31,7 @@ func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
 
 var testAccDataSourceRepositoryPrivilegesConfigBasic = fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-privs"
+	name      = "terraform-acc-test-read-privs"
 	namespace = "%s"
 }
 
