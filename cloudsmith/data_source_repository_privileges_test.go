@@ -36,7 +36,7 @@ resource "cloudsmith_repository" "test" {
 }
 
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service Privs"
+	name         = "TF Test Service Data Privs"
 	organization = cloudsmith_repository.test.namespace
 	role         = "Member"
 }
