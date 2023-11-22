@@ -83,9 +83,6 @@ func dataSourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) e
 
 	req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
 
-	req = req.Page(1)
-	req = req.PageSize(1000)
-
 	privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
 	if err != nil {
 		if is404(resp) {
