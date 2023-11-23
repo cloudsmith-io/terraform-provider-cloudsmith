@@ -1,6 +1,11 @@
 package cloudsmith
 
 import (
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -36,6 +41,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("slug", pkg.GetSlug())
 	d.Set("slug_perm", pkg.GetSlugPerm())
 	d.Set("version", pkg.GetVersion())
+	// Grab the checksum from API in case they don't want to download the file directly via terraform (when returning just the cdn_url)
 	d.Set("checksum_md5", pkg.GetChecksumMd5())
 	d.Set("checksum_sha1", pkg.GetChecksumSha1())
 	d.Set("checksum_sha256", pkg.GetChecksumSha256())
@@ -50,6 +56,17 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 		}
 		d.Set("output_path", outputPath)
 		d.Set("output_directory", downloadDir)
+
+		// Calculate checksums for the downloaded file
+		md5Checksum, sha1Checksum, sha256Checksum, sha512Checksum, err := calculateChecksums(outputPath)
+		if err != nil {
+			return err
+		}
+
+		d.Set("checksum_md5", md5Checksum)
+		d.Set("checksum_sha1", sha1Checksum)
+		d.Set("checksum_sha256", sha256Checksum)
+		d.Set("checksum_sha512", sha512Checksum)
 	} else {
 		d.Set("output_path", pkg.GetCdnUrl())
 		d.Set("output_directory", "")
@@ -93,6 +110,30 @@ func downloadPackage(url string, downloadDir string, pc *providerConfig) (string
 	}
 
 	return outputPath, nil
+}
+
+func calculateChecksums(filePath string) (string, string, string, string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", "", "", "", err
+	}
+	defer file.Close()
+
+	md5hash := md5.New()
+	sha1hash := sha1.New()
+	sha256hash := sha256.New()
+	sha512hash := sha512.New()
+
+	if _, err := io.Copy(io.MultiWriter(md5hash, sha1hash, sha256hash, sha512hash), file); err != nil {
+		return "", "", "", "", err
+	}
+
+	md5Checksum := hex.EncodeToString(md5hash.Sum(nil))
+	sha1Checksum := hex.EncodeToString(sha1hash.Sum(nil))
+	sha256Checksum := hex.EncodeToString(sha256hash.Sum(nil))
+	sha512Checksum := hex.EncodeToString(sha512hash.Sum(nil))
+
+	return md5Checksum, sha1Checksum, sha256Checksum, sha512Checksum, nil
 }
 
 func dataSourcePackage() *schema.Resource {

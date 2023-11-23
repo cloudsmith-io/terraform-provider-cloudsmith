@@ -43,10 +43,10 @@ data "cloudsmith_package" "test" {
 ## Attribute Reference
 
 -   `cdn_url`: The URL of the package to download. This attribute is computed and available only when the `download` argument is set to `false`.
--   `checksum_md5`: MD5 hash of the package.
--   `checksum_sha1`: SHA1 hash of the package.
--   `checksum_sha256`: SHA256 hash of the package.
--   `checksum_sha512`: SHA512 hash of the package.
+-   `checksum_md5`: MD5 hash of the downloaded package. If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha1`: SHA1 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha256`: SHA256 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha512`: SHA512 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
 -   `format`: The format of the package.
 -   `is_sync_awaiting`: Indicates whether the package is awaiting synchronization.
 -   `is_sync_completed`: Indicates whether the package synchronization has completed.
