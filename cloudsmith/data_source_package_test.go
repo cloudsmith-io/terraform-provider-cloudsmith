@@ -196,21 +196,5 @@ func testAccPackageDataReadPackageDownload(namespace, repository string) string 
 			identifier = data.cloudsmith_package_list.test.packages[0].slug_perm
 			download   = true
 		}
-
-		output "md5_checksum" {
-			value = data.cloudsmith_package.test.checksum_md5
-		}
-
-		output "sha1_checksum" {
-			value = data.cloudsmith_package.test.checksum_sha1
-		}
-
-		output "sha256_checksum" {
-			value = data.cloudsmith_package.test.checksum_sha256
-		}
-
-		output "sha512_checksum" {
-			value = data.cloudsmith_package.test.checksum_sha512
-		}
 		`, repository, namespace, repository, namespace, repository, namespace)
 }
