@@ -75,7 +75,7 @@ func TestAccPackage_data(t *testing.T) {
 						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
 					},
 					func(s *terraform.State) error {
-						filePath := filepath.Join("/Users/bblizniak/Desktop/terrafor_test/2", "hello.txt")
+						filePath := filepath.Join(os.TempDir(), "hello.txt")
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
 							return fmt.Errorf("file does not exist at path: %s", filePath)
 						}
