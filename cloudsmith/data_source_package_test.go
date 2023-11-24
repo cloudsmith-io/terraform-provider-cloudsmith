@@ -58,11 +58,20 @@ func TestAccPackage_data(t *testing.T) {
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
 							return fmt.Errorf("file does not exist at path: %s", filePath)
 						}
+						defer func() {
+							// Remove the file after the check is done
+							if err := os.Remove(filePath); err != nil {
+								fmt.Printf("Error removing file: %s\n", err)
+							}
+						}()
 						expectedContent := "Hello world"
 						if err := checkFileContent(filePath, expectedContent); err != nil {
 							return fmt.Errorf("file content check failed: %w", err)
 						}
 						return nil
+					},
+					func(s *terraform.State) error {
+						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
 					},
 				),
 			},
@@ -71,9 +80,6 @@ func TestAccPackage_data(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
-					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
-					},
 					func(s *terraform.State) error {
 						filePath := filepath.Join(os.TempDir(), "hello.txt")
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -106,10 +112,15 @@ func checkFileContent(filePath string, expectedContent string) error {
 }
 
 func uploadPackage(pc *providerConfig, republish bool) error {
-	fileContent := []byte("Hello world")
+
+	var (
+		fileContent []byte
+	)
+
 	if republish {
-		updatedContent := []byte(" updated content")
-		fileContent = append(fileContent, updatedContent...)
+		fileContent = []byte("Hello world updated content")
+	} else {
+		fileContent = []byte("Hello world")
 	}
 
 	initPayload := cloudsmith.PackageFileUploadRequest{
