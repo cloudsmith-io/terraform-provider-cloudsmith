@@ -85,6 +85,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 			if err != nil {
 				return err
 			}
+			fmt.Println("Package pulled again due to checksum mismatch.")
 
 			// Calculate checksums for the downloaded file again
 			localChecksums, err := calculateChecksums(outputPath)
