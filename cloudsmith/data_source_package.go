@@ -9,12 +9,22 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
+	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+type Checksums struct {
+	MD5    string
+	SHA1   string
+	SHA256 string
+	SHA512 string
+}
 
 func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
@@ -50,7 +60,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
 	if download {
-		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc)
+		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, false)
 		if err != nil {
 			return err
 		}
@@ -58,15 +68,63 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 		d.Set("output_directory", downloadDir)
 
 		// Calculate checksums for the downloaded file
-		md5Checksum, sha1Checksum, sha256Checksum, sha512Checksum, err := calculateChecksums(outputPath)
+		localChecksums, err := calculateChecksums(outputPath)
 		if err != nil {
 			return err
 		}
 
-		d.Set("checksum_md5", md5Checksum)
-		d.Set("checksum_sha1", sha1Checksum)
-		d.Set("checksum_sha256", sha256Checksum)
-		d.Set("checksum_sha512", sha512Checksum)
+		localMD5 := localChecksums.MD5
+		localSHA1 := localChecksums.SHA1
+		localSHA256 := localChecksums.SHA256
+		localSHA512 := localChecksums.SHA512
+
+		// Check against API checksums
+		if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
+			// Checksum doesn't match, try to download again with isCached set to true
+			outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, true)
+			if err != nil {
+				return err
+			}
+
+			// Calculate checksums for the downloaded file again
+			localChecksums, err := calculateChecksums(outputPath)
+			if err != nil {
+				return err
+			}
+
+			localMD5 = localChecksums.MD5
+			localSHA1 = localChecksums.SHA1
+			localSHA256 = localChecksums.SHA256
+			localSHA512 = localChecksums.SHA512
+
+			// Check again after the retry
+			if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
+				// Checksum still doesn't match, set the flag, and provide a warning
+				d.Set("download_checksum_mismatch", true)
+
+				// Set the content for each checksum to "Checksum mismatch: Local File: <Checksum> , Remote File: <Checksum_from_api>"
+				mismatchMessageMD5 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localMD5, pkg.GetChecksumMd5())
+				d.Set("checksum_md5", mismatchMessageMD5)
+				fmt.Println("Warning:", mismatchMessageMD5)
+
+				mismatchMessageSHA1 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA1, pkg.GetChecksumSha1())
+				d.Set("checksum_sha1", mismatchMessageSHA1)
+				fmt.Println("Warning:", mismatchMessageSHA1)
+
+				mismatchMessageSHA256 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA256, pkg.GetChecksumSha256())
+				d.Set("checksum_sha256", mismatchMessageSHA256)
+				fmt.Println("Warning:", mismatchMessageSHA256)
+
+				mismatchMessageSHA512 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA512, pkg.GetChecksumSha512())
+				d.Set("checksum_sha512", mismatchMessageSHA512)
+				fmt.Println("Warning:", mismatchMessageSHA512)
+			}
+		}
+
+		d.Set("checksum_md5", localMD5)
+		d.Set("checksum_sha1", localSHA1)
+		d.Set("checksum_sha256", localSHA256)
+		d.Set("checksum_sha512", localSHA512)
 	} else {
 		d.Set("output_path", pkg.GetCdnUrl())
 		d.Set("output_directory", "")
@@ -75,8 +133,8 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func downloadPackage(url string, downloadDir string, pc *providerConfig) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func downloadPackage(urlStr string, downloadDir string, pc *providerConfig, isCached bool) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 	if err != nil {
 		return "", err
 	}
@@ -84,6 +142,20 @@ func downloadPackage(url string, downloadDir string, pc *providerConfig) (string
 	req.Header.Add("Authorization", fmt.Sprintf("Token %s", pc.GetAPIKey()))
 
 	client := pc.APIClient.GetConfig().HTTPClient
+	if isCached {
+		timestamp := time.Now().Unix()
+		parsedURL, err := url.Parse(urlStr)
+		if err != nil {
+			return "", err
+		}
+
+		queryValues := parsedURL.Query()
+		queryValues.Set("time", strconv.FormatInt(timestamp, 10))
+		parsedURL.RawQuery = queryValues.Encode()
+
+		req.URL = parsedURL
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -91,11 +163,11 @@ func downloadPackage(url string, downloadDir string, pc *providerConfig) (string
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to download file: %s, status code: %d", url, resp.StatusCode)
+		return "", fmt.Errorf("failed to download file: %s, status code: %d", urlStr, resp.StatusCode)
 	}
 
 	// Extract filename from CDN URL
-	filename := path.Base(url)
+	filename := path.Base(urlStr)
 	outputPath := path.Join(downloadDir, filename)
 
 	outputFile, err := os.Create(outputPath)
@@ -112,10 +184,12 @@ func downloadPackage(url string, downloadDir string, pc *providerConfig) (string
 	return outputPath, nil
 }
 
-func calculateChecksums(filePath string) (string, string, string, string, error) {
+func calculateChecksums(filePath string) (Checksums, error) {
+	var checksums Checksums
+
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", "", "", "", err
+		return checksums, err
 	}
 	defer file.Close()
 
@@ -125,15 +199,15 @@ func calculateChecksums(filePath string) (string, string, string, string, error)
 	sha512hash := sha512.New()
 
 	if _, err := io.Copy(io.MultiWriter(md5hash, sha1hash, sha256hash, sha512hash), file); err != nil {
-		return "", "", "", "", err
+		return checksums, err
 	}
 
-	md5Checksum := hex.EncodeToString(md5hash.Sum(nil))
-	sha1Checksum := hex.EncodeToString(sha1hash.Sum(nil))
-	sha256Checksum := hex.EncodeToString(sha256hash.Sum(nil))
-	sha512Checksum := hex.EncodeToString(sha512hash.Sum(nil))
+	checksums.MD5 = hex.EncodeToString(md5hash.Sum(nil))
+	checksums.SHA1 = hex.EncodeToString(sha1hash.Sum(nil))
+	checksums.SHA256 = hex.EncodeToString(sha256hash.Sum(nil))
+	checksums.SHA512 = hex.EncodeToString(sha512hash.Sum(nil))
 
-	return md5Checksum, sha1Checksum, sha256Checksum, sha512Checksum, nil
+	return checksums, nil
 }
 
 func dataSourcePackage() *schema.Resource {

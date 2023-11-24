@@ -36,7 +36,7 @@ func TestAccPackage_data(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", dsPackageTestRepository),
 					// Custom TestCheckFunc to upload the package and wait for sync after repository creation
 					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig))
+						return uploadPackage(testAccProvider.Meta().(*providerConfig), false)
 					},
 				),
 			},
@@ -58,6 +58,33 @@ func TestAccPackage_data(t *testing.T) {
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
 							return fmt.Errorf("file does not exist at path: %s", filePath)
 						}
+						expectedContent := "Hello world"
+						if err := checkFileContent(filePath, expectedContent); err != nil {
+							return fmt.Errorf("file content check failed: %w", err)
+						}
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccPackageDataReadPackageDownloadRepublish(dsPackageTestNamespace, dsPackageTestRepository),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
+					func(s *terraform.State) error {
+						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
+					},
+					func(s *terraform.State) error {
+						filePath := filepath.Join("/Users/bblizniak/Desktop/terrafor_test/2", "hello.txt")
+						if _, err := os.Stat(filePath); os.IsNotExist(err) {
+							return fmt.Errorf("file does not exist at path: %s", filePath)
+						}
+
+						expectedContent := "Hello world updated content"
+						if err := checkFileContent(filePath, expectedContent); err != nil {
+							return fmt.Errorf("file content check failed: %w", err)
+						}
+
 						return nil
 					},
 				),
@@ -65,9 +92,25 @@ func TestAccPackage_data(t *testing.T) {
 		},
 	})
 }
+func checkFileContent(filePath string, expectedContent string) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
 
-func uploadPackage(pc *providerConfig) error {
+	if string(content) != expectedContent {
+		return fmt.Errorf("file content does not match expected. Got: %s, Expected: %s", content, expectedContent)
+	}
+
+	return nil
+}
+
+func uploadPackage(pc *providerConfig, republish bool) error {
 	fileContent := []byte("Hello world")
+	if republish {
+		updatedContent := []byte(" updated content")
+		fileContent = append(fileContent, updatedContent...)
+	}
 
 	initPayload := cloudsmith.PackageFileUploadRequest{
 		Filename:       "hello.txt",
@@ -154,6 +197,7 @@ func testAccPackageDataSetup(namespace, repository string) string {
 		resource "cloudsmith_repository" "test" {
 			name      = "%s"
 			namespace = "%s"
+			replace_packages_by_default = true
 		}
 		`, repository, namespace)
 }
@@ -163,6 +207,7 @@ func testAccPackageDataReadPackage(namespace, repository string) string {
 		resource "cloudsmith_repository" "test" {
 			name      = "%s"
 			namespace = "%s"
+			replace_packages_by_default = true
 		}
 
 		data "cloudsmith_package_list" "test" {
@@ -183,6 +228,29 @@ func testAccPackageDataReadPackageDownload(namespace, repository string) string 
 		resource "cloudsmith_repository" "test" {
 			name      = "%s"
 			namespace = "%s"
+			replace_packages_by_default = true
+		}
+
+		data "cloudsmith_package_list" "test" {
+			repository = "%s"
+			namespace  = "%s"
+		}
+
+		data "cloudsmith_package" "test" {
+			repository = "%s"
+			namespace  = "%s"
+			identifier = data.cloudsmith_package_list.test.packages[0].slug_perm
+			download   = true
+		}
+		`, repository, namespace, repository, namespace, repository, namespace)
+}
+
+func testAccPackageDataReadPackageDownloadRepublish(namespace, repository string) string {
+	return fmt.Sprintf(`
+		resource "cloudsmith_repository" "test" {
+			name      = "%s"
+			namespace = "%s"
+			replace_packages_by_default = true
 		}
 
 		data "cloudsmith_package_list" "test" {
