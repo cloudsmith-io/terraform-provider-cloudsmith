@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,6 +27,11 @@ type Checksums struct {
 	SHA512 string
 }
 
+func checksumMismatchError(localChecksum string, remoteChecksum string, checksumType string) string {
+	formatString := fmt.Sprintf("Checksum mismatch (%s): expected=%s, got=%s", localChecksum, remoteChecksum, checksumType)
+	return formatString
+}
+
 func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 	namespace := requiredString(d, "namespace")
@@ -33,6 +39,7 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	identifier := requiredString(d, "identifier")
 	download := requiredBool(d, "download")
 	downloadDir := requiredString(d, "download_dir")
+	ignoreChecksum := requiredBool(d, "ignore_checksums")
 
 	req := pc.APIClient.PackagesApi.PackagesRead(pc.Auth, namespace, repository, identifier)
 	pkg, _, err := pc.APIClient.PackagesApi.PackagesReadExecute(req)
@@ -80,12 +87,12 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 		// Check against API checksums
 		if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
-			// Checksum doesn't match, try to download again with isCached set to true
+			// Checksum doesn't match, try to download again with bustCache set to true
 			outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, true)
 			if err != nil {
 				return err
 			}
-			fmt.Println("Package pulled again due to checksum mismatch.")
+			fmt.Println("Package pulled again with bustCache due to checksum mismatch.")
 
 			// Calculate checksums for the downloaded file again
 			localChecksums, err := calculateChecksums(outputPath)
@@ -100,25 +107,30 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 			// Check again after the retry
 			if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
-				// Checksum still doesn't match, set the flag, and provide a warning
-				d.Set("download_checksum_mismatch", true)
-
-				// Set the content for each checksum to "Checksum mismatch: Local File: <Checksum> , Remote File: <Checksum_from_api>"
-				mismatchMessageMD5 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localMD5, pkg.GetChecksumMd5())
-				d.Set("checksum_md5", mismatchMessageMD5)
-				fmt.Println("Warning:", mismatchMessageMD5)
-
-				mismatchMessageSHA1 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA1, pkg.GetChecksumSha1())
-				d.Set("checksum_sha1", mismatchMessageSHA1)
-				fmt.Println("Warning:", mismatchMessageSHA1)
-
-				mismatchMessageSHA256 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA256, pkg.GetChecksumSha256())
-				d.Set("checksum_sha256", mismatchMessageSHA256)
-				fmt.Println("Warning:", mismatchMessageSHA256)
-
-				mismatchMessageSHA512 := fmt.Sprintf("Checksum mismatch: Local File: %s, Remote File: %s", localSHA512, pkg.GetChecksumSha512())
-				d.Set("checksum_sha512", mismatchMessageSHA512)
-				fmt.Println("Warning:", mismatchMessageSHA512)
+				if ignoreChecksum {
+					fmt.Println("Warning: ignore_checksums set to true, downloading mismatched checksum file.")
+					d.Set("checksum_md5", localMD5)
+					d.Set("checksum_sha1", localSHA1)
+					d.Set("checksum_sha256", localSHA256)
+					d.Set("checksum_sha512", localSHA512)
+				} else {
+					if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
+						errMsg := ""
+						if localMD5 != pkg.GetChecksumMd5() {
+							errMsg += checksumMismatchError(localMD5, pkg.GetChecksumMd5(), "MD5") + "\n"
+						}
+						if localSHA1 != pkg.GetChecksumSha1() {
+							errMsg += checksumMismatchError(localSHA1, pkg.GetChecksumSha1(), "SHA1") + "\n"
+						}
+						if localSHA256 != pkg.GetChecksumSha256() {
+							errMsg += checksumMismatchError(localSHA256, pkg.GetChecksumSha256(), "SHA256") + "\n"
+						}
+						if localSHA512 != pkg.GetChecksumSha512() {
+							errMsg += checksumMismatchError(localSHA512, pkg.GetChecksumSha512(), "SHA512") + "\n"
+						}
+						return errors.New(errMsg)
+					}
+				}
 			}
 		}
 
@@ -134,8 +146,8 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func downloadPackage(urlStr string, downloadDir string, pc *providerConfig, isCached bool) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, urlStr, nil)
+func downloadPackage(downloadUrl string, downloadDir string, pc *providerConfig, bustCache bool) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, downloadUrl, nil)
 	if err != nil {
 		return "", err
 	}
@@ -143,9 +155,9 @@ func downloadPackage(urlStr string, downloadDir string, pc *providerConfig, isCa
 	req.Header.Add("Authorization", fmt.Sprintf("Token %s", pc.GetAPIKey()))
 
 	client := pc.APIClient.GetConfig().HTTPClient
-	if isCached {
+	if bustCache {
 		timestamp := time.Now().Unix()
-		parsedURL, err := url.Parse(urlStr)
+		parsedURL, err := url.Parse(downloadUrl)
 		if err != nil {
 			return "", err
 		}
@@ -164,11 +176,11 @@ func downloadPackage(urlStr string, downloadDir string, pc *providerConfig, isCa
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to download file: %s, status code: %d", urlStr, resp.StatusCode)
+		return "", fmt.Errorf("failed to download file: %s, status code: %d", downloadUrl, resp.StatusCode)
 	}
 
 	// Extract filename from CDN URL
-	filename := path.Base(urlStr)
+	filename := path.Base(downloadUrl)
 	outputPath := path.Join(downloadDir, filename)
 
 	outputFile, err := os.Create(outputPath)
@@ -247,10 +259,22 @@ func dataSourcePackage() *schema.Resource {
 				Optional:    true,
 				Default:     false,
 			},
+			"download_dir": {
+				Type:        schema.TypeString,
+				Description: "The directory where the file will be downloaded if download is set to true",
+				Optional:    true,
+				Default:     os.TempDir(),
+			},
 			"format": {
 				Type:        schema.TypeString,
 				Description: "The format of the package",
 				Computed:    true,
+			},
+			"ignore_checksums": {
+				Type:        schema.TypeBool,
+				Description: "Ignore checksums for the package",
+				Optional:    true,
+				Default:     false,
 			},
 			"identifier": {
 				Type:         schema.TypeString,
@@ -260,27 +284,27 @@ func dataSourcePackage() *schema.Resource {
 			},
 			"is_sync_awaiting": {
 				Type:        schema.TypeBool,
-				Description: "Is the package awaiting synchronisation",
+				Description: "Is the package awaiting synchronization",
 				Computed:    true,
 			},
 			"is_sync_completed": {
 				Type:        schema.TypeBool,
-				Description: "Has the package synchronisation completed",
+				Description: "Has the package synchronization completed",
 				Computed:    true,
 			},
 			"is_sync_failed": {
 				Type:        schema.TypeBool,
-				Description: "Has the package synchronisation failed",
+				Description: "Has the package synchronization failed",
 				Computed:    true,
 			},
 			"is_sync_in_flight": {
 				Type:        schema.TypeBool,
-				Description: "Is the package synchronisation currently in-flight",
+				Description: "Is the package synchronization currently in-flight",
 				Computed:    true,
 			},
 			"is_sync_in_progress": {
 				Type:        schema.TypeBool,
-				Description: "Is the package synchronisation currently in-progress",
+				Description: "Is the package synchronization currently in-progress",
 				Computed:    true,
 			},
 			"name": {
@@ -294,21 +318,21 @@ func dataSourcePackage() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
+			"output_directory": {
+				Type:        schema.TypeString,
+				Description: "The directory where the file is downloaded",
+				Computed:    true,
+			},
 			"output_path": {
 				Type:        schema.TypeString,
 				Description: "The location of the package",
 				Computed:    true,
 			},
-			"download_dir": {
-				Type:        schema.TypeString,
-				Description: "The directory where the file will be downloaded if download is set to true",
-				Optional:    true,
-				Default:     os.TempDir(),
-			},
-			"output_directory": {
-				Type:        schema.TypeString,
-				Description: "The directory where the file is downloaded",
-				Computed:    true,
+			"repository": {
+				Type:         schema.TypeString,
+				Description:  "The repository of the package",
+				Required:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"slug": {
 				Type:        schema.TypeString,
@@ -320,12 +344,6 @@ func dataSourcePackage() *schema.Resource {
 				Description: "The slug_perm immutably identifies the package. " +
 					"It will never change once a package has been created.",
 				Computed: true,
-			},
-			"repository": {
-				Type:         schema.TypeString,
-				Description:  "The repository of the package",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"version": {
 				Type:        schema.TypeString,
