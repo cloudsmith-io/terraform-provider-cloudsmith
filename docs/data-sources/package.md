@@ -39,6 +39,7 @@ data "cloudsmith_package" "test" {
 -   `identifier` (Required): The identifier for the package.
 -   `download` (Optional): If set to true, the package will be downloaded. Defaults to false. If set to false, the CDN URL will be available in the `output_path`.
 -   `download_dir` (Optional): The directory where the file will be downloaded to. If not set and `download` is set to `true`, it will default to the operating system's default temporary directory and save the file there.
+-   `ignore_checksums` (Optional): If set to `true`, any mismatched checksum from our API and local check will be ignored and download the package if `download` is set to `true`.
 
 ## Attribute Reference
 
