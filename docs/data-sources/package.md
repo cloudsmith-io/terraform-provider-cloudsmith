@@ -39,14 +39,15 @@ data "cloudsmith_package" "test" {
 -   `identifier` (Required): The identifier for the package.
 -   `download` (Optional): If set to true, the package will be downloaded. Defaults to false. If set to false, the CDN URL will be available in the `output_path`.
 -   `download_dir` (Optional): The directory where the file will be downloaded to. If not set and `download` is set to `true`, it will default to the operating system's default temporary directory and save the file there.
+-   `ignore_checksums` (Optional): If set to `true`, any mismatched checksum from our API and local check will be ignored and download the package if `download` is set to `true`.
 
 ## Attribute Reference
 
 -   `cdn_url`: The URL of the package to download. This attribute is computed and available only when the `download` argument is set to `false`.
--   `checksum_md5`: MD5 hash of the package.
--   `checksum_sha1`: SHA1 hash of the package.
--   `checksum_sha256`: SHA256 hash of the package.
--   `checksum_sha512`: SHA512 hash of the package.
+-   `checksum_md5`: MD5 hash of the downloaded package. If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha1`: SHA1 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha256`: SHA256 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
+-   `checksum_sha512`: SHA512 hash of the downloaded package.If `download` is set to `false`, the checksum is returned from the package API instead.
 -   `format`: The format of the package.
 -   `is_sync_awaiting`: Indicates whether the package is awaiting synchronization.
 -   `is_sync_completed`: Indicates whether the package synchronization has completed.
