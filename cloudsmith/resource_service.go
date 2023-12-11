@@ -155,21 +155,14 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 	// they'll need to recreate the resource if they want to pull the new key
 	// into Terraform. This can be accomplished by tainting.
 	var diags diag.Diagnostics
+
 	if requiredBool(d, "store_api_key") {
-		existingKey := requiredString(d, "key")
-		if existingKey == importSentinel {
-			diags = append(diags, diag.Diagnostic{
-				Severity: diag.Warning,
-				Summary:  "API key unavailable for imported services",
-				Detail: "API keys are only available via the Cloudsmith API at the time a service " +
-					"is created, and therefore it is not possible to retrieve the current API key for " +
-					"a service which has been imported. If the API key value is needed within Terraform" +
-					"then the resource can be tainted post-import to recreate it and store the key.",
-				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
-			})
-		} else {
+		if key, ok := d.GetOk("key"); ok {
+			// "key" attribute exists in Terraform state
+			existingKey := key.(string)
 			existingLastFour := existingKey[len(existingKey)-lastFourChars:]
 			newLastFour := service.GetKey()[len(service.GetKey())-lastFourChars:]
+
 			if existingLastFour != newLastFour {
 				diags = append(diags, diag.Diagnostic{
 					Severity: diag.Warning,
@@ -180,8 +173,12 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 					AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 				})
 			}
+		} else {
+			// "key" attribute does not exist in Terraform state, grab it from the API response
+			d.Set("key", service.GetKey())
 		}
 	} else {
+		// "store_api_key" is set to False, set the "key" to "**redacted**"
 		d.Set("key", "**redacted**")
 	}
 
