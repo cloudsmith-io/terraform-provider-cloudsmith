@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +15,7 @@ import (
 	"strconv"
 	"time"
 
+	cloudsmith_api "github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -25,6 +25,30 @@ type Checksums struct {
 	SHA1   string
 	SHA256 string
 	SHA512 string
+}
+
+func (c Checksums) CompareWithPkg(pkg *cloudsmith_api.Package) error {
+	var errs []error
+
+	if c.MD5 != pkg.GetChecksumMd5() {
+		errs = append(errs, fmt.Errorf(checksumMismatchError(c.MD5, pkg.GetChecksumMd5(), "MD5")))
+	}
+	if c.SHA1 != pkg.GetChecksumSha1() {
+		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA1, pkg.GetChecksumSha1(), "SHA1")))
+	}
+	if c.SHA256 != pkg.GetChecksumSha256() {
+		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA256, pkg.GetChecksumSha256(), "SHA256")))
+	}
+	if c.SHA512 != pkg.GetChecksumSha512() {
+		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA512, pkg.GetChecksumSha512(), "SHA512")))
+	}
+
+	var finalError error = nil
+	for _, err := range errs {
+		finalError = fmt.Errorf("%w\n", err)
+	}
+
+	return finalError
 }
 
 func checksumMismatchError(localChecksum string, remoteChecksum string, checksumType string) string {
@@ -66,82 +90,53 @@ func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(fmt.Sprintf("%s_%s_%s", namespace, repository, pkg.GetSlugPerm()))
 
-	if download {
-		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, false)
+	if !download {
+		d.Set("output_path", pkg.GetCdnUrl())
+		d.Set("output_directory", "")
+		return nil
+	}
+
+	bustCache := false
+	retryTimes := 0
+	var checksumError error = nil
+	var localChecksums Checksums
+
+	for retryTimes < 2 {
+		outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, bustCache)
 		if err != nil {
 			return err
 		}
+
 		d.Set("output_path", outputPath)
 		d.Set("output_directory", downloadDir)
 
 		// Calculate checksums for the downloaded file
-		localChecksums, err := calculateChecksums(outputPath)
+		localChecksums, err = calculateChecksums(outputPath)
 		if err != nil {
 			return err
 		}
 
-		localMD5 := localChecksums.MD5
-		localSHA1 := localChecksums.SHA1
-		localSHA256 := localChecksums.SHA256
-		localSHA512 := localChecksums.SHA512
-
-		// Check against API checksums
-		if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
-			// Checksum doesn't match, try to download again with bustCache set to true
-			outputPath, err := downloadPackage(pkg.GetCdnUrl(), downloadDir, pc, true)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Package pulled again with bustCache due to checksum mismatch.")
-
-			// Calculate checksums for the downloaded file again
-			localChecksums, err := calculateChecksums(outputPath)
-			if err != nil {
-				return err
-			}
-
-			localMD5 = localChecksums.MD5
-			localSHA1 = localChecksums.SHA1
-			localSHA256 = localChecksums.SHA256
-			localSHA512 = localChecksums.SHA512
-
-			// Check again after the retry
-			if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
-				if ignoreChecksum {
-					fmt.Println("Warning: ignore_checksums set to true, downloading mismatched checksum file.")
-					d.Set("checksum_md5", localMD5)
-					d.Set("checksum_sha1", localSHA1)
-					d.Set("checksum_sha256", localSHA256)
-					d.Set("checksum_sha512", localSHA512)
-				} else {
-					if localMD5 != pkg.GetChecksumMd5() || localSHA1 != pkg.GetChecksumSha1() || localSHA256 != pkg.GetChecksumSha256() || localSHA512 != pkg.GetChecksumSha512() {
-						errMsg := ""
-						if localMD5 != pkg.GetChecksumMd5() {
-							errMsg += checksumMismatchError(localMD5, pkg.GetChecksumMd5(), "MD5") + "\n"
-						}
-						if localSHA1 != pkg.GetChecksumSha1() {
-							errMsg += checksumMismatchError(localSHA1, pkg.GetChecksumSha1(), "SHA1") + "\n"
-						}
-						if localSHA256 != pkg.GetChecksumSha256() {
-							errMsg += checksumMismatchError(localSHA256, pkg.GetChecksumSha256(), "SHA256") + "\n"
-						}
-						if localSHA512 != pkg.GetChecksumSha512() {
-							errMsg += checksumMismatchError(localSHA512, pkg.GetChecksumSha512(), "SHA512") + "\n"
-						}
-						return errors.New(errMsg)
-					}
-				}
-			}
+		if ignoreChecksum {
+			fmt.Println("Warning: ignore_checksums set to true, downloading mismatched checksum file.")
+			break
 		}
 
-		d.Set("checksum_md5", localMD5)
-		d.Set("checksum_sha1", localSHA1)
-		d.Set("checksum_sha256", localSHA256)
-		d.Set("checksum_sha512", localSHA512)
-	} else {
-		d.Set("output_path", pkg.GetCdnUrl())
-		d.Set("output_directory", "")
+		if checksumError = localChecksums.CompareWithPkg(pkg); checksumError != nil {
+			bustCache = true
+			retryTimes++
+		} else {
+			break
+		}
 	}
+
+	if checksumError != nil {
+		return checksumError
+	}
+
+	d.Set("checksum_md5", localChecksums.MD5)
+	d.Set("checksum_sha1", localChecksums.SHA1)
+	d.Set("checksum_sha256", localChecksums.SHA256)
+	d.Set("checksum_sha512", localChecksums.SHA512)
 
 	return nil
 }
