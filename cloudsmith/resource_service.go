@@ -107,6 +107,8 @@ func resourceServiceCreate(ctx context.Context, d *schema.ResourceData, m interf
 	// Terraform is to taint the whole resource and let Terraform recreate it.
 	if requiredBool(d, "store_api_key") {
 		d.Set("key", service.GetKey())
+	} else {
+		d.Set("key", "**redacted**")
 	}
 	checkerFunc := func() error {
 		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, org, d.Id())
@@ -132,8 +134,6 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 
 	req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, org, d.Id())
 
-	const lastFourChars = 4
-
 	service, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
 	if err != nil {
 		if is404(resp) {
@@ -154,32 +154,34 @@ func resourceServiceRead(ctx context.Context, d *schema.ResourceData, m interfac
 	// API, we need to check if it has changed and if so warn the user that
 	// they'll need to recreate the resource if they want to pull the new key
 	// into Terraform. This can be accomplished by tainting.
+
 	var diags diag.Diagnostics
-
+	existingKey := requiredString(d, "key")
 	if requiredBool(d, "store_api_key") {
-		if key, ok := d.GetOk("key"); ok {
-			// "key" attribute exists in Terraform state
-			existingKey := key.(string)
-			existingLastFour := existingKey[len(existingKey)-lastFourChars:]
-			newLastFour := service.GetKey()[len(service.GetKey())-lastFourChars:]
-
+		if existingKey == importSentinel {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  "API key unavailable for imported services",
+				Detail: "API keys are only available via the Cloudsmith API at the time a service " +
+					"is created, and therefore it is not possible to retrieve the current API key for " +
+					"a service which has been imported. If the API key value is needed within Terraform" +
+					"then the resource can be tainted post-import to recreate it and store the key.",
+				AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
+			})
+		} else {
+			existingLastFour := existingKey[len(existingKey)-4:]
+			newLastFour := service.GetKey()[len(service.GetKey())-4:]
 			if existingLastFour != newLastFour {
 				diags = append(diags, diag.Diagnostic{
 					Severity: diag.Warning,
 					Summary:  "API key has changed",
 					Detail: "API key for this service has changed outside of Terraform. If this " +
-						"key is used within Terraform, the resource must be tainted or otherwise " +
+						"key is used within Terraform the resource must be tainted or otherwise " +
 						"recreated to retrieve the new value.",
 					AttributePath: cty.Path{cty.GetAttrStep{Name: "key"}},
 				})
 			}
-		} else {
-			// "key" attribute does not exist in Terraform state, grab it from the API response
-			d.Set("key", service.GetKey())
 		}
-	} else {
-		// "store_api_key" is set to False, set the "key" to "**redacted**"
-		d.Set("key", "**redacted**")
 	}
 
 	// organization is not returned from the service read endpoint, so we can
@@ -219,7 +221,9 @@ func resourceServiceUpdate(ctx context.Context, d *schema.ResourceData, m interf
 	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
 		return diag.Errorf("error waiting for service (%s) to be updated: %s", d.Id(), err)
 	}
-
+	if !requiredBool(d, "store_api_key") {
+		d.Set("key", "**redacted**")
+	}
 	return resourceServiceRead(ctx, d, m)
 }
 
