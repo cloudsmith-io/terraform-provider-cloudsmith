@@ -11,11 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-func denyRuleImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+func packageDenyPolicyImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.Split(d.Id(), ".")
 	if len(idParts) != 3 {
 		return nil, fmt.Errorf(
-			"invalid import ID, must be of the form <organization_slug>.<deny_rule_slug>, got: %s", d.Id(),
+			"invalid import ID, must be of the form <organization_slug>.<package_deny_policy_slug>, got: %s", d.Id(),
 		)
 	}
 
@@ -24,7 +24,7 @@ func denyRuleImport(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	return []*schema.ResourceData{d}, nil
 }
 
-func denyRuleCreate(d *schema.ResourceData, m interface{}) error {
+func packageDenyPolicyCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := requiredString(d, "namespace")
@@ -35,11 +35,11 @@ func denyRuleCreate(d *schema.ResourceData, m interface{}) error {
 		Description:        nullableString(d, "description"),
 		PackageQueryString: nullableString(d, "package_query"),
 	})
-	denyRule, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyCreateExecute(req)
+	packageDenyPolicy, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyCreateExecute(req)
 	if err != nil {
 		return err
 	}
-	d.SetId(denyRule.GetSlugPerm())
+	d.SetId(packageDenyPolicy.GetSlugPerm())
 	checkerFunc := func() error {
 		req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, d.Id())
 		if _, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req); err != nil {
@@ -51,17 +51,17 @@ func denyRuleCreate(d *schema.ResourceData, m interface{}) error {
 		return nil
 	}
 	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for deny rule (%s) to be created: %w", d.Id(), err)
+		return fmt.Errorf("error waiting for package deny policy (%s) to be created: %w", d.Id(), err)
 	}
-	return denyRuleRead(d, m)
+	return packageDenyPolicyRead(d, m)
 }
 
-func denyRuleRead(d *schema.ResourceData, m interface{}) error {
+func packageDenyPolicyRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := requiredString(d, "namespace")
 	req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, d.Id())
-	rule, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req)
+	packageDenyPolicy, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req)
 
 	if err != nil {
 		if is404(resp) {
@@ -72,17 +72,16 @@ func denyRuleRead(d *schema.ResourceData, m interface{}) error {
 
 	}
 
-	d.Set("name", rule.GetName())
+	d.Set("name", packageDenyPolicy.GetName())
 
-	d.Set("description", rule.GetDescription())
-	d.Set("package_query", rule.GetPackageQueryString())
-	d.Set("enabled", rule.GetEnabled())
-	d.Set("slug_perm", rule.GetSlugPerm())
+	d.Set("description", packageDenyPolicy.GetDescription())
+	d.Set("package_query", packageDenyPolicy.GetPackageQueryString())
+	d.Set("enabled", packageDenyPolicy.GetEnabled())
 
 	return nil
 }
 
-func denyRuleUpdate(d *schema.ResourceData, m interface{}) error {
+func packageDenyPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 	namespace := requiredString(d, "namespace")
 	req := pc.APIClient.OrgsApi.OrgsDenyPolicyPartialUpdate(pc.Auth, namespace, d.Id())
@@ -92,24 +91,24 @@ func denyRuleUpdate(d *schema.ResourceData, m interface{}) error {
 		Description:        nullableString(d, "description"),
 		PackageQueryString: nullableString(d, "package_query"),
 	})
-	denyRule, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyPartialUpdateExecute(req)
+	packageDenyPolicy, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyPartialUpdateExecute(req)
 	if err != nil {
 		return err
 	}
-	d.SetId(denyRule.GetSlugPerm())
+	d.SetId(packageDenyPolicy.GetSlugPerm())
 	checkerFunc := func() error {
 		// this is somewhat of a hack until we have a better way to poll for a
-		// deny rule being updated
+		// deny policy being updated
 		time.Sleep(time.Second * 5)
 		return nil
 	}
 	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for deny rule (%s) to be updated: %w", d.Id(), err)
+		return fmt.Errorf("error waiting for deny policy (%s) to be updated: %w", d.Id(), err)
 	}
-	return denyRuleRead(d, m)
+	return packageDenyPolicyRead(d, m)
 }
 
-func denyRuleDelete(d *schema.ResourceData, m interface{}) error {
+func packageDenyPolicyDelete(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := requiredString(d, "namespace")
@@ -132,40 +131,33 @@ func denyRuleDelete(d *schema.ResourceData, m interface{}) error {
 	}
 
 	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for deny rule (%s) to be deleted: %w", d.Id(), err)
+		return fmt.Errorf("error waiting for deny policy (%s) to be deleted: %w", d.Id(), err)
 	}
 	return nil
 }
 
 //nolint:funlen
-func denyRule() *schema.Resource {
+func packageDenyPolicy() *schema.Resource {
 	return &schema.Resource{
-		Create: denyRuleCreate,
-		Read:   denyRuleRead,
-		Update: denyRuleUpdate,
-		Delete: denyRuleDelete,
+		Create: packageDenyPolicyCreate,
+		Read:   packageDenyPolicyRead,
+		Update: packageDenyPolicyUpdate,
+		Delete: packageDenyPolicyDelete,
 
 		Importer: &schema.ResourceImporter{
-			StateContext: denyRuleImport,
+			StateContext: packageDenyPolicyImport,
 		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:         schema.TypeString,
-				Description:  "A descriptive name for the deny rule.",
+				Description:  "A descriptive name for the package deny policy.",
 				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
-			},
-			"slug_perm": {
-				Type:         schema.TypeString,
-				Description:  "The slug of the deny rule.",
-				Optional:     true,
-				Computed:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"description": {
 				Type:         schema.TypeString,
-				Description:  "Description of the rule.",
+				Description:  "Description of the package deny policy.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
@@ -177,13 +169,13 @@ func denyRule() *schema.Resource {
 			},
 			"enabled": {
 				Type:        schema.TypeBool,
-				Description: "Is the rule enabled?.",
+				Description: "Is the package deny policy enabled?.",
 				Optional:    true,
 				Default:     true,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
-				Description:  "Namespace to which this rule belongs.",
+				Description:  "Namespace to which this package deny policy belongs.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
