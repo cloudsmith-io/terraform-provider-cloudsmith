@@ -60,8 +60,7 @@ func denyRuleRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := requiredString(d, "namespace")
-	slug := requiredString(d, "slug")
-	req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, slug)
+	req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, d.Id())
 	rule, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req)
 
 	if err != nil {
@@ -74,11 +73,11 @@ func denyRuleRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.Set("name", rule.GetName())
-	d.Set("slug_perm", rule.GetSlugPerm())
+
 	d.Set("description", rule.GetDescription())
 	d.Set("package_query", rule.GetPackageQueryString())
 	d.Set("enabled", rule.GetEnabled())
-	d.Set("namespace", namespace)
+	d.Set("slug_perm", rule.GetSlugPerm())
 
 	return nil
 }
@@ -157,16 +156,11 @@ func denyRule() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
-			"action": {
-				Type:         schema.TypeString,
-				Description:  "A descriptive name for the deny rule.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
-			},
 			"slug_perm": {
 				Type:         schema.TypeString,
 				Description:  "The slug of the deny rule.",
 				Optional:     true,
+				Computed:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"description": {
@@ -185,6 +179,7 @@ func denyRule() *schema.Resource {
 				Type:        schema.TypeBool,
 				Description: "Is the rule enabled?.",
 				Optional:    true,
+				Default:     true,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
