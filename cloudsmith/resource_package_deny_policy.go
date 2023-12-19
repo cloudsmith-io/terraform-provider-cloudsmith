@@ -149,16 +149,16 @@ func packageDenyPolicy() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:         schema.TypeString,
-				Description:  "A descriptive name for the package deny policy.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "A descriptive name for the package deny policy.",
+				Optional:    true,
+				Default:     nil,
 			},
 			"description": {
-				Type:         schema.TypeString,
-				Description:  "Description of the package deny policy.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "Description of the package deny policy.",
+				Optional:    true,
+				Default:     nil,
 			},
 			"package_query": {
 				Type:         schema.TypeString,
