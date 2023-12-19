@@ -13,7 +13,7 @@ import (
 
 func packageDenyPolicyImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.Split(d.Id(), ".")
-	if len(idParts) != 3 {
+	if len(idParts) != 2 {
 		return nil, fmt.Errorf(
 			"invalid import ID, must be of the form <organization_slug>.<package_deny_policy_slug>, got: %s", d.Id(),
 		)
@@ -73,7 +73,6 @@ func packageDenyPolicyRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.Set("name", packageDenyPolicy.GetName())
-
 	d.Set("description", packageDenyPolicy.GetDescription())
 	d.Set("package_query", packageDenyPolicy.GetPackageQueryString())
 	d.Set("enabled", packageDenyPolicy.GetEnabled())
