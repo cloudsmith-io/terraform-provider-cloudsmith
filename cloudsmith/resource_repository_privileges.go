@@ -181,7 +181,10 @@ func resourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) err
 	repository := requiredString(d, "repository")
 
 	req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
-
+	// TODO: add a proper loop here to ensure we always get all privs,
+	// regardless of how many are configured.
+	req = req.Page(1)
+	req = req.PageSize(1000)
 	privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
 	if err != nil {
 		if is404(resp) {
