@@ -2,10 +2,11 @@ package cloudsmith
 
 import (
 	"errors"
-	"github.com/samber/lo"
 	"net/http"
 	"sort"
 	"time"
+
+	"github.com/samber/lo"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"

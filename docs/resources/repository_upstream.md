@@ -27,6 +27,18 @@ resource "cloudsmith_repository" "my_repository" {
 
 ...minimal configuration for various upstream types might be added as per the following examples for popular package registries.
 
+### Cran
+
+```hcl
+resource "cloudsmith_repository_upstream" "cran_registry" {
+    name          = "cran_registry"
+    namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
+    upstream_type = "cran"
+    upstream_url  = "https://cran.r-project.org"
+}
+```
+
 ### Dart
 
 ```hcl

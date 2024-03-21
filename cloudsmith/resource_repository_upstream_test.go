@@ -3,12 +3,119 @@ package cloudsmith
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
+
+func TestAccRepositoryUpstreamCran_basic(t *testing.T) {
+	t.Parallel()
+
+	const cranUpstreamResourceName = "cloudsmith_repository_upstream.cran_registry"
+
+	testAccRepositoryCranUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-cran"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "cran_registry" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "cran"
+    upstream_url  = "https://cran.r-project.org"
+}
+`, namespace)
+
+	testAccRepositoryCranUpstreamConfigUpdate := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-cran"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "cran_registry" {
+	auth_mode      = "Username and Password"
+    auth_secret    = "SuperSecretPassword123!"
+    auth_username  = "jonny.tables"
+	extra_header_1 = "Cross-Origin-Resource-Policy"
+    extra_header_2 = "Access-Control-Allow-Origin"
+    extra_value_1  = "cross-origin"
+    extra_value_2  = "*"
+    is_active      = false
+    mode           = "Cache and Proxy"
+	name           = cloudsmith_repository.test.name
+    namespace      = cloudsmith_repository.test.namespace
+    priority       = 12345
+    repository     = cloudsmith_repository.test.slug
+    upstream_type  = "cran"
+    upstream_url   = "https://cran.r-project.org"
+    verify_ssl     = false
+}
+`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(cranUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryCranUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, AuthSecret, ""),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(cranUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryCranUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(cranUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(cranUpstreamResourceName, UpstreamDistribution),
+				),
+			},
+			{
+				ResourceName: cranUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[cranUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
 
 func TestAccRepositoryUpstreamDart_basic(t *testing.T) {
 	t.Parallel()
@@ -1092,6 +1199,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		var err error
 
 		switch upstreamType {
+		case Cran:
+			req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
 		case Dart:
 			req := pc.APIClient.ReposApi.ReposUpstreamDartRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)
