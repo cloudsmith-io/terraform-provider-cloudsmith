@@ -33,7 +33,7 @@ func packageDenyPolicyCreate(d *schema.ResourceData, m interface{}) error {
 		Name:               nullableString(d, "name"),
 		Enabled:            optionalBool(d, "enabled"),
 		Description:        nullableString(d, "description"),
-		PackageQueryString: nullableString(d, "package_query"),
+		PackageQueryString: *optionalString(d, "package_query"),
 	})
 	packageDenyPolicy, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyCreateExecute(req)
 	if err != nil {
@@ -88,7 +88,7 @@ func packageDenyPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 		Name:               nullableString(d, "name"),
 		Enabled:            optionalBool(d, "enabled"),
 		Description:        nullableString(d, "description"),
-		PackageQueryString: nullableString(d, "package_query"),
+		PackageQueryString: optionalString(d, "package_query"),
 	})
 	packageDenyPolicy, _, err := pc.APIClient.OrgsApi.OrgsDenyPolicyPartialUpdateExecute(req)
 	if err != nil {

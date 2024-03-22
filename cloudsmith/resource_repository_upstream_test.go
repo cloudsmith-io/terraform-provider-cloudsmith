@@ -3,11 +3,12 @@ package cloudsmith
 
 import (
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccRepositoryUpstreamDart_basic(t *testing.T) {
@@ -1092,6 +1093,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		var err error
 
 		switch upstreamType {
+		case Cran:
+			req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
 		case Dart:
 			req := pc.APIClient.ReposApi.ReposUpstreamDartRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)

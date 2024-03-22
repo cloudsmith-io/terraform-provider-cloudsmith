@@ -14,6 +14,7 @@ import (
 
 // upstream types
 const (
+	Cran   = "cran"
 	Dart   = "dart"
 	Deb    = "deb"
 	Docker = "docker"
@@ -60,6 +61,7 @@ var (
 		"Cache Only",
 	}
 	upstreamTypes = []string{
+		Cran,
 		Dart,
 		Deb,
 		Docker,
@@ -133,6 +135,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CranUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranCreateExecute(req)
 	case Dart:
 		req := pc.APIClient.ReposApi.ReposUpstreamDartCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.DartUpstreamRequest{
@@ -357,6 +377,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	var upstream Upstream
 
 	switch upstreamType {
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
 	case Dart:
 		req := pc.APIClient.ReposApi.ReposUpstreamDartRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)
@@ -471,6 +494,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CranUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCranUpdateExecute(req)
 	case Dart:
 		req := pc.APIClient.ReposApi.ReposUpstreamDartUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.DartUpstreamRequest{
@@ -693,6 +734,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCranDeleteExecute(req)
 	case Dart:
 		req := pc.APIClient.ReposApi.ReposUpstreamDartDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamDartDeleteExecute(req)
