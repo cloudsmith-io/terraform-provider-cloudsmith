@@ -165,6 +165,18 @@ resource "cloudsmith_repository_upstream" "ruby_gems" {
 }
 ```
 
+### Swift
+
+```hcl
+resource "cloudsmith_repository_upstream" "swift_registry" {
+    name          = "swift_registry"
+    namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
+    upstream_type = "swift"
+    upstream_url  = "https://swift.cloudsmith.io/swift/swiftpackageindex-mirror/"
+}
+```
+
 ## Argument Reference
 
 The following arguments are supported:

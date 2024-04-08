@@ -25,6 +25,7 @@ const (
 	Python = "python"
 	Rpm    = "rpm"
 	Ruby   = "ruby"
+	Swift  = "swift"
 )
 
 // tf state prop names
@@ -72,6 +73,7 @@ var (
 		Python,
 		Rpm,
 		Ruby,
+		Swift,
 	}
 )
 
@@ -339,6 +341,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyCreateExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.SwiftUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftCreateExecute(req)
 	default:
 		err = fmt.Errorf("invalid upstream type: '%s'", upstreamType)
 	}
@@ -410,6 +430,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Ruby:
 		req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
 	default:
 		err = fmt.Errorf("invalid upstream_type '%s'", upstreamType)
 	}
@@ -698,6 +721,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamRubyUpdateExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.SwiftUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamSwiftUpdateExecute(req)
 	default:
 		err = fmt.Errorf("invalid upstream type: '%s'", upstreamType)
 	}
@@ -767,6 +808,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Ruby:
 		req := pc.APIClient.ReposApi.ReposUpstreamRubyDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamRubyDeleteExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamSwiftDeleteExecute(req)
 	default:
 		err = fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
 	}
