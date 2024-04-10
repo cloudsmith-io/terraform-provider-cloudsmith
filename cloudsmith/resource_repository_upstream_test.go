@@ -1126,6 +1126,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Ruby:
 			req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+		case Swift:
+			req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
 		default:
 			err = fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
 		}

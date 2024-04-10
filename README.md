@@ -85,7 +85,7 @@ data "cloudsmith_package_list" "my_packages" {
 }
 
 output "packages" {
-  value = formatlist("%s-%s", data.cloudsmith_packages.my_packages.packages.*.name, data.cloudsmith_packages.my_packages.packages.*.version)
+  value = formatlist("%s-%s", data.cloudsmith_package_list.my_packages.packages.*.name, data.cloudsmith_package_list.my_packages.packages.*.version)
 }
 ```
 
