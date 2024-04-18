@@ -317,7 +317,7 @@ func resourceRepository() *schema.Resource {
 					"Be careful if setting this to admin, because any member will be able to change settings.",
 				Optional:     true,
 				Computed:     true,
-				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write", "None"}, false),
 			},
 			"delete_own": {
 				Type: schema.TypeBool,
