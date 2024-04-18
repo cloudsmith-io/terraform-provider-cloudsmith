@@ -1,0 +1,134 @@
+//nolint:testpackage
+package cloudsmith
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+)
+
+// create basic oidc test function
+
+func TestAccOidc_basic(t *testing.T) {
+	t.Parallel()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccOidcCheckDestroy("cloudsmith_oidc.test"),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccOidcConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccOidcCheckExists("cloudsmith_oidc.test"),
+					// check a sample of computed properties have been set correctly
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "name", "test"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "provider_url", "https://test.com"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "service_accounts", "test"),
+				),
+			},
+			{
+				Config: testAccOidcConfigBasicUpdateName,
+				Check: resource.ComposeTestCheckFunc(
+					testAccOidcCheckExists("cloudsmith_oidc.test"),
+				),
+			},
+			{
+				Config:      testAccOidcConfigBasicInvalidProp,
+				ExpectError: regexp.MustCompile("expected claims to be one of"),
+			},
+			{
+				Config: testAccOidcConfigBasicUpdateProps,
+				Check: resource.ComposeTestCheckFunc(
+					testAccOidcCheckExists("cloudsmith_oidc.test"),
+				),
+			},
+		},
+	})
+}
+
+//nolint:goerr113
+// create a destroy function for oidc
+
+func testAccOidcCheckDestroy(name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, ok := s.RootModule().Resources[name]
+		if ok {
+			return fmt.Errorf("oidc still exists")
+		}
+
+		return nil
+	}
+}
+
+// create a check exists function for oidc
+
+func testAccOidcCheckExists(name string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("oidc not found")
+		}
+
+		return nil
+	}
+}
+
+var testAccOidcConfigBasic = fmt.Sprintf(`
+resource "cloudsmith_oidc" "test" {
+	  namespace = "%s"
+	  claims = {
+		"key" = "value"
+	  }
+	  enabled = true
+	  name = "test"
+	  provider_url = "https://test.com"
+	  service_accounts = ["test"]
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccOidcConfigBasicUpdateName = fmt.Sprintf(`
+resource "cloudsmith_oidc" "test" {
+	  namespace = "%s"
+	  claims = {
+		"key" = "value"
+	  }
+	  enabled = true
+	  name = "test2"
+	  provider_url = "https://test.com"
+	  service_accounts = ["test"]
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccOidcConfigBasicInvalidProp = fmt.Sprintf(`
+resource "cloudsmith_oidc" "test" {
+	  namespace = "%s"
+	  claims = {
+		"key" = "value"
+	  }
+	  enabled = true
+	  name = "test"
+	  provider_url = "https://test.com"
+	  service_accounts = ["test"]
+	  invalid_prop = "test"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccOidcConfigBasicUpdateProps = fmt.Sprintf(`
+resource "cloudsmith_oidc" "test" {
+	  namespace = "%s"
+	  claims = {
+		"key" = "value"
+	  }
+	  enabled = true
+	  name = "test"
+	  provider_url = "https://test.com"
+	  service_accounts = ["test"]
+	  invalid_prop = "test"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
