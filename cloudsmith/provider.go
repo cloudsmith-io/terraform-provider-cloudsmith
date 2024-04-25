@@ -49,6 +49,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_vulnerability_policy":    resourceVulnerabilityPolicy(),
 			"cloudsmith_webhook":                 resourceWebhook(),
 			"cloudsmith_package_deny_policy":     packageDenyPolicy(),
+			"cloudsmith_oidc":                    resourceOIDC(),
 		},
 	}
 
