@@ -50,6 +50,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_webhook":                 resourceWebhook(),
 			"cloudsmith_package_deny_policy":     packageDenyPolicy(),
 			"cloudsmith_oidc":                    resourceOIDC(),
+			"cloudsmith_manage_team":             resourceManageTeam(),
 		},
 	}
 
