@@ -65,7 +65,7 @@ func oidcCreate(d *schema.ResourceData, m interface{}) error {
 		return nil
 	}
 
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
 		return fmt.Errorf("error waiting for OIDC config (%s) to be updated: %w", d.Id(), err)
 	}
 
