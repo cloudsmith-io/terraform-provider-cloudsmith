@@ -1,7 +1,6 @@
 package cloudsmith
 
 import (
-	"log"
 	"strconv"
 	"time"
 
@@ -64,10 +63,9 @@ func retrieveEntitlmentListPages(pc *providerConfig, namespace string, repositor
 }
 
 func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
-	tokens := make([]interface{}, len(token))
+	tokenList := make([]interface{}, len(token))
 
 	for i, t := range token {
-		log.Printf("[DEBUG] Entitlement Token: %v", t)
 		token := make(map[string]interface{})
 		token["clients"] = t.GetClients()
 		token["created_at"] = t.GetCreatedAt().Format(time.RFC3339)
@@ -90,6 +88,7 @@ func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
 		token["limit_package_query"] = t.GetLimitPackageQuery()
 		token["limit_path_query"] = t.GetLimitPathQuery()
 		token["metadata"] = t.GetMetadata()
+		token["name"] = t.GetName()
 		token["refresh_url"] = t.GetRefreshUrl()
 		token["reset_url"] = t.GetResetUrl()
 		token["scheduled_reset_at"] = t.GetScheduledResetAt().Format(time.RFC3339)
@@ -104,10 +103,10 @@ func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
 		token["user"] = t.GetUser()
 		token["user_url"] = t.GetUserUrl()
 
-		tokens[i] = token
+		tokenList[i] = token
 	}
 
-	return tokens
+	return tokenList
 }
 
 func dataSourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
@@ -282,6 +281,11 @@ func dataSourceEntitlementList() *schema.Resource {
 							Elem: &schema.Schema{
 								Type: schema.TypeString,
 							},
+						},
+						"name": {
+							Type:        schema.TypeString,
+							Description: "The name of the entitlement token.",
+							Computed:    true,
 						},
 						"refresh_url": {
 							Type:        schema.TypeString,
