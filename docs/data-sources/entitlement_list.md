@@ -67,6 +67,7 @@ The following attribute is additionally exported:
   * `limit_package_query` - The package-based search query to apply to restrict downloads.
   * `limit_path_query` - The path-based search query to apply to restrict downloads.
   * `metadata` - Additional metadata associated with the entitlement token.
+  * `name` - The name of the entitlement token.
   * `refresh_url` - URL to refresh the entitlement token.
   * `reset_url` - URL to reset the entitlement token.
   * `scheduled_reset_at` - The time at which the scheduled reset period has elapsed and the token limits were automatically reset to zero.
