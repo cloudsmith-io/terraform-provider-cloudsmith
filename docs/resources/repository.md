@@ -53,6 +53,15 @@ resource "cloudsmith_repository" "my_repository" {
 * `show_setup_all` - (Optional) If checked, the Set Me Up help for all formats will always be shown, even if you don't have packages of that type uploaded. Otherwise, help will only be shown for packages that are in the repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet packages will be shown only.
 * `slug` - (Optional) The slug identifies the repository in URIs.
 * `storage_region` - (Optional) The Cloudsmith region in which package files are stored.
+  * `default` - Default Region
+  * `us-norcal` - Northern California, United States
+  * `au-sydney` - Sydney, Australia
+  * `sg-singapore` - Singapore
+  * `ca-montreal` - Montreal, Canada
+  * `de-frankfurt` - Frankfurt, Germany
+  * `us-oregon` - Oregon, United States
+  * `us-ohio` - Ohio, United States
+  * `ie-dublin` - Dublin, Ireland
 * `strict_npm_validation` - (Optional) If checked, npm packages will be validated strictly to ensure the package matches specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at your own risk!
 * `use_debian_labels` - (Optional) If checked, a 'Label' field will be present in Debian-based repositories. It will contain a string that identifies the entitlement token used to authenticate the repository, in the form of 'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.
 * `use_default_cargo_upstream` - (Optional) If checked, dependencies of uploaded Cargo crates which do not set an explicit value for \"registry\" will be assumed to be available from crates.io. If unchecked, dependencies with unspecified \"registry\" values will be assumed to be available in the registry being uploaded to. Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless explicitly specified as belong to another registry.
