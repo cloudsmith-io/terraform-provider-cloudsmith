@@ -1,7 +1,6 @@
 .idea/
 .terraform/
 .terraform.lock.hcl
-main.tf
 terraform.tfstate
 terraform.tfstate.backup
 terraform-provider-cloudsmith
