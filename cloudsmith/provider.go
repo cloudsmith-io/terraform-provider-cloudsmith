@@ -36,6 +36,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_repository":            dataSourceRepository(),
 			"cloudsmith_repository_privileges": dataSourceRepositoryPrivileges(),
 			"cloudsmith_package_deny_policy":   dataSourcePackageDenyPolicy(),
+			"cloudsmith_entitlement_list":      dataSourceEntitlementList(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":             resourceEntitlement(),
@@ -51,6 +52,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_package_deny_policy":     packageDenyPolicy(),
 			"cloudsmith_oidc":                    resourceOIDC(),
 			"cloudsmith_manage_team":             resourceManageTeam(),
+			"cloudsmith_saml":                    resourceSAML(),
 		},
 	}
 
