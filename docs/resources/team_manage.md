@@ -21,7 +21,7 @@ resource "cloudsmith_team_manage" "example" {
 
 ## Argument Reference
 
-> :warning: **Warning**: When running this resource with a **USER API** token (Not applicable to users running this with Service Account API Key) on **newly created teams**, the user will automatically get added to the team causing a `422 error` when specified in the resource as well. We highly advise using service account for this purpose to avoid the error, alternatively, the plan needs to be ran without the user in the resource and re-added after the first apply happens.
+> :warning: **Warning**: When running this resource with a **USER API** token (Not applicable to users running this with Service Account API Key) on **newly created teams**, the user will automatically get added to the team causing a `422 error` when specified in the resource as well. We highly advise using a service account for this purpose to avoid the error. Alternatively, the plan needs to be run without the user in the resource and re-added after the first apply happens.
 
 The following arguments are supported:
 
