@@ -29,7 +29,6 @@ resource "cloudsmith_repository" "my_repository" {
 * `copy_own` - (Optional) If set to `true`, users can copy any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `copy_packages` - (Optional) This defines the minimum level of privilege required for a user to copy packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific copy setting. Valid values include `Admin`, `Read`, and `Write`.
 * `default_privilege` - (Optional) This defines the default level of privilege that all of your organization members have for this repository(`Admin`, `Read`, `Write`,and `None`). This does not include collaborators, but applies to any member of the org regardless of their own membership role (i.e. it applies to owners, managers and members). Be careful if setting this to admin, because any member will be able to change settings.
-* `deleted_at` - ISO 8601 timestamp at which the repository was deleted.
 * `delete_own` - (Optional) If set to `true`, users can delete any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `delete_packages` - (Optional) This defines the minimum level of privilege required for a user to delete packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific delete setting. Valid values include `Admin` and `Write`.
 * `description` - (Optional) A description of the repository's purpose/contents.
@@ -53,6 +52,15 @@ resource "cloudsmith_repository" "my_repository" {
 * `show_setup_all` - (Optional) If set to `true`, the Set Me Up help for all formats will always be shown, even if you don't have packages of that type uploaded. Otherwise, help will only be shown for packages that are in the repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet packages will be shown only.
 * `slug` - (Optional) The slug identifies the repository in URIs.
 * `storage_region` - (Optional) The Cloudsmith region in which package files are stored.
+  * `default` - Default Region
+  * `us-norcal` - Northern California, United States
+  * `au-sydney` - Sydney, Australia
+  * `sg-singapore` - Singapore
+  * `ca-montreal` - Montreal, Canada
+  * `de-frankfurt` - Frankfurt, Germany
+  * `us-oregon` - Oregon, United States
+  * `us-ohio` - Ohio, United States
+  * `ie-dublin` - Dublin, Ireland
 * `strict_npm_validation` - (Optional) If set to `true`, npm packages will be validated strictly to ensure the package matches specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at your own risk!
 * `use_debian_labels` - (Optional) If set to `true`, a 'Label' field will be present in Debian-based repositories. It will contain a string that identifies the entitlement token used to authenticate the repository, in the form of 'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.
 * `use_default_cargo_upstream` - (Optional) If set to `true`, dependencies of uploaded Cargo crates which do not set an explicit value for \"registry\" will be assumed to be available from crates.io. If unset to `true`, dependencies with unspecified \"registry\" values will be assumed to be available in the registry being uploaded to. Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless explicitly specified as belong to another registry.
