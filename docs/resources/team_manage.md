@@ -5,7 +5,7 @@ This resource is used to manage teams in Cloudsmith. It allows you to add, updat
 ## Example Usage
 
 ```hcl
-resource "cloudsmith_team_manage" "example" {
+resource "cloudsmith_manage_team" "example" {
   organization = "example_org"
   team_name    = "example_team"
   members {
