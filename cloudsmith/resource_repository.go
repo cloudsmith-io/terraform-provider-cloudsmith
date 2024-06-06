@@ -314,7 +314,8 @@ func resourceRepository() *schema.Resource {
 				Description: "This defines the default level of privilege that all of your organization members " +
 					"have for this repository. This does not include collaborators, but applies to any member of the " +
 					"org regardless of their own membership role (i.e. it applies to owners, managers and members). " +
-					"Be careful if setting this to admin, because any member will be able to change settings.",
+					"Be careful if setting this to admin, because any member will be able to change settings." +
+					"Valid values include: `Admin`, `Read`, `Write`, `None`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write", "None"}, false),
@@ -466,7 +467,8 @@ func resourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "The repository type changes how it is accessed and billed. Private repositories " +
 					"can only be used on paid plans, but are visible only to you or authorised delegates. Public " +
-					"repositories are free to use on all plans and visible to all Cloudsmith users.",
+					"repositories are free to use on all plans and visible to all Cloudsmith users." +
+					"Valid values include: `Private` or `Public`.",
 				Optional:     true,
 				Default:      "Private",
 				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
@@ -538,12 +540,15 @@ func resourceRepository() *schema.Resource {
 				Computed: true,
 			},
 			"storage_region": {
-				Type:         schema.TypeString,
-				Description:  "The Cloudsmith region in which package files are stored.",
+				Type: schema.TypeString,
+				Description: "The Cloudsmith region in which package files are stored." +
+					"Supported regions include: Northern California, United States (us-norcal), Sydney, Australia (au-sydney)," +
+					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon," +
+					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin)",
 				Optional:     true,
 				Computed:     true,
 				ForceNew:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				ValidateFunc: validation.StringInSlice([]string{"us-norcal", "au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin"}, false),
 			},
 			"strict_npm_validation": {
 				Type: schema.TypeBool,
@@ -604,7 +609,8 @@ func resourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to view repository statistics, " +
 					"to include entitlement-based usage, if applicable. If a user does not have the permission, they won't be " +
-					"able to view any statistics, either via the UI, API or CLI.",
+					"able to view any statistics, either via the UI, API or CLI." +
+					"Valid values include: `Admin`, `Write`, `Read`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
