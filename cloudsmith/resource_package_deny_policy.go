@@ -142,6 +142,7 @@ func packageDenyPolicy() *schema.Resource {
 		Read:   packageDenyPolicyRead,
 		Update: packageDenyPolicyUpdate,
 		Delete: packageDenyPolicyDelete,
+		Description: "Package deny policies control which packages can be downloaded within their repositories.",
 
 		Importer: &schema.ResourceImporter{
 			StateContext: packageDenyPolicyImport,
