@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -69,7 +70,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 
 	repository, _, err := pc.APIClient.ReposApi.ReposCreateExecute(req)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(repository.GetSlugPerm())
@@ -80,7 +81,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 			if is404(resp) {
 				return errKeepWaiting
 			}
-			return err
+			return diag.FromErr(err)
 		}
 		return nil
 	}
@@ -104,7 +105,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 			return nil
 		}
 
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.Set("cdn_url", repository.GetCdnUrl())
@@ -211,7 +212,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	})
 	repository, _, err := pc.APIClient.ReposApi.ReposPartialUpdateExecute(req)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(repository.GetSlugPerm())
@@ -237,7 +238,7 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	req := pc.APIClient.ReposApi.ReposDelete(pc.Auth, namespace, d.Id())
 	_, err := pc.APIClient.ReposApi.ReposDeleteExecute(req)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	if requiredBool(d, "wait_for_deletion") {
@@ -247,7 +248,7 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 				if is404(resp) {
 					return nil
 				}
-				return err
+				return diag.FromErr(err)
 			}
 			return errKeepWaiting
 		}
