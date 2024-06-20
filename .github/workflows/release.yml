@@ -1,6 +1,7 @@
 name: release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -31,7 +32,6 @@ jobs:
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
           args: release --clean
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
