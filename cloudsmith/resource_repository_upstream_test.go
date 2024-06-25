@@ -31,31 +31,28 @@ resource "cloudsmith_repository_upstream" "pub_dev" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-dart"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-dart"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "pub_dev" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Proxy Only"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "dart"
-	//     upstream_url   = "https://pub.dev"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "pub_dev" {
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Proxy Only"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "dart"
+	    upstream_url   = "https://pub.dev"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -86,19 +83,19 @@ resource "cloudsmith_repository_upstream" "pub_dev" {
 					resource.TestCheckResourceAttr(dartUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(dartUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(dartUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(dartUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(dartUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(dartUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(dartUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(dartUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(dartUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(dartUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(dartUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(dartUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: dartUpstreamResourceName,
 				ImportState:  true,
@@ -139,35 +136,32 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 }
 `, namespace)
 
-	// 	var testAccRepositoryDebUpstreamConfigUpdate = fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-deb"
-	// 	namespace = "%s"
-	// }
+	var testAccRepositoryDebUpstreamConfigUpdate = fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-deb"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "ubuntu" {
-	// 	auth_mode             = "Username and Password"
-	//     auth_secret           = "SuperSecretPassword123!"
-	//     auth_username         = "jonny.tables"
-	//     component             = "main"
-	//     distro_versions       = ["ubuntu/focal"]
-	// 	extra_header_1        = "Cross-Origin-Resource-Policy"
-	//     extra_header_2        = "Access-Control-Allow-Origin"
-	//     extra_value_1         = "cross-origin"
-	//     extra_value_2         = "*"
-	//     include_sources       = true
-	//     is_active             = false
-	//     mode                  = "Cache and Proxy"
-	// 	name                  = cloudsmith_repository.test.name
-	//     namespace             = cloudsmith_repository.test.namespace
-	//     priority              = 12345
-	//     repository            = cloudsmith_repository.test.slug
-	// 	upstream_distribution = "focal"
-	//     upstream_type         = "deb"
-	//     upstream_url          = "http://archive.ubuntu.com/ubuntu"
-	//     verify_ssl            = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "ubuntu" {
+	    component             = "main"
+	    distro_versions       = ["ubuntu/focal"]
+		extra_header_1        = "Cross-Origin-Resource-Policy"
+	    extra_header_2        = "Access-Control-Allow-Origin"
+	    extra_value_1         = "cross-origin"
+	    extra_value_2         = "*"
+	    include_sources       = true
+	    is_active             = true
+	    mode                  = "Cache and Proxy"
+		name                  = cloudsmith_repository.test.name
+	    namespace             = cloudsmith_repository.test.namespace
+	    priority              = 12345
+	    repository            = cloudsmith_repository.test.slug
+		upstream_distribution = "focal"
+	    upstream_type         = "deb"
+	    upstream_url          = "http://archive.ubuntu.com/ubuntu"
+	    verify_ssl            = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -197,15 +191,15 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 					resource.TestCheckResourceAttr(debUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryDebUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckResourceAttrSet(debUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(debUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckResourceAttrSet(debUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckResourceAttr(debUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryDebUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet(debUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(debUpstreamResourceName, DistroVersion),
+					resource.TestCheckResourceAttrSet(debUpstreamResourceName, UpdatedAt),
+					resource.TestCheckResourceAttr(debUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: debUpstreamResourceName,
 				ImportState:  true,
@@ -245,31 +239,31 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-docker"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-docker"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "dockerhub" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "docker"
-	//     upstream_url   = "https://index.docker.io"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "dockerhub" {
+		auth_mode      = "Username and Password"
+	    auth_secret    = "SuperSecretPassword123!"
+	    auth_username  = "jonny.tables"
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = false
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "docker"
+	    upstream_url   = "https://index.docker.io"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -300,19 +294,19 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "false"),
+				),
+			},
 			{
 				ResourceName: dockerUpstreamResourceName,
 				ImportState:  true,
@@ -352,31 +346,31 @@ resource "cloudsmith_repository_upstream" "helm" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-helm"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-helm"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "helm" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "helm"
-	//     upstream_url   = "https://charts.helm.sh/stable"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "helm" {
+		auth_mode      = "Username and Password"
+	    auth_secret    = "SuperSecretPassword123!"
+	    auth_username  = "jonny.tables"
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "helm"
+	    upstream_url   = "https://charts.helm.sh/stable"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -407,19 +401,19 @@ resource "cloudsmith_repository_upstream" "helm" {
 					resource.TestCheckResourceAttr(helmUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(helmUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(helmUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(helmUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(helmUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(helmUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(helmUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(helmUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(helmUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(helmUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(helmUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(helmUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: helmUpstreamResourceName,
 				ImportState:  true,
@@ -459,31 +453,28 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-python"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-python"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "maven_central" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "maven"
-	//     upstream_url   = "https://repo1.maven.org/maven2"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "maven_central" {
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "maven"
+	    upstream_url   = "https://repo1.maven.org/maven2"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -514,19 +505,19 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(mavenUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(mavenUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: mavenUpstreamResourceName,
 				ImportState:  true,
@@ -563,34 +554,33 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "npm"
     upstream_url  = "https://registry.npmjs.org"
+    is_active      = true
+
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-npm"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-npm"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "npmjs" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "npm"
-	//     upstream_url   = "https://registry.npmjs.org"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "npmjs" {
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "npm"
+	    upstream_url   = "https://registry.npmjs.org"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -621,19 +611,19 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(npmUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(npmUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(npmUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(npmUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(npmUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(npmUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: npmUpstreamResourceName,
 				ImportState:  true,
@@ -673,31 +663,28 @@ resource "cloudsmith_repository_upstream" "nuget" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-nuget"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-nuget"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "nuget" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "nuget"
-	//     upstream_url   = "https://api.nuget.org/v3/index.json"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "nuget" {
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "nuget"
+	    upstream_url   = "https://api.nuget.org/v3/index.json"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -728,19 +715,19 @@ resource "cloudsmith_repository_upstream" "nuget" {
 					resource.TestCheckResourceAttr(nugetUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(nugetUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(nugetUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: nugetUpstreamResourceName,
 				ImportState:  true,
@@ -780,31 +767,31 @@ resource "cloudsmith_repository_upstream" "pypi" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-python"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-python"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "pypi" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "python"
-	//     upstream_url   = "https://pypi.org"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "pypi" {
+		auth_mode      = "Username and Password"
+	    auth_secret    = "SuperSecretPassword123!"
+	    auth_username  = "jonny.tables"
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = false
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "python"
+	    upstream_url   = "https://pypi.org"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -835,19 +822,19 @@ resource "cloudsmith_repository_upstream" "pypi" {
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(pythonUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(pythonUpstreamResourceName, IsActive, "false"),
+				),
+			},
 			{
 				ResourceName: pythonUpstreamResourceName,
 				ImportState:  true,
@@ -889,33 +876,33 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 }
 `, namespace)
 
-	// 	var testAccRepositoryRpmUpstreamConfigUpdate = fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-rpm"
-	// 	namespace = "%s"
-	// }
+	var testAccRepositoryRpmUpstreamConfigUpdate = fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-rpm"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "rpm_fusion" {
-	// 	auth_mode       = "Username and Password"
-	//     auth_secret     = "SuperSecretPassword123!"
-	//     auth_username   = "jonny.tables"
-	//     distro_version  = "fedora/35"
-	// 	extra_header_1  = "Cross-Origin-Resource-Policy"
-	//     extra_header_2  = "Access-Control-Allow-Origin"
-	//     extra_value_1   = "cross-origin"
-	//     extra_value_2   = "*"
-	//     include_sources = true
-	//     is_active       = false
-	//     mode            = "Cache and Proxy"
-	// 	name            = cloudsmith_repository.test.name
-	//     namespace       = cloudsmith_repository.test.namespace
-	//     priority        = 12345
-	//     repository      = cloudsmith_repository.test.slug
-	//     upstream_type   = "rpm"
-	//     upstream_url    = "https://download1.rpmfusion.org/free/fedora/releases/35/Everything/x86_64/os"
-	//     verify_ssl      = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "rpm_fusion" {
+		auth_mode       = "Username and Password"
+	    auth_secret     = "SuperSecretPassword123!"
+	    auth_username   = "jonny.tables"
+	    distro_version  = "fedora/35"
+		extra_header_1  = "Cross-Origin-Resource-Policy"
+	    extra_header_2  = "Access-Control-Allow-Origin"
+	    extra_value_1   = "cross-origin"
+	    extra_value_2   = "*"
+	    include_sources = true
+	    is_active       = false
+	    mode            = "Cache and Proxy"
+		name            = cloudsmith_repository.test.name
+	    namespace       = cloudsmith_repository.test.namespace
+	    priority        = 12345
+	    repository      = cloudsmith_repository.test.slug
+	    upstream_type   = "rpm"
+	    upstream_url    = "https://download1.rpmfusion.org/free/fedora/releases/35/Everything/x86_64/os"
+	    verify_ssl      = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -945,17 +932,17 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 					resource.TestCheckResourceAttr(rpmUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryRpmUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(rpmUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckResourceAttrSet(rpmUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(rpmUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryRpmUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(rpmUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttrSet(rpmUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(rpmUpstreamResourceName, IsActive, "false"),
+				),
+			},
 			{
 				ResourceName: rpmUpstreamResourceName,
 				ImportState:  true,
@@ -995,31 +982,31 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 }
 `, namespace)
 
-	// 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
-	// resource "cloudsmith_repository" "test" {
-	// 	name      = "terraform-acc-test-upstream-ruby"
-	// 	namespace = "%s"
-	// }
+	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-ruby"
+		namespace = "%s"
+	}
 
-	// resource "cloudsmith_repository_upstream" "rubygems" {
-	// 	auth_mode      = "Username and Password"
-	//     auth_secret    = "SuperSecretPassword123!"
-	//     auth_username  = "jonny.tables"
-	// 	extra_header_1 = "Cross-Origin-Resource-Policy"
-	//     extra_header_2 = "Access-Control-Allow-Origin"
-	//     extra_value_1  = "cross-origin"
-	//     extra_value_2  = "*"
-	//     is_active      = false
-	//     mode           = "Cache and Proxy"
-	// 	name           = cloudsmith_repository.test.name
-	//     namespace      = cloudsmith_repository.test.namespace
-	//     priority       = 12345
-	//     repository     = cloudsmith_repository.test.slug
-	//     upstream_type  = "ruby"
-	//     upstream_url   = "https://rubygems.org"
-	//     verify_ssl     = false
-	// }
-	// `, namespace)
+	resource "cloudsmith_repository_upstream" "rubygems" {
+		auth_mode      = "Username and Password"
+	    auth_secret    = "SuperSecretPassword123!"
+	    auth_username  = "jonny.tables"
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "ruby"
+	    upstream_url   = "https://rubygems.org"
+	    verify_ssl     = false
+	}
+	`, namespace)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -1050,19 +1037,19 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 					resource.TestCheckResourceAttr(rubyUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
-			// {
-			// 	Config: testAccRepositoryPythonUpstreamConfigUpdate,
-			// 	Check: resource.ComposeTestCheckFunc(
-			// 		resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, Component),
-			// 		resource.TestCheckResourceAttrSet(rubyUpstreamResourceName, CreatedAt),
-			// 		resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, DistroVersion),
-			// 		resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, DistroVersions),
-			// 		resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, IncludeSources),
-			// 		resource.TestCheckResourceAttrSet(rubyUpstreamResourceName, UpdatedAt),
-			// 		resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, UpstreamDistribution),
-			// 		resource.TestCheckResourceAttr(rubyUpstreamResourceName, IsActive, "false"),
-			// 	),
-			// },
+			{
+				Config: testAccRepositoryPythonUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(rubyUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(rubyUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(rubyUpstreamResourceName, IsActive, "true"),
+				),
+			},
 			{
 				ResourceName: rubyUpstreamResourceName,
 				ImportState:  true,
