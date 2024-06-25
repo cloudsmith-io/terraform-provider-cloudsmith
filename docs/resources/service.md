@@ -16,13 +16,13 @@ data "cloudsmith_organization" "my_org" {
 }
 
 resource "cloudsmith_team" "my_team" {
-	organization = data.cloudsmith_organization.my_org.slug_perm
+	organization = data.cloudsmith_organization.my_org.slug
 	name         = "My Team"
 }
 
 resource "cloudsmith_service" "my_service" {
 	name         = "My Service"
-	organization = data.cloudsmith_organization.my_org.slug_perm
+	organization = data.cloudsmith_organization.my_org.slug
 
 	team {
 		slug = cloudsmith_team.my_team.slug
