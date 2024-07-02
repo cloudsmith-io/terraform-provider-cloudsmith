@@ -8,12 +8,12 @@ provider "cloudsmith" {
     api_key = "my-api-key"
 }
 
-data "cloudsmith_namespace" "my_namespace" {
-    slug = "my-namespace"
+data "cloudsmith_organization" "my_organization" {
+    slug = "my-organization"
 }
 
 data "cloudsmith_repository" "my_repository" {
-    namespace  = data.cloudsmith_namespace.my_namespace.slug_perm
+    namespace  = data.cloudsmith_organization.my_organization.slug_perm
     identifier = "my-repository"
 }
 
