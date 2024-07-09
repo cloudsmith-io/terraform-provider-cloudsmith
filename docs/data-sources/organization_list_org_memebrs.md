@@ -22,7 +22,7 @@ data "cloudsmith_list_org_members" "test" {
 
 ## Argument Reference
 
-* `namespace` - (Required) Namespace to which the entitlement tokens belong.
+* `namespace` - (Required) Namespace to which the org members belong to.
 * `is_active` - (Optional) Filter for active/inactive users. Default is `true`.
 
 All of the argument attributes are also exported as result attributes.
