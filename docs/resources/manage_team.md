@@ -42,5 +42,5 @@ The following attributes are exported:
 Existing teams can be imported using the organization slug and team name, separated by a dot. For example:
 
 ```hcl
-terraform import cloudsmith_team_manage.example example_org.example_team
+terraform import cloudsmith_manage_team.example example_org.example_team
 ```

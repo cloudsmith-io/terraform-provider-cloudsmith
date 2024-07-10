@@ -148,7 +148,7 @@ resource "cloudsmith_webhook" "test" {
     namespace  = "${cloudsmith_repository.test.namespace}"
     repository = "${cloudsmith_repository.test.slug_perm}"
 
-	events     = ["*"]
+	events     = ["package.created", "package.deleted", "package.failed", "package.security_scanned", "package.synced", "package.syncing", "package.tags_updated"]
 	target_url = "https://example.com"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
