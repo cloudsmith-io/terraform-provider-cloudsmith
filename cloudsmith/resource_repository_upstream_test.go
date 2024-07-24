@@ -236,6 +236,9 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "docker"
     upstream_url  = "https://index.docker.io"
+	auth_mode      = "Username and Password"
+	auth_secret    = "SuperSecretPassword123!"
+	auth_username  = "jonny.tables"
 }
 `, namespace)
 
@@ -257,7 +260,7 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 	    mode           = "Cache and Proxy"
 		name           = cloudsmith_repository.test.name
 	    namespace      = cloudsmith_repository.test.namespace
-	    priority       = 12345
+	    priority       = 4
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "docker"
 	    upstream_url   = "https://index.docker.io"
@@ -273,9 +276,7 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthSecret, ""),
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthMode, "Username and Password"),
 					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, CreatedAt),
 					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersion),
@@ -285,7 +286,7 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, ExtraValue1, ""),
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, ExtraValue2, ""),
 					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, IncludeSources),
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "false"),
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, Mode, "Proxy Only"),
 					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, Priority),
 					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, SlugPerm),

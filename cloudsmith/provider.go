@@ -37,6 +37,8 @@ func Provider() *schema.Provider {
 			"cloudsmith_repository_privileges": dataSourceRepositoryPrivileges(),
 			"cloudsmith_package_deny_policy":   dataSourcePackageDenyPolicy(),
 			"cloudsmith_entitlement_list":      dataSourceEntitlementList(),
+			"cloudsmith_list_org_members":      dataSourceOrganizationMembersList(),
+			"cloudsmith_org_member_details":    dataSourceMemberDetails(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":             resourceEntitlement(),
