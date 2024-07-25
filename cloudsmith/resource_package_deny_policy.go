@@ -138,10 +138,11 @@ func packageDenyPolicyDelete(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func packageDenyPolicy() *schema.Resource {
 	return &schema.Resource{
-		Create: packageDenyPolicyCreate,
-		Read:   packageDenyPolicyRead,
-		Update: packageDenyPolicyUpdate,
-		Delete: packageDenyPolicyDelete,
+		Create:      packageDenyPolicyCreate,
+		Read:        packageDenyPolicyRead,
+		Update:      packageDenyPolicyUpdate,
+		Delete:      packageDenyPolicyDelete,
+		Description: "Package deny policies control which packages can be downloaded within their repositories.",
 
 		Importer: &schema.ResourceImporter{
 			StateContext: packageDenyPolicyImport,
