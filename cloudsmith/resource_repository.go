@@ -550,13 +550,13 @@ func resourceRepository() *schema.Resource {
 			"storage_region": {
 				Type: schema.TypeString,
 				Description: "The Cloudsmith region in which package files are stored." +
-					"Supported regions include: Northern California, United States (us-norcal), Sydney, Australia (au-sydney)," +
+					"Supported regions include: Sydney, Australia (au-sydney)," +
 					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon," +
 					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin)",
 				Optional:     true,
 				Computed:     true,
 				ForceNew:     true,
-				ValidateFunc: validation.StringInSlice([]string{"us-norcal", "au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin"}, false),
 			},
 			"strict_npm_validation": {
 				Type: schema.TypeBool,
