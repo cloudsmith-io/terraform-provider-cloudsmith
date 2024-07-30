@@ -278,15 +278,7 @@ func resourceRepository() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: importRepository,
 		},
-		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
-			if d.HasChange("storage_region") && d.Id() != "" {
-				if err := d.SetNewComputed("storage_region"); err != nil {
-					return fmt.Errorf("error setting storage_region to computed: %s", err)
-				}
-				return fmt.Errorf("warning: updating the 'storage_region' on an existing repository is currently unsupported via terraform, please update the region manually via the UI")
-			}
-			return nil
-		},
+
 		Schema: map[string]*schema.Schema{
 			"cdn_url": {
 				Type:        schema.TypeString,
@@ -563,11 +555,8 @@ func resourceRepository() *schema.Resource {
 					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin)",
 				Optional:     true,
 				Computed:     true,
+				ForceNew:     true,
 				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin"}, false),
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					// Suppress diff if the resource is already created
-					return d.Id() != ""
-				},
 			},
 			"strict_npm_validation": {
 				Type: schema.TypeBool,
