@@ -280,7 +280,9 @@ func resourceRepository() *schema.Resource {
 		},
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 			if d.HasChange("storage_region") && d.Id() != "" {
-				d.SetNewComputed("storage_region")
+				if err := d.SetNewComputed("storage_region"); err != nil {
+					return fmt.Errorf("error setting storage_region to computed: %s", err)
+				}
 				return fmt.Errorf("warning: updating the 'storage_region' on an existing repository is currently unsupported via terraform, please update the region manually via the UI")
 			}
 			return nil
