@@ -53,7 +53,6 @@ resource "cloudsmith_repository" "my_repository" {
 * `slug` - (Optional) The slug identifies the repository in URIs.
 * `storage_region` - (Optional) The Cloudsmith region in which package files are stored.
   * `default` - Default Region
-  * `us-norcal` - Northern California, United States
   * `au-sydney` - Sydney, Australia
   * `sg-singapore` - Singapore
   * `ca-montreal` - Montreal, Canada
