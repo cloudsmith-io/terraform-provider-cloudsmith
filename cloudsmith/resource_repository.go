@@ -259,6 +259,14 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+func validateNoSpaces(val interface{}, key string) (warns []string, errs []error) {
+	v := val.(string)
+	if strings.Contains(v, " ") {
+		errs = append(errs, fmt.Errorf("%q must not contain spaces: %s", key, v))
+	}
+	return
+}
+
 //nolint:funlen
 func resourceRepository() *schema.Resource {
 	return &schema.Resource{
@@ -401,7 +409,7 @@ func resourceRepository() *schema.Resource {
 				Type:         schema.TypeString,
 				Description:  "A descriptive name for the repository.",
 				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				ValidateFunc: validation.All(validation.StringIsNotEmpty, validateNoSpaces),
 			},
 			"namespace": {
 				Type:         schema.TypeString,
@@ -531,7 +539,7 @@ func resourceRepository() *schema.Resource {
 				Description:  "The slug identifies the repository in URIs.",
 				Optional:     true,
 				Computed:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				ValidateFunc: validation.All(validation.StringIsNotEmpty, validateNoSpaces),
 			},
 			"slug_perm": {
 				Type: schema.TypeString,
