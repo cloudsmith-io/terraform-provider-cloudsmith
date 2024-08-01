@@ -56,6 +56,7 @@ func TestAccRepository_basic(t *testing.T) {
 				Config: testAccRepositoryConfigBasicUpdateProps,
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "tag_pre_releases_as_latest", "true"),
 				),
 			},
 			{
@@ -161,5 +162,6 @@ resource "cloudsmith_repository" "test" {
 	docker_refresh_tokens_enabled = true
 	replace_packages_by_default   = true
 	use_vulnerability_scanning    = false
+	tag_pre_releases_as_latest = true
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
