@@ -574,7 +574,6 @@ func resourceRepository() *schema.Resource {
 				Type:        schema.TypeBool,
 				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
 				Optional:    true,
-				Computed:    true,
 				Default:     false,
 			},
 			"use_debian_labels": {
