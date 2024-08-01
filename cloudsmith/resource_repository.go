@@ -58,6 +58,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		Slug:                             optionalString(d, "slug"),
 		StorageRegion:                    optionalString(d, "storage_region"),
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
+		TagPreReleasesAsLatest:           optionalBool(d, "tag_pre_releases_as_latest"),
 		UseDebianLabels:                  optionalBool(d, "use_debian_labels"),
 		UseDefaultCargoUpstream:          optionalBool(d, "use_default_cargo_upstream"),
 		UseNoarchPackages:                optionalBool(d, "use_noarch_packages"),
@@ -144,6 +145,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("slug_perm", repository.GetSlugPerm())
 	d.Set("storage_region", repository.GetStorageRegion())
 	d.Set("strict_npm_validation", repository.GetStrictNpmValidation())
+	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
 	d.Set("use_debian_labels", repository.GetUseDebianLabels())
 	d.Set("use_default_cargo_upstream", repository.GetUseDefaultCargoUpstream())
 	d.Set("use_noarch_packages", repository.GetUseNoarchPackages())
@@ -198,6 +200,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		ScanOwn:                          optionalBool(d, "scan_own"),
 		ScanPackages:                     optionalString(d, "scan_packages"),
 		ShowSetupAll:                     optionalBool(d, "show_setup_all"),
+		TagPreReleasesAsLatest:           optionalBool(d, "tag_pre_releases_as_latest"),
 		RepositoryTypeStr:                optionalString(d, "repository_type"),
 		Slug:                             optionalString(d, "slug"),
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
@@ -566,6 +569,12 @@ func resourceRepository() *schema.Resource {
 					"your own risk!",
 				Optional: true,
 				Computed: true,
+			},
+			"tag_pre_releases_as_latest": {
+				Type:        schema.TypeBool,
+				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
+				Optional:    true,
+				Default:     false,
 			},
 			"use_debian_labels": {
 				Type: schema.TypeBool,
