@@ -56,7 +56,9 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("storage_region", repository.GetStorageRegion())
 	d.Set("strict_npm_validation", repository.GetStrictNpmValidation())
 	d.Set("use_debian_labels", repository.GetUseDebianLabels())
+	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
 	d.Set("use_default_cargo_upstream", repository.GetUseDefaultCargoUpstream())
+	d.Set("use_entitlements_privilege", repository.GetUseEntitlementsPrivilege())
 	d.Set("use_noarch_packages", repository.GetUseNoarchPackages())
 	d.Set("use_source_packages", repository.GetUseSourcePackages())
 	d.Set("use_vulnerability_scanning", repository.GetUseVulnerabilityScanning())
@@ -323,6 +325,11 @@ func dataSourceRepository() *schema.Resource {
 					"your own risk!",
 				Computed: true,
 			},
+			"tag_pre_releases_as_latest": {
+				Type:        schema.TypeBool,
+				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
+				Computed:    true,
+			},
 			"use_debian_labels": {
 				Type: schema.TypeBool,
 				Description: "If checked, a 'Label' field will be present in Debian-based repositories. It will contain a " +
@@ -338,6 +345,11 @@ func dataSourceRepository() *schema.Resource {
 					"Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless " +
 					"explicitly specified as belong to another registry.",
 				Computed: true,
+			},
+			"use_entitlements_privilege": {
+				Type:        schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to see/use entitlement tokens with private repositories. If a user does not have the permission, they will only be able to download packages using other credentials, such as email/password via basic authentication. Use this if you want to force users to only use their user-based token, which is tied to their access (if removed, they can't use it). Possible values: Read, Write, Admin.",
+				Computed:    true,
 			},
 			"use_noarch_packages": {
 				Type: schema.TypeBool,
