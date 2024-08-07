@@ -40,8 +40,8 @@ resource "cloudsmith_service" "my_service" {
 }
 
 resource "cloudsmith_repository_privileges" "privs" {
-    organization = data.cloudsmith_organization.my_organization.slug
-    repository   = cloudsmith_repository.my_repository.slug
+    organization = data.cloudsmith_organization.my_organization.slug_perm
+    repository   = cloudsmith_repository.my_repository.slug_perm
 
 	service {
 		privilege = "Write"
