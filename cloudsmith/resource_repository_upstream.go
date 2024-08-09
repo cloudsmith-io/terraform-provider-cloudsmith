@@ -364,6 +364,10 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	}
 
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusInternalServerError {
+			// Until we handle this better in API response we have to assume that this is the issue
+			return fmt.Errorf("this `upstream_url` might be already configured for this repository. %w", err)
+		}
 		return err
 	}
 
