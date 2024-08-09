@@ -364,6 +364,10 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	}
 
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusInternalServerError {
+			// Until we handle this better in API response we have to assume that this is the issue
+			return fmt.Errorf("this `upstream_url` might be already configured for this repository. %w", err)
+		}
 		return err
 	}
 
@@ -835,6 +839,14 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	return nil
 }
 
+func validateUpstreamUrl(v interface{}, k string) (warnings []string, errors []error) {
+	valueStr := v.(string)
+	if len(valueStr) > 0 && valueStr[len(valueStr)-1] == '/' {
+		errors = append(errors, fmt.Errorf("%q cannot end with a trailing slash", k))
+	}
+	return
+}
+
 func resourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepositoryUpstreamCreate,
@@ -987,10 +999,13 @@ func resourceRepositoryUpstream() *schema.Resource {
 				ValidateFunc: validation.StringInSlice(upstreamTypes, false),
 			},
 			UpstreamUrl: {
-				Type:         schema.TypeString,
-				Description:  "The URL for this upstream source. This must be a fully qualified URL including any path elements required to reach the root of the repository.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "The URL for this upstream source. This must be a fully qualified URL including any path elements required to reach the root of the repository.",
+				Required:    true,
+				ValidateFunc: validation.All(
+					validation.StringIsNotEmpty,
+					validateUpstreamUrl,
+				),
 			},
 			VerifySsl: {
 				Type:        schema.TypeBool,

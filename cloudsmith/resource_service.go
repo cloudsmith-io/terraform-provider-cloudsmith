@@ -269,10 +269,13 @@ func resourceService() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"description": {
-				Type:         schema.TypeString,
-				Description:  "A description of the service's purpose.",
-				Optional:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "A description of the service's purpose.",
+				Optional:    true,
+				ValidateFunc: validation.All(
+					validation.StringIsNotEmpty,
+					validation.StringLenBetween(0, 140),
+				),
 			},
 			"key": {
 				Type:        schema.TypeString,
@@ -281,10 +284,13 @@ func resourceService() *schema.Resource {
 				Sensitive:   true,
 			},
 			"name": {
-				Type:         schema.TypeString,
-				Description:  "A descriptive name for the service.",
-				Required:     true,
-				ValidateFunc: validation.StringIsNotEmpty,
+				Type:        schema.TypeString,
+				Description: "A descriptive name for the service.",
+				Required:    true,
+				ValidateFunc: validation.All(
+					validation.StringIsNotEmpty,
+					validation.StringLenBetween(1, 40),
+				),
 			},
 			"organization": {
 				Type:         schema.TypeString,
