@@ -415,7 +415,7 @@ func resourceRepository() *schema.Resource {
 				Type:         schema.TypeString,
 				Description:  "A descriptive name for the repository.",
 				Required:     true,
-				ValidateFunc: validation.All(validation.StringIsNotEmpty, validateNoSpaces),
+				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"namespace": {
 				Type:         schema.TypeString,
@@ -558,11 +558,11 @@ func resourceRepository() *schema.Resource {
 				Description: "The Cloudsmith region in which package files are stored." +
 					"Supported regions include: Sydney, Australia (au-sydney)," +
 					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon," +
-					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin)",
+					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin) (default)",
 				Optional:     true,
 				Computed:     true,
 				ForceNew:     true,
-				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin", "default"}, false),
 			},
 			"strict_npm_validation": {
 				Type: schema.TypeBool,

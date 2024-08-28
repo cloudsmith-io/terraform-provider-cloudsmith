@@ -36,7 +36,7 @@ resource "cloudsmith_repository" "my_repository" {
 * `index_files` - (Optional) If set to `true`, files contained in packages will be indexed, which increase the synchronisation time required for packages. Note that it is recommended you keep this enabled unless the synchronisation time is significantly impacted.
 * `move_own` - (Optional) If set to `true`, users can move any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `move_packages` - (Optional) This defines the minimum level of privilege required for a user to move packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific move setting. Valid values include `Admin` and `Write`.
-* `name` - (Required) A descriptive name for the repository.
+* `name` - (Required) A descriptive visual name for the repository.
 * `namespace` - (Required) Namespace (or organization) to which this repository belongs.
 * `proxy_npmjs` - (Optional) If set to `true`, Npm packages that are not in the repository when requested by clients will automatically be proxied from the public npmjs.org registry. If there is at least one version for a package, others will not be proxied.
 * `proxy_pypi` - (Optional) If set to `true`, Python packages that are not in the repository when requested by clients will automatically be proxied from the public pypi.python.org registry. If there is at least one version for a package, others will not be proxied.
