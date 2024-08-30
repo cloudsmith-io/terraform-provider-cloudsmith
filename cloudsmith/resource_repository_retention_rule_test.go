@@ -19,13 +19,13 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 			{
 				Config: testAccRepositoryConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testAccRepositoryCheckExists("cloudsmith_repository.test"),
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 				),
 			},
 			{
 				Config: testAccRepositoryRetentionRuleConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
-					testAccRepositoryCheckExists("cloudsmith_repository.test"),
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_count_limit", "100"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_days_limit", "28"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_enabled", "false"),
@@ -38,7 +38,7 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 			{
 				Config: testAccRepositoryRetentionRuleConfigBasicUpdate,
 				Check: resource.ComposeTestCheckFunc(
-					testAccRepositoryCheckExists("cloudsmith_repository.test"),
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_count_limit", "11"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_days_limit", "20"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_enabled", "true"),
@@ -47,26 +47,26 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 				),
 			},
 		},
-		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
+		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test-retention"),
 	})
 }
 
 var testAccRepositoryConfig = fmt.Sprintf(`
-resource "cloudsmith_repository" "test" {
+resource "cloudsmith_repository" "test-retention" {
   name        = "terraform-acc-repo-retention-rule"
   namespace   = "%s"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
 var testAccRepositoryRetentionRuleConfigBasic = fmt.Sprintf(`
-resource "cloudsmith_repository" "test" {
+resource "cloudsmith_repository" "test-retention" {
   name        = "terraform-acc-repo-retention-rule"
   namespace   = "%s"
 }
 
 resource "cloudsmith_repository_retention_rule" "test" {
   namespace = "%s"
-  repository = cloudsmith_repository.test.name
+  repository = cloudsmith_repository.test-retention.name
   retention_enabled = false
   retention_count_limit = 100
   retention_days_limit = 28
@@ -78,14 +78,14 @@ resource "cloudsmith_repository_retention_rule" "test" {
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
 var testAccRepositoryRetentionRuleConfigBasicUpdate = fmt.Sprintf(`
-resource "cloudsmith_repository" "test" {
+resource "cloudsmith_repository" "test-retention" {
   name        = "terraform-acc-repo-retention-rule"
   namespace   = "%s"
 }
 
 resource "cloudsmith_repository_retention_rule" "test" {
   namespace = "%s"
-  repository = cloudsmith_repository.test.name
+  repository = cloudsmith_repository.test-retention.name
   retention_count_limit = 11
   retention_days_limit = 20
   retention_size_limit = 20000000
