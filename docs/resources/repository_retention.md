@@ -55,5 +55,5 @@ The following arguments are supported:
 This resource can be imported using the namespace and repository slug:
 
 ```shell
-terraform import cloudsmith_repository_retention_rule.retention_rule my-namespace.my-repository
+terraform import cloudsmith_repository_retention_rule.retention_rule my-namespace-slug.my-repository
 ```

@@ -16,7 +16,7 @@ func importRepoRetentionRule(d *schema.ResourceData, meta interface{}) ([]*schem
 	}
 
 	d.Set("namespace", idParts[0])
-	d.Set("repo", idParts[1])
+	d.Set("repository", idParts[1])
 	return []*schema.ResourceData{d}, nil
 }
 
@@ -80,7 +80,7 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 		case 400:
 			return fmt.Errorf("request could not be processed: %s", err)
 		case 404:
-			return fmt.Errorf("namespace namespace or repository not found: %s", err)
+			return fmt.Errorf("namespace or repository not found: %s", err)
 		case 422:
 			return fmt.Errorf("missing or invalid parameters: %s", err)
 		default:
