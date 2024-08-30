@@ -181,7 +181,7 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Optional:    true,
 				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(int)
+					v := val.(int64)
 					if v < 0 || v > 21474836480 {
 						errs = append(errs, fmt.Errorf("%q must be between 0 and 21474836480, got: %d", key, v))
 					}
