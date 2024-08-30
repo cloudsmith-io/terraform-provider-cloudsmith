@@ -128,30 +128,18 @@ func resourceRepoRetentionRule() *schema.Resource {
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"retention_count_limit": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     100,
-				Description: "The maximum number of packages to retain. Must be between 0 and 10000.",
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(int)
-					if v < 0 || v > 10000 {
-						errs = append(errs, fmt.Errorf("%q must be between 0 and 10000, got: %d", key, v))
-					}
-					return
-				},
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Default:      100,
+				Description:  "The maximum number of packages to retain. Must be between 0 and 10000.",
+				ValidateFunc: validation.IntBetween(0, 10000),
 			},
 			"retention_days_limit": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Default:     28,
-				Description: "The number of days of packages to retain. Must be between 0 and 180.",
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(int)
-					if v < 0 || v > 180 {
-						errs = append(errs, fmt.Errorf("%q must be between 0 and 180, got: %d", key, v))
-					}
-					return
-				},
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Default:      28,
+				Description:  "The number of days of packages to retain. Must be between 0 and 180.",
+				ValidateFunc: validation.IntBetween(0, 180),
 			},
 			"retention_enabled": {
 				Type:        schema.TypeBool,
@@ -177,16 +165,10 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Description: "If true, retention will apply to packages by package type rather than across all package types for one or more formats.",
 			},
 			"retention_size_limit": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480.",
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(int64)
-					if v < 0 || v > 21474836480 {
-						errs = append(errs, fmt.Errorf("%q must be between 0 and 21474836480, got: %d", key, v))
-					}
-					return
-				},
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Description:  "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480.",
+				ValidateFunc: validation.IntBetween(0, 21474836480),
 			},
 		},
 	}
