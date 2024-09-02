@@ -103,21 +103,6 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	return nil
 }
 
-func validateInt64Between(min, max int64) schema.SchemaValidateFunc {
-	return func(i interface{}, k string) (s []string, es []error) {
-		v, ok := i.(int)
-		if !ok {
-			es = append(es, fmt.Errorf("expected type of %s to be int", k))
-			return
-		}
-
-		if int64(v) < min || int64(v) > max {
-			es = append(es, fmt.Errorf("%q must be between %d and %d, got: %d", k, min, max, v))
-		}
-		return
-	}
-}
-
 func resourceRepoRetentionRule() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepoRetentionRuleUpdate,
@@ -180,10 +165,9 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Description: "If true, retention will apply to packages by package type rather than across all package types for one or more formats.",
 			},
 			"retention_size_limit": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Description:  "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480.",
-				ValidateFunc: validateInt64Between(0, 21474836480),
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
 			},
 		},
 	}
