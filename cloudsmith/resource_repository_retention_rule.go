@@ -165,10 +165,9 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Description: "If true, retention will apply to packages by package type rather than across all package types for one or more formats.",
 			},
 			"retention_size_limit": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Description:  "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480.",
-				ValidateFunc: validation.IntBetween(0, 21474836480),
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
 			},
 		},
 	}
