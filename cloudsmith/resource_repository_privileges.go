@@ -180,35 +180,24 @@ func resourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) err
 	organization := requiredString(d, "organization")
 	repository := requiredString(d, "repository")
 
-	var allPrivileges []cloudsmith.RepositoryPrivilegeDict
-	page := int64(1)
-	pageSize := int64(1000)
-
-	for {
-		req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
-		req = req.Page(page)
-		req = req.PageSize(pageSize)
-		privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
-		if err != nil {
-			if is404(resp) {
-				d.SetId("")
-				return nil
-			}
-			return err
+	req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
+	// TODO: add a proper loop here to ensure we always get all privs,
+	// regardless of how many are configured.
+	req = req.Page(1)
+	req = req.PageSize(1000)
+	privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
+	if err != nil {
+		if is404(resp) {
+			d.SetId("")
+			return nil
 		}
 
-		allPrivileges = append(allPrivileges, privileges.GetPrivileges()...)
-
-		// Check if we have retrieved all pages
-		if int64(len(privileges.GetPrivileges())) < pageSize {
-			break
-		}
-		page++
+		return err
 	}
 
-	d.Set("service", flattenRepositoryPrivilegeServices(allPrivileges))
-	d.Set("team", flattenRepositoryPrivilegeTeams(allPrivileges))
-	d.Set("user", flattenRepositoryPrivilegeUsers(allPrivileges))
+	d.Set("service", flattenRepositoryPrivilegeServices(privileges.GetPrivileges()))
+	d.Set("team", flattenRepositoryPrivilegeTeams(privileges.GetPrivileges()))
+	d.Set("user", flattenRepositoryPrivilegeUsers(privileges.GetPrivileges()))
 
 	// namespace and repository are not returned from the privileges read
 	// endpoint, so we can use the values stored in resource state. We rely on
