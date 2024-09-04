@@ -104,7 +104,7 @@ func retrieveSAMLSyncListPages(pc *providerConfig, organization string, pageSize
 	if pageCount == -1 || pageCount == 0 {
 		var samlPage []cloudsmith.OrganizationGroupSync
 		var err error
-		samlPage, pageCount, err = retrieveSAMLSyncListPage(pc, organization, pageSize, 1)
+		samlPage, _, err = retrieveSAMLSyncListPage(pc, organization, pageSize, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -112,12 +112,15 @@ func retrieveSAMLSyncListPages(pc *providerConfig, organization string, pageSize
 		pageCurrentCount++
 	}
 
-	for pageCurrentCount <= pageCount {
-		samlPage, _, err := retrieveSAMLSyncListPage(pc, organization, pageSize, pageCount)
+	for {
+		samlPage, totalPages, err := retrieveSAMLSyncListPage(pc, organization, pageSize, pageCurrentCount)
 		if err != nil {
 			return nil, err
 		}
 		samlList = append(samlList, samlPage...)
+		if pageCurrentCount >= totalPages {
+			break
+		}
 		pageCurrentCount++
 	}
 
