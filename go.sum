@@ -37,6 +37,8 @@ github.com/cloudsmith-io/cloudsmith-api-go v0.0.38 h1:9LvozmogNMZ7MAULrEyV8nWJv0
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.38/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.39 h1:cS3EAOo7yZqrpudgceuvIRTlXyCbDGaJvKVuNIfSBOo=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.39/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.40 h1:9Ps/Uz5uswLS39l/0mHU2Ivc3Gqk0KORiPrZP3exs6I=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.40/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

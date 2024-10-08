@@ -24,6 +24,21 @@ func importRepository(ctx context.Context, d *schema.ResourceData, m interface{}
 	return []*schema.ResourceData{d}, nil
 }
 
+func resourceRepositoryStorageRegionUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+
+	req := pc.APIClient.ReposApi.ReposTransferRegion(pc.Auth, d.Get("namespace").(string), d.Get("name").(string))
+	req = req.Data(cloudsmith.RepositoryTransferRegionRequest{
+		StorageRegion: optionalString(d, "storage_region"),
+	})
+	_, err := pc.APIClient.ReposApi.ReposTransferRegionExecute(req)
+	if err != nil {
+		return fmt.Errorf("error updating repository: %w", err)
+	}
+
+	return nil
+}
+
 func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
@@ -176,6 +191,13 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	namespace := requiredString(d, "namespace")
+
+	// Check if storage_region has changed
+	if d.HasChange("storage_region") {
+		if err := resourceRepositoryStorageRegionUpdate(d, m); err != nil {
+			return err
+		}
+	}
 
 	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
 	req = req.Data(cloudsmith.RepositoryRequestPatch{
@@ -561,7 +583,6 @@ func resourceRepository() *schema.Resource {
 					"United States (us-oregon), Ohio, United States (us-ohio), Dublin, Ireland (ie-dublin) (default)",
 				Optional:     true,
 				Computed:     true,
-				ForceNew:     true,
 				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "ie-dublin", "default"}, false),
 			},
 			"strict_npm_validation": {
