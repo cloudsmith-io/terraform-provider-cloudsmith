@@ -30,15 +30,28 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	isDelete := !d.Get("retention_enabled").(bool)
 
 	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
-	req = req.Data(cloudsmith.RepositoryRetentionRulesRequestPatch{
-		RetentionCountLimit:         optionalInt64(d, "retention_count_limit"),
-		RetentionDaysLimit:          optionalInt64(d, "retention_days_limit"),
+	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
 		RetentionEnabled:            optionalBool(d, "retention_enabled"),
 		RetentionGroupByName:        optionalBool(d, "retention_group_by_name"),
 		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
 		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
-		RetentionSizeLimit:          optionalInt64(d, "retention_size_limit"),
-	})
+	}
+
+	// Explicitly set these values, even if they're zero
+	if d.HasChange("retention_count_limit") {
+		value := int64(d.Get("retention_count_limit").(int))
+		updateData.RetentionCountLimit = &value
+	}
+	if d.HasChange("retention_days_limit") {
+		value := int64(d.Get("retention_days_limit").(int))
+		updateData.RetentionDaysLimit = &value
+	}
+	if d.HasChange("retention_size_limit") {
+		value := int64(d.Get("retention_size_limit").(int))
+		updateData.RetentionSizeLimit = &value
+	}
+
+	req = req.Data(updateData)
 
 	// If it's a delete operation, disable the retention rule
 	if isDelete {
@@ -54,7 +67,7 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		case 400:
 			return fmt.Errorf("request could not be processed: %s", err)
 		case 404:
-			return fmt.Errorf("namespace namespace or repository not found: %s", err)
+			return fmt.Errorf("namespace or repository not found: %s", err)
 		case 422:
 			return fmt.Errorf("missing or invalid parameters: %s", err)
 		default:
