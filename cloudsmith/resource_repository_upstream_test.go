@@ -1070,6 +1070,113 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 	})
 }
 
+func TestAccRepositoryUpstreamComposer_basic(t *testing.T) {
+	t.Parallel()
+
+	const composerUpstreamResourceName = "cloudsmith_repository_upstream.packagist"
+
+	testAccRepositoryComposerUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-composer"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "packagist" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "composer"
+    upstream_url  = "https://packagist.org"
+}
+`, namespace)
+
+	testAccRepositoryComposerUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-composer"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "packagist" {
+		auth_mode      = "Username and Password"
+	    auth_secret    = "SuperSecretPassword123!"
+	    auth_username  = "jonny.tables"
+		extra_header_1 = "Cross-Origin-Resource-Policy"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "cross-origin"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Cache and Proxy"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 1
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "composer"
+	    upstream_url   = "https://packagist.org"
+	    verify_ssl     = false
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(composerUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryComposerUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthSecret, ""),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryComposerUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(composerUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: composerUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[composerUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -1092,6 +1199,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		var err error
 
 		switch upstreamType {
+		case Composer:
+			req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
 		case Cran:
 			req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
