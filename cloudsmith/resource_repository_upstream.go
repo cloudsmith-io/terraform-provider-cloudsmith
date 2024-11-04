@@ -14,18 +14,19 @@ import (
 
 // upstream types
 const (
-	Cran   = "cran"
-	Dart   = "dart"
-	Deb    = "deb"
-	Docker = "docker"
-	Helm   = "helm"
-	Maven  = "maven"
-	Npm    = "npm"
-	NuGet  = "nuget"
-	Python = "python"
-	Rpm    = "rpm"
-	Ruby   = "ruby"
-	Swift  = "swift"
+	Composer = "composer"
+	Cran     = "cran"
+	Dart     = "dart"
+	Deb      = "deb"
+	Docker   = "docker"
+	Helm     = "helm"
+	Maven    = "maven"
+	Npm      = "npm"
+	NuGet    = "nuget"
+	Python   = "python"
+	Rpm      = "rpm"
+	Ruby     = "ruby"
+	Swift    = "swift"
 )
 
 // tf state prop names
@@ -62,6 +63,7 @@ var (
 		"Cache Only",
 	}
 	upstreamTypes = []string{
+		Composer,
 		Cran,
 		Dart,
 		Deb,
@@ -137,6 +139,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.ComposerUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerCreateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -401,6 +421,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	var upstream Upstream
 
 	switch upstreamType {
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
@@ -521,6 +544,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.ComposerUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamComposerUpdateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -779,6 +820,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamComposerDeleteExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamCranDeleteExecute(req)
