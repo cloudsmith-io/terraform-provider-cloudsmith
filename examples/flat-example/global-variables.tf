@@ -27,5 +27,3 @@ variable "geopip_allow_countries" {
   type    = list(string)
   default = ["US", "GB", "DE"]
 }
-
-
