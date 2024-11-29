@@ -31,24 +31,26 @@ func TestAccOidc_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "name", "test-oidc-terraform-provider"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "provider_url", "https://test.com"),
-					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "service_accounts.0", "test-oidc-service-account"),
+					resource.TestMatchResourceAttr("cloudsmith_oidc.test", "service_accounts.0", regexp.MustCompile("^test-oidc-service-account.*$")),
 				),
 			},
 			{
 				Config: testAccOidcConfigBasicUpdateName,
 				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
 					testAccOidcCheckExists("cloudsmith_oidc.test"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "claims.key", "value2"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "enabled", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "name", "test-oidc-terraform-provider-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "provider_url", "https://test.com"),
-					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "service_accounts.0", "test-oidc-service-account"),
+					resource.TestMatchResourceAttr("cloudsmith_oidc.test", "service_accounts.0", regexp.MustCompile("^test-oidc-service-account.*$")),
 				),
 			},
 			{
 				Config: testAccOidcConfigBasicUpdateProps,
 				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
 					testAccOidcCheckExists("cloudsmith_oidc.test"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "claims.key", "value"),
@@ -56,7 +58,7 @@ func TestAccOidc_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "name", "test-oidc-terraform-provider-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "provider_url", "https://test-updated-url.com"),
-					resource.TestCheckResourceAttr("cloudsmith_oidc.test", "service_accounts.0", "test-oidc-service-account"),
+					resource.TestMatchResourceAttr("cloudsmith_oidc.test", "service_accounts.0", regexp.MustCompile("^test-oidc-service-account.*$")),
 				),
 			},
 			{
@@ -127,7 +129,7 @@ resource "cloudsmith_oidc" "test" {
       enabled = true
       name = "test-oidc-terraform-provider"
       provider_url = "https://test.com"
-      service_accounts = [cloudsmith_service.test.name]
+      service_accounts = [cloudsmith_service.test.slug]
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -146,7 +148,7 @@ resource "cloudsmith_oidc" "test" {
       enabled = false
       name = "test-oidc-terraform-provider-updated"
       provider_url = "https://test.com"
-      service_accounts = [cloudsmith_service.test.name]
+      service_accounts = [cloudsmith_service.test.slug]
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -166,7 +168,7 @@ resource "cloudsmith_oidc" "test" {
       enabled = true
       name = "test-oidc-terraform-provider-updated"
       provider_url = "https://test-updated-url.com"
-      service_accounts = [cloudsmith_service.test.name]
+      service_accounts = [cloudsmith_service.test.slug]
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -187,7 +189,7 @@ resource "cloudsmith_oidc" "test" {
       enabled = true
       name = "test-oidc-terraform-provider-updated"
       provider_url = "invalid-url"
-      service_accounts = [cloudsmith_service.test.name]
+      service_accounts = [cloudsmith_service.test.slug]
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
