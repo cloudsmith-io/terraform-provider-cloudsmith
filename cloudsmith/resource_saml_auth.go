@@ -48,6 +48,9 @@ func samlAuthRead(ctx context.Context, d *schema.ResourceData, m interface{}) di
 		return diag.FromErr(handleSAMLAuthError(err, resp, "reading SAML authentication"))
 	}
 
+	d.Set("organization", organization)
+	d.SetId(generateSAMLAuthID(organization, samlAuth))
+
 	if err := setSAMLAuthFields(d, organization, samlAuth); err != nil {
 		return diag.FromErr(err)
 	}
