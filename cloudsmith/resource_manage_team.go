@@ -30,9 +30,11 @@ func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
 	organization := requiredString(d, "organization")
 	teamName := requiredString(d, "team_name")
 
-	teamMembers := d.Get("members").([]interface{})
-	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembers))
-	for i, v := range teamMembers {
+	// Fetching members from the Set, converting to a list
+	teamMembersSet := d.Get("members").(*schema.Set).List()
+	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembersSet))
+
+	for i, v := range teamMembersSet {
 		teamMember := v.(map[string]interface{})
 		teamMembersList[i] = cloudsmith.OrganizationTeamMembership{
 			Role: teamMember["role"].(string),
@@ -63,9 +65,11 @@ func resourceManageTeamUpdateRemove(d *schema.ResourceData, m interface{}) error
 	organization := requiredString(d, "organization")
 	teamName := requiredString(d, "team_name")
 
-	teamMembers := d.Get("members").([]interface{})
-	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembers))
-	for i, v := range teamMembers {
+	// Fetching members from the Set, converting to a list
+	teamMembersSet := d.Get("members").(*schema.Set).List()
+	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembersSet))
+
+	for i, v := range teamMembersSet {
 		teamMember := v.(map[string]interface{})
 		teamMembersList[i] = cloudsmith.OrganizationTeamMembership{
 			Role: teamMember["role"].(string),
@@ -117,9 +121,11 @@ func resourceManageTeamRead(d *schema.ResourceData, m interface{}) error {
 		}
 	}
 
+	// Setting the values into the resource data
 	d.Set("organization", organization)
 	d.Set("team_name", teamName)
 	d.Set("members", members)
+
 	// Set the ID to the organization and team name, no slug returned from the API
 	d.SetId(fmt.Sprintf("%s.%s", organization, teamName))
 
@@ -147,7 +153,7 @@ func resourceManageTeam() *schema.Resource {
 				Required: true,
 			},
 			"members": {
-				Type: schema.TypeList,
+				Type: schema.TypeSet,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"role": {

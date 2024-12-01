@@ -13,19 +13,19 @@ variable "default_storage_region" {
 }
 
 variable "chainguard_api_user" {
-    type    = string
-    default = "YOUR-CHAINGUARD-API-USER"
+  type    = string
+  default = "YOUR-CHAINGUARD-API-USER"
 }
 
 variable "chainguard_api_secret" {
-    type    = string
-    default = "YOUR-CHAINGUARD-API-SECRET"
+  type    = string
+  default = "YOUR-CHAINGUARD-API-SECRET"
 }
 
 variable "repositories" {
   type = map(object({
     add_developers = optional(bool)
-    oidc_claims = optional(map(string))
+    oidc_claims    = optional(map(string))
   }))
   description = "A map of repositories with their configurations."
   default = {
@@ -39,8 +39,8 @@ variable "repositories" {
 }
 
 variable "oidc_claims" {
-    type  = map(string)
-    default = {
-      "repository" = "Owner/GitHubRepoName"
-    }
+  type = map(string)
+  default = {
+    "repository" = "Owner/GitHubRepoName"
+  }
 }

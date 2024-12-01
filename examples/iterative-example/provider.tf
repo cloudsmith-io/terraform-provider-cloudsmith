@@ -1,9 +1,9 @@
 terraform {
-    required_providers {
-        cloudsmith = {
-          source = "cloudsmith-io/cloudsmith"
-        }
+  required_providers {
+    cloudsmith = {
+      source = "cloudsmith-io/cloudsmith"
     }
+  }
 }
 
 provider "cloudsmith" {
