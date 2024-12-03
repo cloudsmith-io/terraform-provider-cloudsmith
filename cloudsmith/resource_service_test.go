@@ -50,9 +50,9 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team-svc",
-						"role": "Member",
+          resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
+						"role": regexp.MustCompile("^Member$"),
 					}),
 				),
 			},
@@ -161,7 +161,7 @@ resource "cloudsmith_service" "test" {
 
 var testAccServiceConfigBasic = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
@@ -180,7 +180,7 @@ resource "cloudsmith_team" "test" {
 }
 
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 	role         = "Manager"
 
@@ -202,7 +202,7 @@ resource "cloudsmith_team" "test2" {
 }
 
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 	role         = "Manager"
 
