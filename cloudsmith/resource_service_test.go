@@ -32,7 +32,7 @@ func TestAccService_basic(t *testing.T) {
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					// check a sample of computed properties have been set correctly
 					resource.TestCheckResourceAttr("cloudsmith_service.test", "description", ""),
-					resource.TestCheckResourceAttr("cloudsmith_service.test", "slug", "tf-test-service"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "slug", "tf-test-service-cs"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
 					resource.TestCheckResourceAttr("cloudsmith_service.test", "role", "Member"),
 					resource.TestCheckNoResourceAttr("cloudsmith_service.test", "team.#"),
@@ -158,7 +158,7 @@ resource "cloudsmith_service" "test" {
 
 var testAccServiceConfigBasic = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
@@ -177,7 +177,7 @@ resource "cloudsmith_team" "test" {
 }
 
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 	role         = "Manager"
 
@@ -199,7 +199,7 @@ resource "cloudsmith_team" "test2" {
 }
 
 resource "cloudsmith_service" "test" {
-	name         = "TF Test Service"
+	name         = "TF Test Service cs"
 	organization = "%s"
 	role         = "Manager"
 
