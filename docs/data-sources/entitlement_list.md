@@ -1,4 +1,5 @@
 # Entitlement Tokens Data Source
+
 The `entitlement_tokens` data source allows for retrieval of a list of entitlement tokens within a given repository.
 
 ## Example Usage

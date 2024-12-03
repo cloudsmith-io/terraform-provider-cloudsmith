@@ -45,4 +45,3 @@ All of the argument attributes are also exported as result attributes.
 The following attribute is additionally exported:
 
 * `packages` - A list of `package` entries as discovered by the data source.
-

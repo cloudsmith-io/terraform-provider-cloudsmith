@@ -27,7 +27,7 @@ resource "cloudsmith_repository_privileges" "devops-privs" {
 }
 
 resource "cloudsmith_repository_geo_ip_rules" "devops-geoip" {
-  repository = cloudsmith_repository.devops.slug
-  namespace = data.cloudsmith_organization.org-demo.slug
+  repository         = cloudsmith_repository.devops.slug
+  namespace          = data.cloudsmith_organization.org-demo.slug
   country_code_allow = var.geopip_allow_countries
 }

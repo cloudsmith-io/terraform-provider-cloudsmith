@@ -8,8 +8,8 @@ Terraform provider for managing your Cloudsmith resources.
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) >= 0.12.x
--	[Go](https://golang.org/doc/install) >= 1.13 (to build the provider plugin)
+- [Terraform](https://www.terraform.io/downloads.html) >= 0.12.x
+- [Go](https://golang.org/doc/install) >= 1.13 (to build the provider plugin)
 
 Building The Provider
 ---------------------
@@ -17,14 +17,14 @@ Building The Provider
 Clone repository:
 
 ```sh
-$ git clone git@github.com:cloudsmith-io/terraform-provider-cloudsmith
+git clone git@github.com:cloudsmith-io/terraform-provider-cloudsmith
 ```
 
 Enter the provider directory and build the provider:
 
 ```sh
-$ cd terraform-provider-cloudsmith
-$ go build
+cd terraform-provider-cloudsmith
+go build
 ```
 
 Using the provider
@@ -61,7 +61,6 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 }
 ```
 
-
 Retrieve a list of packages from a repository
 
 ```
@@ -95,7 +94,7 @@ Testing the Provider
 In order to test the provider, you can run `go test`.
 
 ```sh
-$ go test -v ./...
+go test -v ./...
 ```
 
 In order to run the full suite of Acceptance tests, you'll need a paid Cloudsmith account.
@@ -109,14 +108,14 @@ You'll also need to set a few environment variables:
 *Note:* Acceptance tests create real resources, and may cost money to run.
 
 ```sh
-$ export TF_ACC=1
-$ export CLOUDSMITH_API_KEY=mykey
-$ export CLOUDSMITH_NAMESPACE=mynamespace
-$ go test -v ./...
+export TF_ACC=1
+export CLOUDSMITH_API_KEY=mykey
+export CLOUDSMITH_NAMESPACE=mynamespace
+go test -v ./...
 ```
 
 If needed, you can also run individual tests with the `-run` flag:
 
 ```sh
-$ go test -v -run=TestAccEntitlement_basic ./...
+go test -v -run=TestAccEntitlement_basic ./...
 ```

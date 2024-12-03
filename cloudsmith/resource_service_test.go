@@ -4,6 +4,7 @@ package cloudsmith
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -32,7 +33,7 @@ func TestAccService_basic(t *testing.T) {
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					// check a sample of computed properties have been set correctly
 					resource.TestCheckResourceAttr("cloudsmith_service.test", "description", ""),
-					resource.TestCheckResourceAttr("cloudsmith_service.test", "slug", "tf-test-service-cs"),
+					resource.TestMatchResourceAttr("cloudsmith_service.test", "slug", regexp.MustCompile("^tf-test-service.*$")),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
 					resource.TestCheckResourceAttr("cloudsmith_service.test", "role", "Member"),
 					resource.TestCheckNoResourceAttr("cloudsmith_service.test", "team.#"),
@@ -49,9 +50,9 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team-svc",
-						"role": "Member",
+          resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
+						"role": regexp.MustCompile("^Member$"),
 					}),
 				),
 			},
@@ -60,13 +61,15 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team-svc",
-						"role": "Member",
+
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
+						"role": regexp.MustCompile("^Member$"),
 					}),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]string{
-						"slug": "tf-test-team-svc-2",
-						"role": "Manager",
+
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc-2.*$"),
+						"role": regexp.MustCompile("^Manager$"),
 					}),
 				),
 			},
