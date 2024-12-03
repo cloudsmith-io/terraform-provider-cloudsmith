@@ -46,6 +46,11 @@ func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag
 		},
 	)
 
+	req := apiClient.UserApi.UserSelf(auth)
+	if _, _, err := apiClient.UserApi.UserSelfExecute(req); err != nil {
+		return nil, diag.FromErr(errors.New("invalid API credentials"))
+	}
+
 	return &providerConfig{Auth: auth, APIClient: apiClient}, nil
 }
 

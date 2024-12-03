@@ -8,25 +8,25 @@ See [help.cloudsmith.io](https://help.cloudsmith.io/docs/service-accounts) for f
 
 ```hcl
 provider "cloudsmith" {
-	api_key = "my-api-key"
+ api_key = "my-api-key"
 }
 
 data "cloudsmith_organization" "my_org" {
-	slug = "my-organization"
+ slug = "my-organization"
 }
 
 resource "cloudsmith_team" "my_team" {
-	organization = data.cloudsmith_organization.my_org.slug
-	name         = "My Team"
+ organization = data.cloudsmith_organization.my_org.slug
+ name         = "My Team"
 }
 
 resource "cloudsmith_service" "my_service" {
-	name         = "My Service"
-	organization = data.cloudsmith_organization.my_org.slug
+ name         = "My Service"
+ organization = data.cloudsmith_organization.my_org.slug
 
-	team {
-		slug = cloudsmith_team.my_team.slug
-	}
+ team {
+  slug = cloudsmith_team.my_team.slug
+ }
 }
 ```
 
@@ -39,8 +39,8 @@ The following arguments are supported:
 * `organization` - (Required) Organization to which this service belongs.
 * `role` - (Optional) The service's role in the organization. If defined, must be one of `Member` or `Manager`.
 * `team` - (Optional) Variable number of blocks containing team assignments for this service.
-	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
-	* `slug` - (Required) The team the service should be added to.
+ 	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
+ 	* `slug` - (Required) The team the service should be added to.
 * `store_api_key` - (Optional) The service's API key to be returned in state. Defaults to `true`. If set to `false`, the "key" value is replaced with `**redacted**`. **NOTE:** This will only be applied to newly created service accounts, **this won't take effect for existing service accounts**.
 
 ## Attribute Reference

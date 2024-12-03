@@ -25,38 +25,38 @@ resource "cloudsmith_repository" "my_repository" {
 }
 
 resource "cloudsmith_team" "my_team" {
-	organization = data.cloudsmith_organization.my_organization.slug_perm
-	name         = "My Team"
+ organization = data.cloudsmith_organization.my_organization.slug_perm
+ name         = "My Team"
 }
 
 resource "cloudsmith_team" "my_other_team" {
-	organization = data.cloudsmith_organization.my_organization.slug_perm
-	name         = "My Other Team"
+ organization = data.cloudsmith_organization.my_organization.slug_perm
+ name         = "My Other Team"
 }
 
 resource "cloudsmith_service" "my_service" {
-	name         = "My Service"
-	organization = data.cloudsmith_organization.my_organization.slug_perm
+ name         = "My Service"
+ organization = data.cloudsmith_organization.my_organization.slug_perm
 }
 
 resource "cloudsmith_repository_privileges" "privs" {
     organization = data.cloudsmith_organization.my_organization.slug
     repository   = cloudsmith_repository.my_repository.slug
 
-	service {
-		privilege = "Write"
-		slug      = cloudsmith_service.my_service.slug
-	}
+ service {
+  privilege = "Write"
+  slug      = cloudsmith_service.my_service.slug
+ }
 
-	team {
-		privilege = "Write"
-		slug      = cloudsmith_team.my_team.slug
-	}
+ team {
+  privilege = "Write"
+  slug      = cloudsmith_team.my_team.slug
+ }
 
-	team {
-		privilege = "Read"
-		slug      = cloudsmith_team.my_other_team.slug
-	}
+ team {
+  privilege = "Read"
+  slug      = cloudsmith_team.my_other_team.slug
+ }
 
     user {
         privilege = "Read"
@@ -72,14 +72,14 @@ The following arguments are supported:
 * `organization` - (Required) Organization to which this repository belongs.
 * `repository` - (Required) Repository to which these privileges apply.
 * `service` - (Optional) Variable number of blocks containing service accounts that should have repository privileges.
-	* `privilege` - (Required) The service's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
-	* `slug` - (Required) The slug/identifier of the service.
+ 	* `privilege` - (Required) The service's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
+ 	* `slug` - (Required) The slug/identifier of the service.
 * `team` - (Optional) Variable number of blocks containing teams that should have repository privileges.
-	* `privilege` - (Required) The team's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
-	* `slug` - (Required) The slug/identifier of the team.
+ 	* `privilege` - (Required) The team's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
+ 	* `slug` - (Required) The slug/identifier of the team.
 * `user` - (Optional) Variable number of blocks containing users that should have repository privileges.
-	* `privilege` - (Required) The user's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
-	* `slug` - (Required) The slug/identifier of the user.
+ 	* `privilege` - (Required) The user's privilege level in the repository. Must be one of `Admin`, `Write`, or `Read`.
+ 	* `slug` - (Required) The slug/identifier of the user.
 
 ## Import
 

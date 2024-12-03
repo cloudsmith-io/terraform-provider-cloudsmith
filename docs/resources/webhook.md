@@ -26,19 +26,19 @@ resource "cloudsmith_webhook" "my_webhook" {
     namespace  = cloudsmith_repository.my_repository.namespace
     repository = cloudsmith_repository.my_repository.slug_perm
 
-	events              = ["package.created", "package.deleted"]
-	request_body_format = "Handlebars Template"
-	target_url          = "https://example.com"
+ events              = ["package.created", "package.deleted"]
+ request_body_format = "Handlebars Template"
+ target_url          = "https://example.com"
 
-	template {
-		event = "package.created"
-		template = "created: {{data.name}}: {{data.version}}"
-	}
+ template {
+  event = "package.created"
+  template = "created: {{data.name}}: {{data.version}}"
+ }
 
-	template {
-		event = "package.deleted"
-		template = "deleted: {{data.name}}: {{data.version}}"
-	}
+ template {
+  event = "package.deleted"
+  template = "deleted: {{data.name}}: {{data.version}}"
+ }
 }
 ```
 
@@ -57,8 +57,8 @@ resource "cloudsmith_webhook" "my_webhook" {
 * `signature_key` - (Optional) The value for the signature key - This is used to generate an HMAC-based hex digest of the request body, which we send as the X-Cloudsmith-Signature header so that you can ensure that the request wasn't modified by a malicious party (note: this is treated as a passphrase and is encrypted when we store it).
 * `target_url` - (Required) The destination URL that webhook payloads will be POST'ed to.
 * `template` - (Optional) Variable number of blocks containing templates used to render webhook content before sending.
-    * `event` - (Required) The event for which this template will be applied.
-    * `template` - (Required) The contents of the template to be rendered.
+  * `event` - (Required) The event for which this template will be applied.
+  * `template` - (Required) The contents of the template to be rendered.
 * `is_active` - (Optional) If enabled, SSL certificates is verified when webhooks are sent. It's recommended to leave this enabled as not verifying the integrity of SSL certificates leaves you susceptible to Man-in-the-Middle (MITM) attacks.
 
 ## Attribute Reference

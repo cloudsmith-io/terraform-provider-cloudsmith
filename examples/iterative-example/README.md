@@ -10,7 +10,7 @@ shares many attributes with the others, but changes slightly based on their indi
 * Creates a Developers team which gets write permission on the Development repository
 * Configures DockerHub and Chainguard upstreams on each repository
 * Configures a Vulnerablity policy that blocks high severity vulnerabilities.
-* Configures a license policy that blocks AGPL licensed packages. 
+* Configures a license policy that blocks AGPL licensed packages.
 
 ## Usage
 
