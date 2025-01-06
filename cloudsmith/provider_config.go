@@ -3,6 +3,7 @@ package cloudsmith
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -20,17 +21,21 @@ type providerConfig struct {
 	APIClient *cloudsmith.APIClient
 }
 
-func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag.Diagnostics) {
+func newProviderConfig(apiHost string, apiKey string, headers map[string]interface{}, userAgent string) (*providerConfig, diag.Diagnostics) {
 	if apiKey == "" {
 		return nil, diag.FromErr(errMissingCredentials)
 	}
 
 	httpClient := http.DefaultClient
-	httpClient.Transport = logging.NewSubsystemLoggingHTTPTransport("Cloudsmith", http.DefaultTransport)
+	httpClient.Transport = logging.NewSubsystemLoggingHTTPTransport("Cloudsmith", &headerTransport{
+		headers: headers,
+		rt:      http.DefaultTransport,
+	})
 
 	config := cloudsmith.NewConfiguration()
 	config.Debug = logging.IsDebugOrHigher()
 	config.HTTPClient = httpClient
+
 	config.Servers = cloudsmith.ServerConfigurations{
 		{URL: apiHost},
 	}
@@ -57,4 +62,16 @@ func newProviderConfig(apiHost, apiKey, userAgent string) (*providerConfig, diag
 func (pc *providerConfig) GetAPIKey() string {
 	apiKeys, _ := pc.Auth.Value(cloudsmith.ContextAPIKeys).(map[string]cloudsmith.APIKey)
 	return apiKeys["apikey"].Key
+}
+
+type headerTransport struct {
+	headers map[string]interface{}
+	rt      http.RoundTripper
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	for k, v := range t.headers {
+		req.Header.Add(k, fmt.Sprint(v))
+	}
+	return t.rt.RoundTrip(req)
 }

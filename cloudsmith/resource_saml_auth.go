@@ -171,7 +171,7 @@ func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cl
 
 	// Handle URL metadata with null handling
 	url, hasURL := samlAuth.GetSamlMetadataUrlOk()
-	if !hasURL || *url == "" {
+	if !hasURL || url == nil {
 		return setField("saml_metadata_url", nil)
 	}
 	return setField("saml_metadata_url", url)
@@ -185,7 +185,7 @@ func generateSAMLAuthID(organization string, samlAuth *cloudsmith.OrganizationSA
 		data += fmt.Sprintf("-%t", samlAuth.GetSamlAuthEnabled())
 		data += fmt.Sprintf("-%t", samlAuth.GetSamlAuthEnforced())
 
-		if url, hasURL := samlAuth.GetSamlMetadataUrlOk(); hasURL {
+		if url, hasURL := samlAuth.GetSamlMetadataUrlOk(); url != nil && hasURL {
 			data += fmt.Sprintf("-%s", *url)
 		}
 
