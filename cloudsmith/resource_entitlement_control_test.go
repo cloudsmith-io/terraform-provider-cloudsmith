@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// TestAccEntitlementControl_basic spins up a repository with an entitlement,
+// TestAccEntitlementControl_basic spins up a repository and uses its default entitlement token,
 // creates an entitlement control with the token disabled, verifies it exists and checks
 // the enabled state is set correctly. Then it changes the enabled state to true,
 // and verifies it's been set correctly before tearing down the resources and
@@ -126,16 +126,16 @@ resource "cloudsmith_repository" "test" {
 	namespace = "%s"
 }
 
-resource "cloudsmith_entitlement" "test" {
-    name       = "Test Entitlement Control"
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
+data "cloudsmith_entitlement_list" "test" {
+    namespace  = resource.cloudsmith_repository.test.namespace
+    repository = resource.cloudsmith_repository.test.slug_perm
+    query      = ["name:Default"]
 }
 
 resource "cloudsmith_entitlement_control" "test" {
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
-    identifier = "${cloudsmith_entitlement.test.slug_perm}"
+    namespace  = resource.cloudsmith_repository.test.namespace
+    repository = resource.cloudsmith_repository.test.slug_perm
+    identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
     enabled    = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
@@ -146,16 +146,16 @@ resource "cloudsmith_repository" "test" {
 	namespace = "%s"
 }
 
-resource "cloudsmith_entitlement" "test" {
-    name       = "Test Entitlement Control"
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
+data "cloudsmith_entitlement_list" "test" {
+    namespace  = resource.cloudsmith_repository.test.namespace
+    repository = resource.cloudsmith_repository.test.slug_perm
+    query      = ["name:Default"]
 }
 
 resource "cloudsmith_entitlement_control" "test" {
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
-    identifier = "${cloudsmith_entitlement.test.slug_perm}"
+    namespace  = resource.cloudsmith_repository.test.namespace
+    repository = resource.cloudsmith_repository.test.slug_perm
+    identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
     enabled    = true
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
