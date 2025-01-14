@@ -44,7 +44,19 @@ resource "cloudsmith_webhook" "my_webhook" {
 
 ## Argument Reference
 
-* `events` - (Required) List of events for which this webhook will be fired.
+* `events` - (Required) List of events for which this webhook will be fired. Supported events include:
+	+ `*` - Catch-all for all events.
+	+ `package.created` - Fired when a package is created.
+	+ `package.deleted` - Fired when a package is deleted.
+	+ `package.downloaded` - Fired when a package is downloaded.
+	+ `package.failed` - Fired when a package fails.
+	+ `package.security_scanned` - Fired when a package security scan is completed.
+	+ `package.synced` - Fired when a package is synced.
+	+ `package.syncing` - Fired when a package is syncing.
+	+ `package.tags_updated` - Fired when package tags are updated.
+	+ `package.released` - Fired when a package is released.
+	+ `package.restored` - Fired when a package is restored.
+	+ `package.quarantined` - Fired when a package is quarantined.
 * `is_active` - (Optional) If enabled, the webhook will trigger on subscribed events and send payloads to the configured target URL.
 * `namespace` - (Required) Namespace (or organization) to which this webhook belongs.
 * `package_query` - (Optional) The package-based search query for webhooks to fire. This uses the same syntax as the standard search used for repositories, and also supports boolean logic operators such as OR/AND/NOT and parentheses for grouping. If a package does not match, the webhook will not fire.

@@ -23,6 +23,9 @@ var (
 		"package.synced",
 		"package.syncing",
 		"package.tags_updated",
+		"package.released",
+		"package.restored",
+		"package.quarantined",
 	}
 	requestBodyFormatMap = map[int]string{
 		0: "JSON Object",
