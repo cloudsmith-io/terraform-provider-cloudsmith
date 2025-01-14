@@ -64,6 +64,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_saml":                      resourceSAML(),
 			"cloudsmith_saml_auth":                 resourceSAMLAuth(),
 			"cloudsmith_repository_retention_rule": resourceRepoRetentionRule(),
+			"cloudsmith_entitlement_control":       resourceEntitlementControl(),
 		},
 	}
 
