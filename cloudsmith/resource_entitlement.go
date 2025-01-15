@@ -97,6 +97,7 @@ func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("limit_path_query", entitlement.GetLimitPathQuery())
 	d.Set("name", entitlement.GetName())
 	d.Set("token", entitlement.GetToken())
+	d.Set("slug_perm", entitlement.GetSlugPerm())
 
 	// namespace and repository are not returned from the entitlement read
 	// endpoint, so we can use the values stored in resource state. We rely on
@@ -259,6 +260,11 @@ func resourceEntitlement() *schema.Resource {
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"slug_perm": {
+				Type:        schema.TypeString,
+				Description: "The permanent slug identifier for the entitlement.",
+				Computed:    true,
 			},
 			"token": {
 				Type:         schema.TypeString,
