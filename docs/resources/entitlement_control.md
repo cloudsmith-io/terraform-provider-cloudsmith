@@ -38,7 +38,7 @@ data "cloudsmith_entitlement_list" "my_tokens" {
 resource "cloudsmith_entitlement_control" "my_entitlement_control" {
     namespace  = resource.cloudsmith_repository.my_repository.namespace
     repository = resource.cloudsmith_repository.my_repository.slug_perm
-    identifier = data.cloudsmith_entitlement_list.my_tokens.tokens[0].slug_perm
+    identifier = data.cloudsmith_entitlement_list.my_tokens.entitlement_tokens[0].slug_perm
     enabled    = false
 }
 ```
