@@ -2,10 +2,18 @@
 package cloudsmith
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -222,7 +230,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 func TestAccRepositoryUpstreamDocker_basic(t *testing.T) {
 	t.Parallel()
 
-	const dockerUpstreamResourceName = "cloudsmith_repository_upstream.dockerhub"
+	const dockerUpstreamResourceName = "cloudsmith_repository_upstream.fakedocker"
 
 	testAccRepositoryPythonUpstreamConfigBasic := fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
@@ -230,7 +238,7 @@ resource "cloudsmith_repository" "test" {
 	namespace = "%s"
 }
 
-resource "cloudsmith_repository_upstream" "dockerhub" {
+resource "cloudsmith_repository_upstream" "fakedocker" {
     namespace     = cloudsmith_repository.test.namespace
     repository    = cloudsmith_repository.test.slug
 	name          = cloudsmith_repository.test.name
@@ -248,7 +256,7 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 		namespace = "%s"
 	}
 
-	resource "cloudsmith_repository_upstream" "dockerhub" {
+	resource "cloudsmith_repository_upstream" "fakedocker" {
 		auth_mode      = "Username and Password"
 	    auth_secret    = "SuperSecretPassword123!"
 	    auth_username  = "jonny.tables"
@@ -267,6 +275,38 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 	    verify_ssl     = false
 	}
 	`, namespace)
+
+	// Generate test certificates for mTLS authentication
+	certPath, keyPath, err := generateTestCertificateAndKey()
+	if err != nil {
+		t.Fatalf("Failed to generate test certificates: %v", err)
+	}
+	defer func() {
+		os.Remove(certPath)
+		os.Remove(keyPath)
+	}()
+
+	testAccRepositoryPythonUpstreamConfigCert := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-docker"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "fakedocker" {
+		auth_mode            = "Certificate and Key"
+		auth_certificate     = "%s"
+		auth_certificate_key = "%s"
+		is_active           = false
+		mode                = "Cache and Proxy"
+		name                = cloudsmith_repository.test.name
+		namespace           = cloudsmith_repository.test.namespace
+		priority            = 5
+		repository          = cloudsmith_repository.test.slug
+		upstream_type       = "docker"
+		upstream_url        = "https://fake.docker.io"
+		verify_ssl          = true
+	}
+	`, namespace, certPath, keyPath)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -309,8 +349,23 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 				),
 			},
 			{
-				ResourceName: dockerUpstreamResourceName,
-				ImportState:  true,
+				Config: testAccRepositoryPythonUpstreamConfigCert,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthMode, "Certificate and Key"),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthCertificate, certPath),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthCertificateKey, keyPath),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "false"),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, Priority, "5"),
+				),
+			},
+			{
+				ResourceName:      dockerUpstreamResourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"auth_certificate",
+					"auth_certificate_key",
+				},
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
 					resourceState := s.RootModule().Resources[dockerUpstreamResourceName]
 					return fmt.Sprintf(
@@ -321,7 +376,6 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
 			},
 		},
 	})
@@ -1253,4 +1307,72 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 
 		return nil
 	}
+}
+func generateTestCertificateAndKey() (certPath string, keyPath string, err error) {
+	// Generate a private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// Create a temporary file for the private key
+	keyFile, err := os.CreateTemp("", "test-key-*.pem")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create temp key file: %w", err)
+	}
+	keyPath = keyFile.Name()
+
+	// Encode and write the private key
+	keyPEM := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+	if err := pem.Encode(keyFile, keyPEM); err != nil {
+		os.Remove(keyPath)
+		return "", "", fmt.Errorf("failed to write private key: %w", err)
+	}
+	keyFile.Close()
+
+	// Create certificate template
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName:   "test.cloudsmith.io",
+			Organization: []string{"Cloudsmith Test"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24), // 24 hour validity
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+	}
+
+	// Create the certificate
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		os.Remove(keyPath)
+		return "", "", fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	// Create a temporary file for the certificate
+	certFile, err := os.CreateTemp("", "test-cert-*.pem")
+	if err != nil {
+		os.Remove(keyPath)
+		return "", "", fmt.Errorf("failed to create temp cert file: %w", err)
+	}
+	certPath = certFile.Name()
+
+	// Encode and write the certificate
+	certPEM := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	}
+	if err := pem.Encode(certFile, certPEM); err != nil {
+		os.Remove(keyPath)
+		os.Remove(certPath)
+		return "", "", fmt.Errorf("failed to write certificate: %w", err)
+	}
+	certFile.Close()
+
+	return certPath, keyPath, nil
 }
