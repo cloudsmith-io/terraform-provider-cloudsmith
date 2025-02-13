@@ -9,6 +9,7 @@ See [help.cloudsmith.io](https://help.cloudsmith.io/docs/entitlements) for full 
 
 ## Example Usage 
 
+> **Note:** Ensure `entitlement_tokens` array is returning entitlement tokens (and not an empty array) before using the control resource. By default the example should work, but if there were any changes made to repo settings, the expected behaviour might be different.
 
 Disable repository "Default" entitlement token:
 
