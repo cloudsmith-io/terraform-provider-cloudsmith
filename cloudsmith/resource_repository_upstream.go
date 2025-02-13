@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -49,6 +50,8 @@ const (
 	UpstreamType         = "upstream_type"
 	UpstreamUrl          = "upstream_url"
 	VerifySsl            = "verify_ssl"
+	AuthCertificateKey   = "auth_certificate_key"
+	AuthCertificate      = "auth_certificate"
 )
 
 var (
@@ -56,6 +59,7 @@ var (
 		"None",
 		"Username and Password",
 		"Token",
+		"Certificate and Key",
 	}
 	upstreamModes = []string{
 		"Proxy Only",
@@ -111,6 +115,43 @@ func importUpstream(_ context.Context, d *schema.ResourceData, _ interface{}) ([
 	_ = d.Set(UpstreamType, idParts[2])
 	d.SetId(idParts[3])
 	return []*schema.ResourceData{d}, nil
+}
+
+// readCertificateFiles reads the certificate and key files for mTLS authentication
+// Returns pointers to the certificate and key contents, and any error encountered
+func readCertificateFiles(d *schema.ResourceData) (cert, key *string, err error) {
+	if certPath := optionalString(d, AuthCertificate); certPath != nil {
+		certContent, err := os.ReadFile(*certPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error reading auth certificate file: %w", err)
+		}
+		// Remove any trailing whitespace and ensure proper PEM format
+		certStr := strings.TrimSpace(string(certContent))
+		if !strings.HasPrefix(certStr, "-----BEGIN CERTIFICATE-----") {
+			return nil, nil, fmt.Errorf("invalid certificate format: must be a PEM encoded certificate")
+		}
+		cert = &certStr
+	}
+
+	if certKeyPath := optionalString(d, AuthCertificateKey); certKeyPath != nil {
+		certKeyContent, err := os.ReadFile(*certKeyPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error reading auth certificate key file: %w", err)
+		}
+		// Remove any trailing whitespace and ensure proper PEM format
+		certKeyStr := strings.TrimSpace(string(certKeyContent))
+		if !strings.HasPrefix(certKeyStr, "-----BEGIN") || !strings.Contains(certKeyStr, "PRIVATE KEY-----") {
+			return nil, nil, fmt.Errorf("invalid private key format: must be a PEM encoded private key")
+		}
+		key = &certKeyStr
+	}
+
+	// Both certificate and key must be provided together
+	if (cert != nil && key == nil) || (cert == nil && key != nil) {
+		return nil, nil, fmt.Errorf("both auth_certificate and auth_certificate_key must be provided when using Certificate and Key authentication")
+	}
+
+	return cert, key, nil
 }
 
 func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) error {
@@ -217,22 +258,34 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDebCreateExecute(req)
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerCreate(pc.Auth, namespace, repository)
+
+		// Read certificate files for mTLS authentication (Docker only for now)
+		authCert, authCertKey, err := readCertificateFiles(d)
+		if err != nil {
+			return err
+		}
+
 		req = req.Data(cloudsmith.DockerUpstreamRequest{
-			AuthMode:     authMode,
-			AuthSecret:   authSecret,
-			AuthUsername: authUsername,
-			ExtraHeader1: extraHeader1,
-			ExtraHeader2: extraHeader2,
-			ExtraValue1:  extraValue1,
-			ExtraValue2:  extraValue2,
-			IsActive:     isActive,
-			Mode:         mode,
-			Name:         name,
-			Priority:     priority,
-			UpstreamUrl:  upstreamUrl,
-			VerifySsl:    verifySsl,
+			AuthMode:           authMode,
+			AuthSecret:         authSecret,
+			AuthUsername:       authUsername,
+			AuthCertificate:    authCert,
+			AuthCertificateKey: authCertKey,
+			ExtraHeader1:       extraHeader1,
+			ExtraHeader2:       extraHeader2,
+			ExtraValue1:        extraValue1,
+			ExtraValue2:        extraValue2,
+			IsActive:           isActive,
+			Mode:               mode,
+			Name:               name,
+			Priority:           priority,
+			UpstreamUrl:        upstreamUrl,
+			VerifySsl:          verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerCreateExecute(req)
+		if err != nil {
+			return err
+		}
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -622,22 +675,34 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamDebUpdateExecute(req)
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerUpdate(pc.Auth, namespace, repository, slugPerm)
+
+		// Read certificate files for mTLS authentication (Docker only for now)
+		authCert, authCertKey, err := readCertificateFiles(d)
+		if err != nil {
+			return err
+		}
+
 		req = req.Data(cloudsmith.DockerUpstreamRequest{
-			AuthMode:     authMode,
-			AuthSecret:   authSecret,
-			AuthUsername: authUsername,
-			ExtraHeader1: extraHeader1,
-			ExtraHeader2: extraHeader2,
-			ExtraValue1:  extraValue1,
-			ExtraValue2:  extraValue2,
-			IsActive:     isActive,
-			Mode:         mode,
-			Name:         name,
-			Priority:     priority,
-			UpstreamUrl:  upstreamUrl,
-			VerifySsl:    verifySsl,
+			AuthMode:           authMode,
+			AuthSecret:         authSecret,
+			AuthUsername:       authUsername,
+			AuthCertificate:    authCert,
+			AuthCertificateKey: authCertKey,
+			ExtraHeader1:       extraHeader1,
+			ExtraHeader2:       extraHeader2,
+			ExtraValue1:        extraValue1,
+			ExtraValue2:        extraValue2,
+			IsActive:           isActive,
+			Mode:               mode,
+			Name:               name,
+			Priority:           priority,
+			UpstreamUrl:        upstreamUrl,
+			VerifySsl:          verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamDockerUpdateExecute(req)
+		if err != nil {
+			return err
+		}
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -919,6 +984,18 @@ func resourceRepositoryUpstream() *schema.Resource {
 			AuthUsername: {
 				Type:         schema.TypeString,
 				Description:  "Username to provide with requests to upstream.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			AuthCertificate: {
+				Type:         schema.TypeString,
+				Description:  "Path to the X.509 Certificate file to use for mTLS authentication against the upstream (Docker only)",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			AuthCertificateKey: {
+				Type:         schema.TypeString,
+				Description:  "Path to the Certificate key file to use for mTLS authentication against the upstream (Docker only)",
 				Optional:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
