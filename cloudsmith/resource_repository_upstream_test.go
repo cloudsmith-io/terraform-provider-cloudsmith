@@ -227,10 +227,91 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 	})
 }
 
+func generateTestCertificateAndKeyFiles() (certPath string, keyPath string, cleanup func(), err error) {
+	// Generate a private key
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	// Create a temporary file for the private key
+	keyFile, err := os.CreateTemp("", "test-key-*.pem")
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to create temp key file: %w", err)
+	}
+	keyPath = keyFile.Name()
+
+	// Encode and write the private key
+	keyPEM := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+	if err := pem.Encode(keyFile, keyPEM); err != nil {
+		os.Remove(keyPath)
+		return "", "", nil, fmt.Errorf("failed to write private key: %w", err)
+	}
+	keyFile.Close()
+
+	// Create certificate template
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName:   "test.cloudsmith.io",
+			Organization: []string{"Cloudsmith Test"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24), // 24 hour validity
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		BasicConstraintsValid: true,
+	}
+
+	// Create the certificate
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		os.Remove(keyPath)
+		return "", "", nil, fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	// Create a temporary file for the certificate
+	certFile, err := os.CreateTemp("", "test-cert-*.pem")
+	if err != nil {
+		os.Remove(keyPath)
+		return "", "", nil, fmt.Errorf("failed to create temp cert file: %w", err)
+	}
+	certPath = certFile.Name()
+
+	// Encode and write the certificate
+	certPEM := &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	}
+	if err := pem.Encode(certFile, certPEM); err != nil {
+		os.Remove(keyPath)
+		os.Remove(certPath)
+		return "", "", nil, fmt.Errorf("failed to write certificate: %w", err)
+	}
+	certFile.Close()
+
+	cleanup = func() {
+		os.Remove(certPath)
+		os.Remove(keyPath)
+	}
+
+	return certPath, keyPath, cleanup, nil
+}
+
 func TestAccRepositoryUpstreamDocker_basic(t *testing.T) {
 	t.Parallel()
 
 	const dockerUpstreamResourceName = "cloudsmith_repository_upstream.fakedocker"
+
+	// Generate test certificate files for mTLS authentication
+	certPath, keyPath, cleanup, err := generateTestCertificateAndKeyFiles()
+	if err != nil {
+		t.Fatalf("Failed to generate test certificates: %v", err)
+	}
+	defer cleanup()
 
 	testAccRepositoryPythonUpstreamConfigBasic := fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
@@ -276,16 +357,6 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 	}
 	`, namespace)
 
-	// Generate test certificates for mTLS authentication
-	certPath, keyPath, err := generateTestCertificateAndKey()
-	if err != nil {
-		t.Fatalf("Failed to generate test certificates: %v", err)
-	}
-	defer func() {
-		os.Remove(certPath)
-		os.Remove(keyPath)
-	}()
-
 	testAccRepositoryPythonUpstreamConfigCert := fmt.Sprintf(`
 	resource "cloudsmith_repository" "test" {
 		name      = "terraform-acc-test-upstream-docker"
@@ -294,8 +365,8 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 
 	resource "cloudsmith_repository_upstream" "fakedocker" {
 		auth_mode            = "Certificate and Key"
-		auth_certificate     = "%s"
-		auth_certificate_key = "%s"
+		auth_certificate     = file("%s")
+		auth_certificate_key = file("%s")
 		is_active           = false
 		mode                = "Cache and Proxy"
 		name                = cloudsmith_repository.test.name
@@ -352,8 +423,6 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 				Config: testAccRepositoryPythonUpstreamConfigCert,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthMode, "Certificate and Key"),
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthCertificate, certPath),
-					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthCertificateKey, keyPath),
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, IsActive, "false"),
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, Priority, "5"),
 				),
@@ -955,7 +1024,7 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 	    repository      = cloudsmith_repository.test.slug
 	    upstream_type   = "rpm"
 	    upstream_url    = "https://download1.rpmfusion.org/free/fedora/releases/35/Everything/x86_64/os"
-	    verify_ssl      = false
+	    verify_ssl        = false
 	}
 	`, namespace)
 
@@ -1307,72 +1376,4 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 
 		return nil
 	}
-}
-func generateTestCertificateAndKey() (certPath string, keyPath string, err error) {
-	// Generate a private key
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	// Create a temporary file for the private key
-	keyFile, err := os.CreateTemp("", "test-key-*.pem")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create temp key file: %w", err)
-	}
-	keyPath = keyFile.Name()
-
-	// Encode and write the private key
-	keyPEM := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	}
-	if err := pem.Encode(keyFile, keyPEM); err != nil {
-		os.Remove(keyPath)
-		return "", "", fmt.Errorf("failed to write private key: %w", err)
-	}
-	keyFile.Close()
-
-	// Create certificate template
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName:   "test.cloudsmith.io",
-			Organization: []string{"Cloudsmith Test"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24), // 24 hour validity
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	// Create the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		os.Remove(keyPath)
-		return "", "", fmt.Errorf("failed to create certificate: %w", err)
-	}
-
-	// Create a temporary file for the certificate
-	certFile, err := os.CreateTemp("", "test-cert-*.pem")
-	if err != nil {
-		os.Remove(keyPath)
-		return "", "", fmt.Errorf("failed to create temp cert file: %w", err)
-	}
-	certPath = certFile.Name()
-
-	// Encode and write the certificate
-	certPEM := &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certBytes,
-	}
-	if err := pem.Encode(certFile, certPEM); err != nil {
-		os.Remove(keyPath)
-		os.Remove(certPath)
-		return "", "", fmt.Errorf("failed to write certificate: %w", err)
-	}
-	certFile.Close()
-
-	return certPath, keyPath, nil
 }
