@@ -96,7 +96,7 @@ resource "cloudsmith_repository_upstream" "docker_hub" {
 }
 ```
 
-> **Note:** Certificate and Key authentication is only supported for Docker, we recommend using a unique filename for the certificate and key files to avoid conflicts.
+> **Note:** Certificate and Key authentication is only supported for Docker.
 
 ```hcl
 resource "cloudsmith_repository_upstream" "other_docker_upstream" {
@@ -106,8 +106,8 @@ resource "cloudsmith_repository_upstream" "other_docker_upstream" {
     upstream_type = "docker"
     upstream_url  = "https://other.docker.io"
     auth_mode     = "Certificate and Key"
-    auth_certificate = "/path/to/certificate_date.crt"
-    auth_certificate_key = "/path/to/certificate_date.key"
+    auth_certificate = file("${path.module}/certs/client.crt")
+    auth_certificate_key = file("${path.module}/certs/client.key")
 }
 ```
 
@@ -218,8 +218,8 @@ The following arguments are supported:
 |       `auth_mode`       |    N     |    string    |                                   `"None"`<br>`"Username and Password"`<br>`"Token"`<br>`"Certificate and Key"`                                    |                                                                                              The authentication mode to use when accessing the upstream.                                                                                              |
 |      `auth_secret`      |    N     |    string    |                                                           N/A                                                           |                                                   Used in conjunction with an `auth_mode` of `"Username and Password"` or `"Token"` to hold the password or token used when accessing the upstream.                                                   |
 |     `auth_username`     |    N     |    string    |                                                           N/A                                                           |                                                          Used only in conjunction with an `auth_mode` of `"Username and Password"` to declare the username used when accessing the upstream.                                                          |
-|    `auth_certificate`   |    N     |    string    |                                                           N/A                                                           |                                                          Used only in conjunction with an `auth_mode` of `"Certificate and Key"` to specify the path to the certificate file for mTLS authentication.                                                          |
-|  `auth_certificate_key` |    N     |    string    |                                                           N/A                                                           |                                                          Used only in conjunction with an `auth_mode` of `"Certificate and Key"` to specify the path to the certificate key file for mTLS authentication.                                                          |
+|    `auth_certificate`   |    N     |    string    |                                                           N/A                                                           |                                                          Used only in conjunction with an `auth_mode` of `"Certificate and Key"` to provide the PEM-encoded certificate content for mTLS authentication. Use with the `file()` function.                                                          |
+|  `auth_certificate_key` |    N     |    string    |                                                           N/A                                                           |                                                          Used only in conjunction with an `auth_mode` of `"Certificate and Key"` to provide the PEM-encoded private key content for mTLS authentication. Use with the `file()` function.                                                          |
 |       `component`       |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"deb"` to declare the [component](https://wiki.debian.org/DebianRepository/Format#Components) to fetch from the upstream.                                     |
 |    `distro_version`     |    N     |    string    |                                                           N/A                                                           |                                             Used only in conjunction with an `upstream_type` of `"rpm"` to declare the distribution/version that packages found on this upstream will be associated with.                                             |
 |    `distro_versions`    |    N     | list<string> |                                                           N/A                                                           |                                       Used only in conjunction with an `upstream_type` of `"deb"` to declare the array of distributions/versions that packages found on this upstream will be associated with.                                        |
