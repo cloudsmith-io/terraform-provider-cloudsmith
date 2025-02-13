@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"math/big"
 	"net/http"
 	"os"
@@ -1362,7 +1361,7 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 			req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
 		default:
-			err = fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
+			return fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
 		}
 
 		if err != nil && !is404(resp) {
@@ -1370,9 +1369,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		} else if is200(resp) {
 			return fmt.Errorf("unable to verify upstream deletion: still exists: %s", resourceName)
 		}
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(resp.Body)
+		if resp != nil && resp.Body != nil {
+			defer resp.Body.Close()
+		}
 
 		return nil
 	}
