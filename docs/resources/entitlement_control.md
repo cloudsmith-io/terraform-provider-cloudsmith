@@ -9,6 +9,7 @@ See [help.cloudsmith.io](https://help.cloudsmith.io/docs/entitlements) for full 
 
 ## Example Usage 
 
+> **Note:** Ensure `entitlement_tokens` array is returning entitlement tokens (and not an empty array) before using the control resource. By default the example should work, but if there were any changes made to repo settings, the expected behaviour might be different.
 
 Disable repository "Default" entitlement token:
 
@@ -38,7 +39,7 @@ data "cloudsmith_entitlement_list" "my_tokens" {
 resource "cloudsmith_entitlement_control" "my_entitlement_control" {
     namespace  = resource.cloudsmith_repository.my_repository.namespace
     repository = resource.cloudsmith_repository.my_repository.slug_perm
-    identifier = data.cloudsmith_entitlement_list.my_tokens.tokens[0].slug_perm
+    identifier = data.cloudsmith_entitlement_list.my_tokens.entitlement_tokens[0].slug_perm
     enabled    = false
 }
 ```

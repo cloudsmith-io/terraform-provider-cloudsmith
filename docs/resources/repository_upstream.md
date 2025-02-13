@@ -81,13 +81,33 @@ resource "cloudsmith_repository_upstream" "enpass" {
 
 ### Docker
 
+> **Note:** Dockerhub requires username and password authentication or the creation of resource will fail.
+
 ```hcl
 resource "cloudsmith_repository_upstream" "docker_hub" {
     name          = "Docker Hub"
+    auth_mode     = "Username and Password"
+    auth_username = "my-username"
+    auth_password = "my-password"
     namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
     repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
     upstream_type = "docker"
     upstream_url  = "https://index.docker.io"
+}
+```
+
+> **Note:** Certificate and Key authentication is only supported for Docker, we recommend using a unique filename for the certificate and key files to avoid conflicts.
+
+```hcl
+resource "cloudsmith_repository_upstream" "other_docker_upstream" {
+    name          = "Other Docker Upstream"
+    namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
+    upstream_type = "docker"
+    upstream_url  = "https://other.docker.io"
+    auth_mode     = "Certificate and Key"
+    auth_certificate = "/path/to/certificate_date.crt"
+    auth_certificate_key = "/path/to/certificate_date.key"
 }
 ```
 
