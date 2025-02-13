@@ -23,6 +23,8 @@ github.com/cloudsmith-io/cloudsmith-api-go v0.0.41 h1:7bPbyD3FIN8PmmZQg43O/y8OTk
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.41/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.42-0.20241129202450-bd5381591ce5 h1:vU6M9CeLmTU9xJj5G7pCQ9F8o+zl4pSfKnmGxB+miLE=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.42-0.20241129202450-bd5381591ce5/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.42 h1:q44+GuQLI4YU8MhU9XVpLrVD+HtU5DElrRy1ZvhxYck=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.42/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
