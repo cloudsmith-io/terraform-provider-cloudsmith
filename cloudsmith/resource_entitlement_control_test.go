@@ -28,7 +28,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
-					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "true"),
 				),
 			},
 			{
@@ -36,7 +36,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
-					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "false"),
 				),
 			},
 			{
@@ -136,7 +136,7 @@ resource "cloudsmith_entitlement_control" "test" {
     namespace  = resource.cloudsmith_repository.test.namespace
     repository = resource.cloudsmith_repository.test.slug_perm
     identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
-    enabled    = false
+    enabled    = true
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -156,6 +156,6 @@ resource "cloudsmith_entitlement_control" "test" {
     namespace  = resource.cloudsmith_repository.test.namespace
     repository = resource.cloudsmith_repository.test.slug_perm
     identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
-    enabled    = true
+    enabled    = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
