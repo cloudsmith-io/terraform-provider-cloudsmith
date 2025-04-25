@@ -70,7 +70,6 @@ resource "cloudsmith_repository_upstream" "pub_dev" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(dartUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(dartUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(dartUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(dartUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(dartUpstreamResourceName, CreatedAt),
@@ -179,7 +178,6 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 				Config: testAccRepositoryDebUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(debUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(debUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(debUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, CreatedAt),
@@ -387,6 +385,7 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthMode, "Username and Password"),
+					resource.TestCheckResourceAttr(dockerUpstreamResourceName, AuthUsername, "jonny.tables"),
 					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(dockerUpstreamResourceName, CreatedAt),
 					resource.TestCheckNoResourceAttr(dockerUpstreamResourceName, DistroVersion),
@@ -433,6 +432,7 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 				ImportStateVerifyIgnore: []string{
 					"auth_certificate",
 					"auth_certificate_key",
+					"auth_secret",
 				},
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
 					resourceState := s.RootModule().Resources[dockerUpstreamResourceName]
@@ -504,7 +504,6 @@ resource "cloudsmith_repository_upstream" "helm" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(helmUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(helmUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(helmUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(helmUpstreamResourceName, CreatedAt),
@@ -550,7 +549,8 @@ resource "cloudsmith_repository_upstream" "helm" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -608,7 +608,6 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(mavenUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, CreatedAt),
@@ -654,7 +653,8 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -714,7 +714,6 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(npmUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, CreatedAt),
@@ -818,7 +817,6 @@ resource "cloudsmith_repository_upstream" "nuget" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(nugetUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(nugetUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(nugetUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, CreatedAt),
@@ -864,7 +862,8 @@ resource "cloudsmith_repository_upstream" "nuget" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -925,7 +924,6 @@ resource "cloudsmith_repository_upstream" "pypi" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(pythonUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, CreatedAt),
@@ -971,7 +969,8 @@ resource "cloudsmith_repository_upstream" "pypi" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -1036,7 +1035,6 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 				Config: testAccRepositoryRpmUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(rpmUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(rpmUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(rpmUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(rpmUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(rpmUpstreamResourceName, CreatedAt),
@@ -1079,7 +1077,8 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -1140,7 +1139,6 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(rubyUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(rubyUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(rubyUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(rubyUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(rubyUpstreamResourceName, CreatedAt),
@@ -1186,7 +1184,8 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
@@ -1247,7 +1246,6 @@ resource "cloudsmith_repository_upstream" "packagist" {
 				Config: testAccRepositoryComposerUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthMode, "None"),
-					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthSecret, ""),
 					resource.TestCheckResourceAttr(composerUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckNoResourceAttr(composerUpstreamResourceName, Component),
 					resource.TestCheckResourceAttrSet(composerUpstreamResourceName, CreatedAt),
@@ -1293,7 +1291,8 @@ resource "cloudsmith_repository_upstream" "packagist" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
-				ImportStateVerify: true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"auth_secret"},
 			},
 		},
 	})
