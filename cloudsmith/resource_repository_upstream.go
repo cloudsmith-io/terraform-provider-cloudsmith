@@ -542,7 +542,18 @@ func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error
 	}
 
 	_ = d.Set(AuthMode, upstream.GetAuthMode())
-	_ = d.Set(AuthSecret, upstream.GetAuthSecret())
+
+	// The API no longer returns plaintext secrets for security reasons
+	// So we need to maintain the existing auth_secret value in state
+	// Only set it from API if non-empty (which won't happen anymore)
+	authSecret := upstream.GetAuthSecret()
+	if authSecret == "" {
+		// Don't modify the auth_secret that's already in state
+		// This prevents Terraform from detecting a change when there isn't one
+	} else {
+		_ = d.Set(AuthSecret, authSecret)
+	}
+
 	_ = d.Set(AuthUsername, upstream.GetAuthUsername())
 	_ = d.Set(CreatedAt, timeToString(upstream.GetCreatedAt()))
 	_ = d.Set(ExtraHeader1, upstream.GetExtraHeader1())
@@ -988,6 +999,7 @@ func resourceRepositoryUpstream() *schema.Resource {
 				Type:         schema.TypeString,
 				Description:  "Secret to provide with requests to upstream.",
 				Optional:     true,
+				Sensitive:    true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			AuthUsername: {
