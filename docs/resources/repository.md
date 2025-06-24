@@ -2,7 +2,7 @@
 
 The repository resource allows creation and management of package repositories within a Cloudsmith namespace. Repositories store packages and are the main entities with which Cloudsmith users interact.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/manage-a-repository) for full repository documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories) for full repository documentation.
 
 # Example Usage
 
