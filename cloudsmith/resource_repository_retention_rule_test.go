@@ -28,11 +28,12 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_count_limit", "100"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_days_limit", "28"),
-					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_enabled", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_group_by_name", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_group_by_format", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_group_by_package_type", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_size_limit", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_package_query_string", "name:test"),
 				),
 			},
 		},
@@ -56,12 +57,13 @@ resource "cloudsmith_repository" "test-retention" {
 resource "cloudsmith_repository_retention_rule" "test" {
   namespace = "%s"
   repository = cloudsmith_repository.test-retention.name
-  retention_enabled = false
+  retention_enabled = true
   retention_count_limit = 100
   retention_days_limit = 28
   retention_group_by_name = false
   retention_group_by_format = false
   retention_group_by_package_type = false
   retention_size_limit = 0
+  retention_package_query_string = "name:test"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))

@@ -110,7 +110,11 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	d.Set("retention_group_by_format", resp.RetentionGroupByFormat)
 	d.Set("retention_group_by_package_type", resp.RetentionGroupByPackageType)
 	d.Set("retention_size_limit", resp.RetentionSizeLimit)
-	d.Set("retention_package_query_string", resp.RetentionPackageQueryString)
+	if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+		d.Set("retention_package_query_string", *resp.RetentionPackageQueryString.Get())
+	} else {
+		d.Set("retention_package_query_string", "")
+	}
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
 
 	return nil
