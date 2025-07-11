@@ -158,6 +158,23 @@ func readCertificateFiles(d *schema.ResourceData) (cert, key *string, err error)
 	return cert, key, nil
 }
 
+func waitForUpstreamActive(getUpstreamFn func() (Upstream, *http.Response, error), timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		upstream, _, err := getUpstreamFn()
+		if err != nil {
+			return fmt.Errorf("error fetching upstream: %w", err)
+		}
+		if upstream.GetIsActive() {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for upstream to become active")
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
 func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
@@ -466,6 +483,13 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	}
 	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
 		return fmt.Errorf("error waiting for upstream (%s) to be created: %w", d.Id(), err)
+	}
+
+	// After creation, wait for is_active to be true (max 15s)
+	if err := waitForUpstreamActive(func() (Upstream, *http.Response, error) {
+		return getUpstream(d, m)
+	}, 15*time.Second); err != nil {
+		return err
 	}
 
 	return resourceRepositoryUpstreamRead(d, m)
