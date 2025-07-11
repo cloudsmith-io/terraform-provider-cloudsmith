@@ -35,6 +35,7 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		RetentionGroupByName:        optionalBool(d, "retention_group_by_name"),
 		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
 		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
+		RetentionPackageQueryString: nullableString(d, "retention_package_query_string"),
 	}
 
 	// Explicitly set these values, even if they're zero
@@ -109,8 +110,7 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	d.Set("retention_group_by_format", resp.RetentionGroupByFormat)
 	d.Set("retention_group_by_package_type", resp.RetentionGroupByPackageType)
 	d.Set("retention_size_limit", resp.RetentionSizeLimit)
-
-	d.Set("namespace", namespace)
+	d.Set("retention_package_query_string", resp.RetentionPackageQueryString)
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
 
 	return nil
@@ -181,6 +181,11 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+			},
+			"retention_package_query_string": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "A package search expression which, if provided, filters the packages to be deleted.",
 			},
 		},
 	}
