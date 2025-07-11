@@ -27,7 +27,7 @@ func TestAccPackageDenyPolicy_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "name", "test-package-deny-policy-terraform-provider"),
-					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "package_query", "name:example"),
+					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "package_query", "name:example_new"),
 				),
 			},
 		},
@@ -41,7 +41,7 @@ resource "cloudsmith_package_deny_policy" "test" {
   namespace = "%s"
   enabled = true
   name = "test-package-deny-policy-terraform-provider"
-  package_query = "name:example"
+  package_query = "name:example_new"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
