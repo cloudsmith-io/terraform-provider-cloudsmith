@@ -2,7 +2,7 @@
 
 The repository geo/ip rules resource allows the management of geo/ip rules for a given Cloudsmith repository. Using this resource it is possible to allow and/or deny access to a repository using CIDR notation, two-character ISO 3166-1 country codes or a combination thereof.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/geoip-restriction) for full geo/ip rules documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/policy-management/geoip-rules) for full geo/ip rules documentation.
 
 ## Example Usage
 

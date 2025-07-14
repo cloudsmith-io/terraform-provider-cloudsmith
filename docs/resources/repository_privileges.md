@@ -4,7 +4,7 @@ The repository privileges resource allows the management of privileges for a giv
 
 Note that while users can be added to repositories in this manner, since Terraform does not (and cannot currently) manage those user accounts, you may encounter issues if the users change or are deleted outside of Terraform.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/permissions#repository-permissions) for full permissions documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories/repository-settings#repository-privileges) for full permissions documentation.
 
 ## Example Usage
 

@@ -2,7 +2,7 @@
 
 The teams resource allows creation and management of teams within a Cloudsmith organization.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/teams) for full team documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/accounts-and-teams/teams) for full team documentation.
 
 ## Example Usage
 

@@ -2,7 +2,7 @@
 
 The webhook resource allows the creation and management of webhooks for a given Cloudsmith repository. Webhooks allow integration with external systems by emitting events via HTTP POST request.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/webhooks) for full webhook documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/logs-and-observability/webhooks) for full webhook documentation.
 
 ## Example Usage
 

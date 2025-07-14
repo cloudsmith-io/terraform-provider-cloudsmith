@@ -2,7 +2,7 @@
 
 The license policy resource allows for creation and management of license policies within a Cloudsmith organization.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/license-policies) for the full license policies documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/policy-management/license-policy) for the full license policies documentation.
 
 ## Example Usage
 

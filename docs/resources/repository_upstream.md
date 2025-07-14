@@ -2,7 +2,7 @@
 
 The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/proxying) for full upstream proxying documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.
 
 ## Example Usage
 

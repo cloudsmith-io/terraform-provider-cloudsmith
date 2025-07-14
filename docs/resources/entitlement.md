@@ -2,7 +2,7 @@
 
 The entitlement resource allows the creation and management of Entitlement tokens for a given Cloudsmith repository. Entitlement tokens grant read-only access to a repository and can be configured with a number of custom restrictions if necessary.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/entitlements) for full entitlement documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/software-distribution/entitlement-tokens) for full entitlement documentation.
 
 ## Example Usage
 

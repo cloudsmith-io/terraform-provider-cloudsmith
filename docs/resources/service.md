@@ -2,7 +2,7 @@
 
 The service resource allows the creation and management of services for a given Cloudsmith organization. Services allow users to create API keys that can be used for machine-to-machine or other programmatic access without requiring a real user account.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/service-accounts) for full service documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/accounts-and-teams/service-accounts) for full service documentation.
 
 ## Example Usage
 

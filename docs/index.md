@@ -2,7 +2,7 @@
 
 This provider allows Cloudsmith users to automate the provisioning of resources using Terraform. Users can create and manage repositories, along with entitlement tokens to grant access to repository contents.
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/) for full documentation (including an API reference).
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/) for full documentation (including an API reference).
 
 ## Example Usage
 

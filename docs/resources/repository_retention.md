@@ -6,7 +6,7 @@ Note that while retention rules can be managed in this manner, changes made outs
 
 **Note: Retention rule settings are only applied once retention is enabled for the repository.**
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/retention-lifecycle#:~:text=Retention%20rules%20only%20activate%20when,1000%20day%20package%20be%20deleted.) for full retention rules documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/artifact-management/retention-rules) for full retention rules documentation.
 
 ## Example Usage
 
@@ -42,8 +42,8 @@ resource "cloudsmith_repository_retention_rule" "retention_rule" {
 The following arguments are supported:
 
 * `namespace` - (Required) The namespace of the repository.
-* `repository` - (Required) If true, the retention lifecycle rules will be activated for the repository and settings will be updated.
-* `retention_enabled` - (Required) If true, the retention lifecycle rules will be activated for the repository and settings will be updated.
+* `repository` - (Required) If true, the retention rules will be activated for the repository and settings will be updated.
+* `retention_enabled` - (Required) If true, the retention rules will be activated for the repository and settings will be updated.
 * `retention_count_limit` - (Optional) The maximum number of packages to retain. Must be between 0 and 10000.
 * `retention_days_limit` - (Optional) The number of days of packages to retain. Must be between `0` and `180`.
 * `retention_group_by_name` - (Optional) If true, retention will apply to groups of packages by name rather than all packages.

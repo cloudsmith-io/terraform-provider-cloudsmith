@@ -5,7 +5,7 @@ The entitlement control resource allows enabling and disabling of existing Entit
 > ⚠️ **We highly recommend controlling the entitlement token with the [`cloudsmith_entitlement` resource](../resources/entitlement.md) and the `is_active` flag which controls the same setting. The purpose of this resource is to manage the "Default" entitlement token which is created by default for all repositories.**
 
 
-See [help.cloudsmith.io](https://help.cloudsmith.io/docs/entitlements) for full entitlement documentation.
+See [docs.cloudsmith.com](https://docs.cloudsmith.com/software-distribution/entitlement-tokens) for full entitlement documentation.
 
 ## Example Usage 
 
