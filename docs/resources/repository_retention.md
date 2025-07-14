@@ -52,8 +52,6 @@ The following arguments are supported:
 * `retention_size_limit` - (Optional) The maximum total size (in bytes) of packages to retain. Must be between `0` and `21474836480` (21.47 GB / 21474.83 MB).
 * `retention_package_query_string` - (Optional) A package search expression which, if provided, filters the packages to be deleted. For example, `name:foo` will only delete packages called 'foo'.
 
-> **Note:** Due to Cloudsmith API design, in order to set or change the `retention_package_query_string`, the retention rule must be enabled (`retention_enabled = true`). If the retention rule is not enabled, changes to this field will not be persisted or returned by the API, and you may see repeated diffs in Terraform plans.
-
 ## Import
 
 This resource can be imported using the namespace and repository slug:
