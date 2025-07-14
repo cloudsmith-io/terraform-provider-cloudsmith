@@ -8,11 +8,32 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+// waitForSAMLAuthEnabled polls until the SAML auth enabled state matches wantEnabled or times out.
+func waitForSAMLAuthEnabled(pc *providerConfig, organization string, wantEnabled bool, timeoutSec int) error {
+	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	for {
+		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+		if err == nil {
+			if samlAuth.GetSamlAuthEnabled() == wantEnabled {
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for SAML auth enabled=%v", wantEnabled)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
 
 // samlAuthCreate handles the creation of a new SAML authentication configuration
 func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -31,6 +52,10 @@ func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	d.SetId(generateSAMLAuthID(organization, result))
+	// Wait for the backend to reflect the enabled state
+	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+		return diag.FromErr(err)
+	}
 	return samlAuthRead(ctx, d, m)
 }
 
@@ -73,7 +98,10 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	if err != nil {
 		return diag.FromErr(handleSAMLAuthError(err, resp, "updating SAML authentication"))
 	}
-
+	// Wait for the backend to reflect the enabled state
+	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+		return diag.FromErr(err)
+	}
 	return samlAuthRead(ctx, d, m)
 }
 
@@ -94,6 +122,10 @@ func samlAuthDelete(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		return diag.FromErr(handleSAMLAuthError(err, resp, "deleting SAML authentication"))
 	}
 
+	// Wait for the backend to reflect the disabled state
+	if err := waitForSAMLAuthEnabled(pc, organization, false, 30); err != nil {
+		return diag.FromErr(err)
+	}
 	d.SetId("")
 	return nil
 }
