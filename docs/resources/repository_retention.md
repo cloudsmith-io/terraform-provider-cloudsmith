@@ -50,6 +50,7 @@ The following arguments are supported:
 * `retention_group_by_format` - (Optional) If true, retention will apply to packages by package formats rather than across all package formats.
 * `retention_group_by_package_type` - (Optional) If true, retention will apply to packages by package type rather than across all package types for one or more formats.
 * `retention_size_limit` - (Optional) The maximum total size (in bytes) of packages to retain. Must be between `0` and `21474836480` (21.47 GB / 21474.83 MB).
+* `retention_package_query_string` - (Optional) A package search expression which, if provided, filters the packages to be deleted. For example, `name:foo` will only delete packages called 'foo'.
 
 ## Import
 

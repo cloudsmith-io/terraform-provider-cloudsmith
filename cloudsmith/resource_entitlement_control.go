@@ -4,10 +4,32 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
+
+// waitForEntitlementControlEnabledResource polls until the entitlement token's enabled state matches wantEnabled or times out.
+func waitForEntitlementControlEnabledResource(pc *providerConfig, namespace, repository, identifier string, wantEnabled bool, timeoutSec int) error {
+	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	for {
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, identifier)
+		entitlement, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+		if err == nil {
+			if entitlement.GetIsActive() == wantEnabled {
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for entitlement control enabled=%v", wantEnabled)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
 
 func entitlementControlImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.Split(d.Id(), ".")
@@ -46,6 +68,9 @@ func entitlementControlCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.SetId(identifier)
+	if err := waitForEntitlementControlEnabledResource(pc, namespace, repository, identifier, enabled, 15); err != nil {
+		return err
+	}
 	return entitlementControlRead(d, m)
 }
 
@@ -89,7 +114,10 @@ func entitlementControlUpdate(d *schema.ResourceData, m interface{}) error {
 			return err
 		}
 	}
-
+	// Wait for the entitlement to reach the desired state
+	if err := waitForEntitlementControlEnabledResource(pc, namespace, repository, d.Id(), enabled, 30); err != nil {
+		return err
+	}
 	return entitlementControlRead(d, m)
 }
 
@@ -104,7 +132,10 @@ func entitlementControlDelete(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		return err
 	}
-
+	// Wait for the entitlement to be disabled
+	if err := waitForEntitlementControlEnabledResource(pc, namespace, repository, d.Id(), false, 30); err != nil {
+		return err
+	}
 	return nil
 }
 

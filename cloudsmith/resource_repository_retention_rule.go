@@ -26,15 +26,13 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	namespace := requiredString(d, "namespace")
 	repo := requiredString(d, "repository")
 
-	// Check if the operation is a delete operation
-	isDelete := !d.Get("retention_enabled").(bool)
-
 	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
 	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
 		RetentionEnabled:            optionalBool(d, "retention_enabled"),
 		RetentionGroupByName:        optionalBool(d, "retention_group_by_name"),
 		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
 		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
+		RetentionPackageQueryString: nullableString(d, "retention_package_query_string"),
 	}
 
 	// Explicitly set these values, even if they're zero
@@ -52,13 +50,6 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	}
 
 	req = req.Data(updateData)
-
-	// If it's a delete operation, disable the retention rule
-	if isDelete {
-		req = req.Data(cloudsmith.RepositoryRetentionRulesRequestPatch{
-			RetentionEnabled: cloudsmith.PtrBool(false),
-		})
-	}
 
 	// Execute the request
 	_, httpResp, err := req.Execute()
@@ -101,7 +92,6 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
-	// Handle the response
 	d.Set("retention_count_limit", resp.RetentionCountLimit)
 	d.Set("retention_days_limit", resp.RetentionDaysLimit)
 	d.Set("retention_enabled", resp.RetentionEnabled)
@@ -109,10 +99,43 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	d.Set("retention_group_by_format", resp.RetentionGroupByFormat)
 	d.Set("retention_group_by_package_type", resp.RetentionGroupByPackageType)
 	d.Set("retention_size_limit", resp.RetentionSizeLimit)
-
-	d.Set("namespace", namespace)
+	if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+		d.Set("retention_package_query_string", *resp.RetentionPackageQueryString.Get())
+	} else {
+		d.Set("retention_package_query_string", "")
+	}
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
 
+	return nil
+}
+
+func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) error {
+	pc := meta.(*providerConfig)
+
+	namespace := requiredString(d, "namespace")
+	repo := requiredString(d, "repository")
+
+	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
+		RetentionEnabled: cloudsmith.PtrBool(false),
+	}
+	req = req.Data(updateData)
+
+	_, httpResp, err := req.Execute()
+	if err != nil {
+		switch httpResp.StatusCode {
+		case 400:
+			return fmt.Errorf("request could not be processed: %s", err)
+		case 404:
+			return nil
+		case 422:
+			return fmt.Errorf("missing or invalid parameters: %s", err)
+		default:
+			return fmt.Errorf("error disabling repository retention rule: %s", err)
+		}
+	}
+
+	d.SetId("")
 	return nil
 }
 
@@ -121,7 +144,7 @@ func resourceRepoRetentionRule() *schema.Resource {
 		Create: resourceRepoRetentionRuleUpdate,
 		Read:   resourceRepoRetentionRuleRead,
 		Update: resourceRepoRetentionRuleUpdate,
-		Delete: resourceRepoRetentionRuleUpdate,
+		Delete: resourceRepoRetentionRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: importRepoRetentionRule,
 		},
@@ -181,6 +204,11 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Description: "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+			},
+			"retention_package_query_string": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "A package search expression which, if provided, filters the packages to be deleted.",
 			},
 		},
 	}
