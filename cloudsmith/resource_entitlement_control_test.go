@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -27,6 +28,20 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				Config: testAccEntitlementControlConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
+					func(s *terraform.State) error {
+						resourceState, ok := s.RootModule().Resources["cloudsmith_entitlement_control.test"]
+						if !ok {
+							return fmt.Errorf("resource not found: %s", "cloudsmith_entitlement_control.test")
+						}
+						if resourceState.Primary.ID == "" {
+							return fmt.Errorf("resource id not set")
+						}
+						pc := testAccProvider.Meta().(*providerConfig)
+						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
+						repository := resourceState.Primary.Attributes["repository"]
+						identifier := resourceState.Primary.ID
+						return waitForEntitlementControlEnabled(pc, namespace, repository, identifier, true, 15)
+					},
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "true"),
 				),
@@ -35,6 +50,20 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				Config: testAccEntitlementControlConfigBasicUpdate,
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
+					func(s *terraform.State) error {
+						resourceState, ok := s.RootModule().Resources["cloudsmith_entitlement_control.test"]
+						if !ok {
+							return fmt.Errorf("resource not found: %s", "cloudsmith_entitlement_control.test")
+						}
+						if resourceState.Primary.ID == "" {
+							return fmt.Errorf("resource id not set")
+						}
+						pc := testAccProvider.Meta().(*providerConfig)
+						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
+						repository := resourceState.Primary.Attributes["repository"]
+						identifier := resourceState.Primary.ID
+						return waitForEntitlementControlEnabled(pc, namespace, repository, identifier, false, 15)
+					},
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement_control.test", "enabled", "false"),
 				),
@@ -117,6 +146,28 @@ func testAccEntitlementControlCheckExists(resourceName string) resource.TestChec
 		defer resp.Body.Close()
 
 		return nil
+	}
+}
+
+func waitForEntitlementControlEnabled(pc *providerConfig, namespace, repository, identifier string, wantEnabled bool, timeoutSec int) error {
+	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	for {
+		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, identifier)
+		entitlement, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+		if err == nil {
+			if entitlement.GetIsActive() == wantEnabled {
+				return nil
+			}
+		} else if is404(resp) {
+			return fmt.Errorf("entitlement not found while waiting for enabled=%v", wantEnabled)
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for entitlement control enabled=%v", wantEnabled)
+		}
+		time.Sleep(1 * time.Second)
 	}
 }
 
