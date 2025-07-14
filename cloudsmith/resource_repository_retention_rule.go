@@ -26,9 +26,6 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	namespace := requiredString(d, "namespace")
 	repo := requiredString(d, "repository")
 
-	// Check if the operation is a delete operation
-	isDelete := !d.Get("retention_enabled").(bool)
-
 	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
 	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
 		RetentionEnabled:            optionalBool(d, "retention_enabled"),
@@ -53,13 +50,6 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	}
 
 	req = req.Data(updateData)
-
-	// If it's a delete operation, disable the retention rule
-	if isDelete {
-		req = req.Data(cloudsmith.RepositoryRetentionRulesRequestPatch{
-			RetentionEnabled: cloudsmith.PtrBool(false),
-		})
-	}
 
 	// Execute the request
 	_, httpResp, err := req.Execute()
@@ -102,7 +92,6 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
-	// Handle the response
 	d.Set("retention_count_limit", resp.RetentionCountLimit)
 	d.Set("retention_days_limit", resp.RetentionDaysLimit)
 	d.Set("retention_enabled", resp.RetentionEnabled)
@@ -120,12 +109,42 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	return nil
 }
 
+func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) error {
+	pc := meta.(*providerConfig)
+
+	namespace := requiredString(d, "namespace")
+	repo := requiredString(d, "repository")
+
+	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
+		RetentionEnabled: cloudsmith.PtrBool(false),
+	}
+	req = req.Data(updateData)
+
+	_, httpResp, err := req.Execute()
+	if err != nil {
+		switch httpResp.StatusCode {
+		case 400:
+			return fmt.Errorf("request could not be processed: %s", err)
+		case 404:
+			return nil
+		case 422:
+			return fmt.Errorf("missing or invalid parameters: %s", err)
+		default:
+			return fmt.Errorf("error disabling repository retention rule: %s", err)
+		}
+	}
+
+	d.SetId("")
+	return nil
+}
+
 func resourceRepoRetentionRule() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepoRetentionRuleUpdate,
 		Read:   resourceRepoRetentionRuleRead,
 		Update: resourceRepoRetentionRuleUpdate,
-		Delete: resourceRepoRetentionRuleUpdate,
+		Delete: resourceRepoRetentionRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: importRepoRetentionRule,
 		},
