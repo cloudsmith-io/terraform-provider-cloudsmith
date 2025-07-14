@@ -162,19 +162,34 @@ func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cl
 		return err
 	}
 
-	// Handle inline metadata - only set if non-empty
-	if inlineMetadata := samlAuth.GetSamlMetadataInline(); inlineMetadata != "" {
+	inlineMetadata := samlAuth.GetSamlMetadataInline()
+	url, hasURL := samlAuth.GetSamlMetadataUrlOk()
+
+	if inlineMetadata != "" {
 		if err := setField("saml_metadata_inline", inlineMetadata); err != nil {
+			return err
+		}
+		if err := setField("saml_metadata_url", ""); err != nil {
+			return err
+		}
+	} else if hasURL && url != nil && *url != "" {
+		if err := setField("saml_metadata_url", url); err != nil {
+			return err
+		}
+		if err := setField("saml_metadata_inline", ""); err != nil {
+			return err
+		}
+	} else {
+		// Neither present, clear both
+		if err := setField("saml_metadata_inline", ""); err != nil {
+			return err
+		}
+		if err := setField("saml_metadata_url", ""); err != nil {
 			return err
 		}
 	}
 
-	// Handle URL metadata with null handling
-	url, hasURL := samlAuth.GetSamlMetadataUrlOk()
-	if !hasURL || url == nil || *url == "" {
-		return setField("saml_metadata_url", nil)
-	}
-	return setField("saml_metadata_url", url)
+	return nil
 }
 
 // generateSAMLAuthID creates a unique identifier for the SAML authentication resource

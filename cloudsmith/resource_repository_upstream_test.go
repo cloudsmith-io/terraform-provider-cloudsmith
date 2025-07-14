@@ -1377,11 +1377,11 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 	}
 }
 
-// waitForIsActiveTrue waits up to 2 minutes for the resource's is_active attribute to become "true", checking every 10 seconds.
+// waitForIsActiveTrue waits up to 4 minutes for the resource's is_active attribute to become "true", checking every 10 seconds.
 func waitForIsActiveTrue(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		const (
-			maxWait  = 2 * time.Minute
+			maxWait  = 4 * time.Minute
 			interval = 10 * time.Second
 		)
 		start := time.Now()

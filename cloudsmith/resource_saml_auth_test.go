@@ -24,7 +24,6 @@ func TestAccSAMLAuth_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml_auth.test", "saml_auth_enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_saml_auth.test", "saml_auth_enforced", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_saml_auth.test", "saml_metadata_url", "https://test.idp.example.com/metadata.xml"),
-					resource.TestCheckNoResourceAttr("cloudsmith_saml_auth.test", "saml_metadata_inline"),
 				),
 			},
 			{
