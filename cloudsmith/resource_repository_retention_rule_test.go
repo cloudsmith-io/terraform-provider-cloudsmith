@@ -33,6 +33,7 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_group_by_format", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_group_by_package_type", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_size_limit", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_repository_retention_rule.test", "retention_package_query_string", "name:test"),
 				),
 			},
 		},
@@ -63,5 +64,6 @@ resource "cloudsmith_repository_retention_rule" "test" {
   retention_group_by_format = false
   retention_group_by_package_type = false
   retention_size_limit = 0
+  retention_package_query_string = "name:test"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))

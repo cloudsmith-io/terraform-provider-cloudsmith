@@ -177,6 +177,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 			{
 				Config: testAccRepositoryDebUpstreamConfigBasic,
 				Check: resource.ComposeTestCheckFunc(
+					waitForIsActiveTrue(debUpstreamResourceName),
 					resource.TestCheckResourceAttr(debUpstreamResourceName, AuthMode, "None"),
 					resource.TestCheckResourceAttr(debUpstreamResourceName, AuthUsername, ""),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, Component),
@@ -1373,5 +1374,30 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		}
 
 		return nil
+	}
+}
+
+// waitForIsActiveTrue waits up to 4 minutes for the resource's is_active attribute to become "true", checking every 10 seconds.
+func waitForIsActiveTrue(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		const (
+			maxWait  = 4 * time.Minute
+			interval = 10 * time.Second
+		)
+		start := time.Now()
+		for {
+			resourceState, ok := s.RootModule().Resources[resourceName]
+			if !ok {
+				return fmt.Errorf("resource %s not found in state", resourceName)
+			}
+			isActive := resourceState.Primary.Attributes[IsActive]
+			if isActive == "true" {
+				return nil
+			}
+			if time.Since(start) > maxWait {
+				return fmt.Errorf("timed out waiting for %s is_active to become true", resourceName)
+			}
+			time.Sleep(interval)
+		}
 	}
 }
