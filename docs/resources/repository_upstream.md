@@ -88,7 +88,7 @@ resource "cloudsmith_repository_upstream" "docker_hub" {
     name          = "Docker Hub"
     auth_mode     = "Username and Password"
     auth_username = "my-username"
-    auth_password = "my-password"
+    auth_secret   = "my-password"
     namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
     repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
     upstream_type = "docker"
