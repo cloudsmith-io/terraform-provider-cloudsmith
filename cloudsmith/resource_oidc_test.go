@@ -73,6 +73,57 @@ func TestAccOidc_basic(t *testing.T) {
 	})
 }
 
+// Test dynamic OIDC provider scenarios: create with dynamic mappings, update mappings, then switch to static.
+func TestAccOidc_dynamic(t *testing.T) {
+	t.Parallel()
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccOidcCheckDestroy("cloudsmith_oidc.test_dynamic"),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccOidcConfigDynamicCreate,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_a"),
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_b"),
+					testAccOidcCheckExists("cloudsmith_oidc.test_dynamic"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "mapping_claim", "sub"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "dynamic_mappings.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "dynamic_mappings.0.claim_value", "value1"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "dynamic_mappings.0.service_account", "test-oidc-service-account-a"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "service_accounts.#", "0"),
+				),
+			},
+			{
+				Config: testAccOidcConfigDynamicUpdateMappings,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_a"),
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_b"),
+					testAccOidcCheckExists("cloudsmith_oidc.test_dynamic"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "mapping_claim", "sub"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "dynamic_mappings.#", "2"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "service_accounts.#", "0"),
+				),
+			},
+			{
+				// Switch from dynamic to static provider
+				Config: testAccOidcConfigDynamicSwitchToStatic,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_a"),
+					testAccServiceCheckExists("cloudsmith_service.test_dyn_b"),
+					testAccOidcCheckExists("cloudsmith_oidc.test_dynamic"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "mapping_claim", ""),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "dynamic_mappings.#", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "service_accounts.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_oidc.test_dynamic", "service_accounts.0", "test-oidc-service-account-a"),
+				),
+			},
+		},
+	})
+}
+
 //nolint:goerr113
 
 func testAccOidcCheckDestroy(resourceName string) resource.TestCheckFunc {
@@ -206,3 +257,88 @@ resource "cloudsmith_oidc" "test" {
       service_accounts = ["invalid-service-account"]
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+// Dynamic provider configs
+var testAccOidcConfigDynamicCreate = fmt.Sprintf(`
+resource "cloudsmith_service" "test_dyn_a" {
+	organization = "%s"
+	name = "test-oidc-service-account-a"
+}
+
+resource "cloudsmith_service" "test_dyn_b" {
+	organization = "%s"
+	name = "test-oidc-service-account-b"
+}
+
+resource "cloudsmith_oidc" "test_dynamic" {
+	depends_on = [cloudsmith_service.test_dyn_a, cloudsmith_service.test_dyn_b]
+	namespace = "%s"
+	claims = {
+		"aud" = "example"
+	}
+	enabled = true
+	name = "test-oidc-terraform-provider-dynamic"
+	provider_url = "https://dynamic.example.com"
+	mapping_claim = "sub"
+	dynamic_mappings {
+		claim_value = "value1"
+		service_account = cloudsmith_service.test_dyn_a.slug
+	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccOidcConfigDynamicUpdateMappings = fmt.Sprintf(`
+resource "cloudsmith_service" "test_dyn_a" {
+	organization = "%s"
+	name = "test-oidc-service-account-a"
+}
+
+resource "cloudsmith_service" "test_dyn_b" {
+	organization = "%s"
+	name = "test-oidc-service-account-b"
+}
+
+resource "cloudsmith_oidc" "test_dynamic" {
+	depends_on = [cloudsmith_service.test_dyn_a, cloudsmith_service.test_dyn_b]
+	namespace = "%s"
+	claims = {
+		"aud" = "example"
+	}
+	enabled = true
+	name = "test-oidc-terraform-provider-dynamic"
+	provider_url = "https://dynamic.example.com"
+	mapping_claim = "sub"
+	dynamic_mappings {
+		claim_value = "value1"
+		service_account = cloudsmith_service.test_dyn_a.slug
+	}
+	dynamic_mappings {
+		claim_value = "value2"
+		service_account = cloudsmith_service.test_dyn_b.slug
+	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccOidcConfigDynamicSwitchToStatic = fmt.Sprintf(`
+resource "cloudsmith_service" "test_dyn_a" {
+	organization = "%s"
+	name = "test-oidc-service-account-a"
+}
+
+resource "cloudsmith_service" "test_dyn_b" {
+	organization = "%s"
+	name = "test-oidc-service-account-b"
+}
+
+resource "cloudsmith_oidc" "test_dynamic" {
+	depends_on = [cloudsmith_service.test_dyn_a, cloudsmith_service.test_dyn_b]
+	namespace = "%s"
+	claims = {
+		"aud" = "example"
+	}
+	enabled = true
+	name = "test-oidc-terraform-provider-dynamic"
+	provider_url = "https://dynamic.example.com"
+	service_accounts = [cloudsmith_service.test_dyn_a.slug]
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))

@@ -3,6 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,28 +28,42 @@ func oidcImport(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*
 
 func oidcCreate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
-
 	namespace := requiredString(d, "namespace")
-	req := pc.APIClient.OrgsApi.OrgsOpenidConnectCreate(pc.Auth, namespace)
-	serviceAccounts := d.Get("service_accounts").([]interface{})
-	serviceAccountsStr := make([]string, len(serviceAccounts))
-	for i, v := range serviceAccounts {
-		serviceAccountsStr[i] = v.(string)
-	}
-	req = req.Data(cloudsmith.ProviderSettingsRequest{
-		Claims:          d.Get("claims").(map[string]interface{}),
-		Enabled:         requiredBool(d, "enabled"),
-		Name:            requiredString(d, "name"),
-		ProviderUrl:     requiredString(d, "provider_url"),
-		ServiceAccounts: serviceAccountsStr,
-	})
+	reqBuilder := pc.APIClient.OrgsApi.OrgsOpenidConnectCreate(pc.Auth, namespace)
 
-	oidc, _, err := pc.APIClient.OrgsApi.OrgsOpenidConnectCreateExecute(req)
+	mappingClaim, hasMappingClaim := d.GetOk("mapping_claim")
+	dynMappingsRaw, hasDynMappings := d.GetOk("dynamic_mappings")
+	staticSvcAcctsRaw, hasServiceAccounts := d.GetOk("service_accounts")
+
+	base := cloudsmith.NewProviderSettingsWriteRequest(
+		d.Get("claims").(map[string]interface{}),
+		requiredBool(d, "enabled"),
+		requiredString(d, "name"),
+		requiredString(d, "provider_url"),
+	)
+
+	if hasMappingClaim || hasDynMappings { // dynamic
+		if hasMappingClaim && mappingClaim.(string) != "" {
+			base.SetMappingClaim(mappingClaim.(string))
+		}
+		if hasDynMappings {
+			dmObjects := buildDynamicMappingObjectsFromSet(dynMappingsRaw.(*schema.Set))
+			base.SetDynamicMappings(dmObjects)
+		}
+	} else if hasServiceAccounts { // static
+		svcList := convertInterfaceListToStrings(staticSvcAcctsRaw.([]interface{}))
+		if len(svcList) > 0 {
+			base.SetServiceAccounts(svcList)
+		}
+	}
+
+	reqBuilder = reqBuilder.Data(*base)
+	oidc, _, err := pc.APIClient.OrgsApi.OrgsOpenidConnectCreateExecute(reqBuilder)
 	if err != nil {
 		return err
 	}
-
 	d.SetId(oidc.GetSlugPerm())
+
 	checkerFunc := func() error {
 		req := pc.APIClient.OrgsApi.OrgsOpenidConnectRead(pc.Auth, namespace, d.Id())
 		_, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectReadExecute(req)
@@ -64,13 +80,10 @@ func oidcCreate(d *schema.ResourceData, m interface{}) error {
 		}
 		return nil
 	}
-
 	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
 		return fmt.Errorf("error waiting for OIDC config (%s) to be updated: %w", d.Id(), err)
 	}
-
 	return oidcRead(d, m)
-
 }
 
 func oidcRead(d *schema.ResourceData, m interface{}) error {
@@ -78,7 +91,6 @@ func oidcRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 	req := pc.APIClient.OrgsApi.OrgsOpenidConnectRead(pc.Auth, namespace, d.Id())
 	oidc, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectReadExecute(req)
-
 	if err != nil {
 		if is404(resp) {
 			d.SetId("")
@@ -90,10 +102,39 @@ func oidcRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("name", oidc.GetName())
 	d.Set("enabled", oidc.GetEnabled())
 	d.Set("provider_url", oidc.GetProviderUrl())
-	d.Set("service_accounts", oidc.GetServiceAccounts())
+	if sa := oidc.GetServiceAccounts(); len(sa) > 0 {
+		sort.Strings(sa)
+		d.Set("service_accounts", sa)
+	} else {
+		d.Set("service_accounts", []string{})
+	}
 	d.Set("claims", oidc.GetClaims())
 	d.Set("slug_perm", oidc.GetSlugPerm())
 	d.Set("slug", oidc.GetSlug())
+
+	// mapping_claim: use API value only
+	mappingClaim := ""
+	if getter, ok := any(oidc).(interface{ GetMappingClaimOk() (*string, bool) }); ok {
+		if mc, ok2 := getter.GetMappingClaimOk(); ok2 && mc != nil {
+			mappingClaim = *mc
+		}
+	}
+	d.Set("mapping_claim", mappingClaim)
+
+	apiMappings, err := retrieveAllDynamicMappings(pc, namespace, d.Id())
+	if err != nil {
+		return fmt.Errorf("error retrieving dynamic mappings: %w", err)
+	}
+	// Set dynamic mappings as returned by API only
+	if len(apiMappings) > 0 || mappingClaim != "" {
+		d.Set("dynamic_mappings", convertMappingsToSetElems(apiMappings))
+		if len(apiMappings) > 0 {
+			d.Set("service_accounts", []string{})
+		}
+	} else {
+		d.Set("dynamic_mappings", []interface{}{})
+	}
+
 	d.SetId(oidc.GetSlugPerm())
 	return nil
 }
@@ -101,39 +142,54 @@ func oidcRead(d *schema.ResourceData, m interface{}) error {
 func oidcUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 	namespace := requiredString(d, "namespace")
+	reqBuilder := pc.APIClient.OrgsApi.OrgsOpenidConnectPartialUpdate(pc.Auth, namespace, d.Id())
+	patch := cloudsmith.NewProviderSettingsWriteRequestPatch()
 
-	req := pc.APIClient.OrgsApi.OrgsOpenidConnectPartialUpdate(pc.Auth, namespace, d.Id())
-	serviceAccounts := d.Get("service_accounts").([]interface{})
-	serviceAccountsStr := make([]string, len(serviceAccounts))
-	for i, v := range serviceAccounts {
-		serviceAccountsStr[i] = v.(string)
+	patch.SetClaims(d.Get("claims").(map[string]interface{}))
+	if v, ok := d.GetOkExists("enabled"); ok {
+		patch.SetEnabled(v.(bool))
 	}
-	req = req.Data(cloudsmith.ProviderSettingsRequestPatch{
-		Claims:          d.Get("claims").(map[string]interface{}),
-		Enabled:         optionalBool(d, "enabled"),
-		Name:            optionalString(d, "name"),
-		ProviderUrl:     optionalString(d, "provider_url"),
-		ServiceAccounts: serviceAccountsStr,
-	})
+	if v, ok := d.GetOkExists("name"); ok {
+		patch.SetName(v.(string))
+	}
+	if v, ok := d.GetOkExists("provider_url"); ok {
+		patch.SetProviderUrl(v.(string))
+	}
 
-	oidc, _, err := pc.APIClient.OrgsApi.OrgsOpenidConnectPartialUpdateExecute(req)
+	mappingClaim, hasMappingClaim := d.GetOk("mapping_claim")
+	dynMappingsRaw, hasDynMappings := d.GetOk("dynamic_mappings")
+	svcAcctsRaw, hasServiceAccounts := d.GetOk("service_accounts")
+
+	if hasMappingClaim || hasDynMappings { // dynamic target state
+		if hasMappingClaim && mappingClaim.(string) != "" {
+			patch.SetMappingClaim(mappingClaim.(string))
+		} else {
+			patch.SetMappingClaimNil()
+		}
+		dmObjects := []cloudsmith.DynamicMapping{}
+		if hasDynMappings {
+			dmObjects = buildDynamicMappingObjectsFromSet(dynMappingsRaw.(*schema.Set))
+		}
+		patch.SetDynamicMappings(dmObjects)
+		patch.SetServiceAccounts([]string{})
+	} else if hasServiceAccounts { // static target state
+		svcList := convertInterfaceListToStrings(svcAcctsRaw.([]interface{}))
+		patch.SetServiceAccounts(svcList)
+		patch.SetDynamicMappings([]cloudsmith.DynamicMapping{})
+		patch.SetMappingClaimNil()
+	}
+
+	reqBuilder = reqBuilder.Data(*patch)
+	oidc, _, err := pc.APIClient.OrgsApi.OrgsOpenidConnectPartialUpdateExecute(reqBuilder)
 	if err != nil {
 		return err
 	}
-
 	d.SetId(oidc.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// oidc being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-
+	checkerFunc := func() error { time.Sleep(5 * time.Second); return nil }
 	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
 		return fmt.Errorf("error waiting for OIDC config (%s) to be updated: %w", d.Id(), err)
 	}
-
 	return oidcRead(d, m)
 }
 
@@ -206,10 +262,29 @@ func resourceOIDC() *schema.Resource {
 				ValidateFunc: validation.IsURLWithHTTPorHTTPS,
 			},
 			"service_accounts": {
-				Type:        schema.TypeList,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Description: "The service accounts associated with these provider settings",
-				Required:    true,
+				Type:          schema.TypeList,
+				Elem:          &schema.Schema{Type: schema.TypeString},
+				Description:   "The service accounts associated with these provider settings (static providers only). Mutually exclusive with mapping_claim/dynamic_mappings.",
+				Optional:      true,
+				ConflictsWith: []string{"mapping_claim", "dynamic_mappings"},
+			},
+			"mapping_claim": {
+				Type:          schema.TypeString,
+				Description:   "The claim key whose values dynamically map to service accounts (dynamic providers only). Mutually exclusive with service_accounts.",
+				Optional:      true,
+				ConflictsWith: []string{"service_accounts"},
+			},
+			"dynamic_mappings": {
+				Type:          schema.TypeSet,
+				Description:   "Set of dynamic claim value -> service account mappings (order-insensitive, authoritative). Mutually exclusive with service_accounts.",
+				Optional:      true,
+				ConflictsWith: []string{"service_accounts"},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"claim_value":     {Type: schema.TypeString, Required: true, Description: "The value of the mapping claim."},
+						"service_account": {Type: schema.TypeString, Required: true, Description: "Service account slug mapped to the claim value."},
+					},
+				},
 			},
 			"slug": {
 				Type:        schema.TypeString,
@@ -223,4 +298,77 @@ func resourceOIDC() *schema.Resource {
 			},
 		},
 	}
+}
+
+// returns a list of maps for state.
+func retrieveAllDynamicMappings(pc *providerConfig, namespace, slugPerm string) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	const pageSize int64 = 500
+	var page int64 = 1
+	for {
+		req := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsList(pc.Auth, namespace, slugPerm).Page(page).PageSize(pageSize)
+		dmList, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsListExecute(req)
+		if err != nil {
+			if resp != nil && is404(resp) { // treat missing as none
+				break
+			}
+			return nil, err
+		}
+		for _, dm := range dmList {
+			result = append(result, map[string]interface{}{
+				"claim_value":     dm.GetClaimValue(),
+				"service_account": dm.GetServiceAccount(),
+			})
+		}
+		if resp == nil {
+			break
+		}
+		pageTotalStr := resp.Header.Get("X-Pagination-Pagetotal")
+		if pageTotalStr == "" {
+			break
+		}
+		totalPages, err := strconv.ParseInt(pageTotalStr, 10, 64)
+		if err != nil || page >= totalPages {
+			break
+		}
+		page++
+	}
+	return result, nil
+}
+
+// Helper utilities
+func buildDynamicMappingObjectsFromSet(set *schema.Set) []cloudsmith.DynamicMapping {
+	if set == nil {
+		return nil
+	}
+	var out []cloudsmith.DynamicMapping
+	for _, v := range set.List() {
+		if v == nil {
+			continue
+		}
+		m := v.(map[string]interface{})
+		cv, _ := m["claim_value"].(string)
+		sa, _ := m["service_account"].(string)
+		if cv == "" || sa == "" {
+			continue
+		}
+		out = append(out, *cloudsmith.NewDynamicMapping(cv, sa))
+	}
+	return out
+}
+
+func convertInterfaceListToStrings(in []interface{}) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = v.(string)
+	}
+	return out
+}
+
+func convertMappingsToSetElems(in []map[string]interface{}) []interface{} {
+	out := make([]interface{}, len(in))
+	for i, m := range in {
+		out[i] = m
+	}
+	return out
 }
