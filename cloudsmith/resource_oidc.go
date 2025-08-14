@@ -146,15 +146,10 @@ func oidcUpdate(d *schema.ResourceData, m interface{}) error {
 	patch := cloudsmith.NewProviderSettingsWriteRequestPatch()
 
 	patch.SetClaims(d.Get("claims").(map[string]interface{}))
-	if v, ok := d.GetOkExists("enabled"); ok {
-		patch.SetEnabled(v.(bool))
-	}
-	if v, ok := d.GetOkExists("name"); ok {
-		patch.SetName(v.(string))
-	}
-	if v, ok := d.GetOkExists("provider_url"); ok {
-		patch.SetProviderUrl(v.(string))
-	}
+	// enabled, name, and provider_url are required in schema; set directly
+	patch.SetEnabled(d.Get("enabled").(bool))
+	patch.SetName(d.Get("name").(string))
+	patch.SetProviderUrl(d.Get("provider_url").(string))
 
 	mappingClaim, hasMappingClaim := d.GetOk("mapping_claim")
 	dynMappingsRaw, hasDynMappings := d.GetOk("dynamic_mappings")
