@@ -21,6 +21,44 @@ var (
 	}
 )
 
+// containsAccountSlug returns true if any privilege entry contains the provided slug
+// either as a user or service.
+func containsAccountSlug(privs []cloudsmith.RepositoryPrivilegeDict, slug string) bool {
+	for _, p := range privs {
+		if p.HasUser() && p.GetUser() == slug {
+			return true
+		}
+		if p.HasService() && p.GetService() == slug {
+			return true
+		}
+	}
+	return false
+}
+
+// containsTeam returns true if any privilege entry references a team.
+func containsTeam(privs []cloudsmith.RepositoryPrivilegeDict) bool {
+	for _, p := range privs {
+		if p.HasTeam() {
+			return true
+		}
+	}
+	return false
+}
+
+// setContainsSlug returns true if the *schema.Set contains an element whose slug matches key.
+func setContainsSlug(set *schema.Set, key string) bool {
+	if set == nil {
+		return false
+	}
+	for _, x := range set.List() {
+		m := x.(map[string]interface{})
+		if m["slug"].(string) == key {
+			return true
+		}
+	}
+	return false
+}
+
 // expandRepositoryPrivilegeServices extracts "services" from TF state as a *schema.Set and converts to
 // a slice of structs we can use when interacting with the Cloudsmith API.
 func expandRepositoryPrivilegeServices(d *schema.ResourceData) []cloudsmith.RepositoryPrivilegeDict {
@@ -159,29 +197,8 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 	}
 	currentSlug := userSelf.GetSlug()
 
-	hasCurrentSlugUserOrService := func(list []cloudsmith.RepositoryPrivilegeDict, slug string) bool {
-		for _, p := range list {
-			if p.HasUser() && p.GetUser() == slug {
-				return true
-			}
-			if p.HasService() && p.GetService() == slug {
-				return true
-			}
-		}
-		return false
-	}
-
-	hasTeamBlocks := func(list []cloudsmith.RepositoryPrivilegeDict) bool {
-		for _, p := range list {
-			if p.HasTeam() {
-				return true
-			}
-		}
-		return false
-	}
-
-	if !hasCurrentSlugUserOrService(privileges, currentSlug) {
-		if !hasTeamBlocks(privileges) {
+	if !containsAccountSlug(privileges, currentSlug) {
+		if !containsTeam(privileges) {
 			return fmt.Errorf(
 				"repository_privileges (%s.%s): configuration must include authenticated account slug '%s' (user or service block) OR at least one team block to avoid potential lockout",
 				organization, repository, currentSlug,
@@ -309,19 +326,6 @@ func resourceRepositoryPrivileges() *schema.Resource {
 			}
 			currentSlug := userSelf.GetSlug()
 
-			hasSlug := func(set *schema.Set, key string) bool {
-				if set == nil {
-					return false
-				}
-				for _, x := range set.List() {
-					m := x.(map[string]interface{})
-					if m["slug"].(string) == key {
-						return true
-					}
-				}
-				return false
-			}
-
 			var userSet *schema.Set
 			if v, ok := d.GetOk("user"); ok {
 				userSet = v.(*schema.Set)
@@ -335,7 +339,7 @@ func resourceRepositoryPrivileges() *schema.Resource {
 				teamSet = v.(*schema.Set)
 			}
 
-			hasUserOrService := hasSlug(userSet, currentSlug) || hasSlug(serviceSet, currentSlug)
+			hasUserOrService := setContainsSlug(userSet, currentSlug) || setContainsSlug(serviceSet, currentSlug)
 			teamCount := 0
 			if teamSet != nil {
 				teamCount = teamSet.Len()
