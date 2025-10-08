@@ -3,6 +3,7 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -149,12 +150,52 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 	privileges = append(privileges, expandRepositoryPrivilegeTeams(d)...)
 	privileges = append(privileges, expandRepositoryPrivilegeUsers(d)...)
 
+	// Only hard error if the authenticated account is NOT present in any user/service block
+	// AND there are NO team blocks defined. If team blocks are present, emit a warning only.
+	userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
+	userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
+	if err != nil {
+		return fmt.Errorf("error retrieving authenticated account for lockout prevention: %w", err)
+	}
+	currentSlug := userSelf.GetSlug()
+
+	hasCurrentSlugUserOrService := func(list []cloudsmith.RepositoryPrivilegeDict, slug string) bool {
+		for _, p := range list {
+			if p.HasUser() && p.GetUser() == slug {
+				return true
+			}
+			if p.HasService() && p.GetService() == slug {
+				return true
+			}
+		}
+		return false
+	}
+
+	hasTeamBlocks := func(list []cloudsmith.RepositoryPrivilegeDict) bool {
+		for _, p := range list {
+			if p.HasTeam() {
+				return true
+			}
+		}
+		return false
+	}
+
+	if !hasCurrentSlugUserOrService(privileges, currentSlug) {
+		if !hasTeamBlocks(privileges) {
+			return fmt.Errorf(
+				"repository_privileges (%s.%s): configuration must include authenticated account slug '%s' (user or service block) OR at least one team block to avoid potential lockout",
+				organization, repository, currentSlug,
+			)
+		}
+		log.Printf("[WARN] repository_privileges (%s.%s): authenticated account slug '%s' not explicitly included via user/service; ensure access via configured teams to avoid lockout.", organization, repository, currentSlug)
+	}
+
 	req := pc.APIClient.ReposApi.ReposPrivilegesUpdate(pc.Auth, organization, repository)
 	req = req.Data(cloudsmith.RepositoryPrivilegeInputRequest{
 		Privileges: privileges,
 	})
 
-	_, err := pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
+	_, err = pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
 	if err != nil {
 		return err
 	}
@@ -255,6 +296,60 @@ func resourceRepositoryPrivileges() *schema.Resource {
 		Read:   resourceRepositoryPrivilegesRead,
 		Update: resourceRepositoryPrivilegesCreateUpdate,
 		Delete: resourceRepositoryPrivilegesDelete,
+
+		// Plan-time validation to surface lockout risk earlier than apply. We still
+		// keep the apply-time safety net in Create/Update for defense in depth.
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			pc := meta.(*providerConfig)
+			userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
+			userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
+			if err != nil {
+				// If we cannot determine the current user, defer to apply-time logic.
+				return nil
+			}
+			currentSlug := userSelf.GetSlug()
+
+			hasSlug := func(set *schema.Set, key string) bool {
+				if set == nil {
+					return false
+				}
+				for _, x := range set.List() {
+					m := x.(map[string]interface{})
+					if m["slug"].(string) == key {
+						return true
+					}
+				}
+				return false
+			}
+
+			var userSet *schema.Set
+			if v, ok := d.GetOk("user"); ok {
+				userSet = v.(*schema.Set)
+			}
+			var serviceSet *schema.Set
+			if v, ok := d.GetOk("service"); ok {
+				serviceSet = v.(*schema.Set)
+			}
+			var teamSet *schema.Set
+			if v, ok := d.GetOk("team"); ok {
+				teamSet = v.(*schema.Set)
+			}
+
+			hasUserOrService := hasSlug(userSet, currentSlug) || hasSlug(serviceSet, currentSlug)
+			teamCount := 0
+			if teamSet != nil {
+				teamCount = teamSet.Len()
+			}
+
+			if !hasUserOrService {
+				if teamCount == 0 {
+					return fmt.Errorf("repository_privileges: authenticated account slug '%s' must be included (user or service block) OR at least one team block must be defined to avoid potential lockout", currentSlug)
+				}
+				log.Printf("[WARN] repository_privileges (plan): authenticated account slug '%s' not explicitly included via user/service; ensure team-based access is sufficient to avoid lockout.", currentSlug)
+			}
+
+			return nil
+		},
 
 		Importer: &schema.ResourceImporter{
 			StateContext: importRepositoryPrivileges,
