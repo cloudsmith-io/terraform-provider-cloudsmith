@@ -51,7 +51,7 @@ resource "cloudsmith_repository_privileges" "test" {
 	}
 
 	# Include the authenticated account explicitly to satisfy lockout safeguard.
-	user {
+	service {
 		privilege = "Admin"
 		slug      = data.cloudsmith_user_self.current.slug
 	}
