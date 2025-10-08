@@ -133,7 +133,7 @@ resource "cloudsmith_repository" "test" {
 }
 
 resource "cloudsmith_repository_upstream" "ubuntu" {
-    distro_versions = ["ubuntu/trusty", "ubuntu/xenial"]
+    distro_versions = ["ubuntu/trusty"]
     namespace       = cloudsmith_repository.test.namespace
     repository      = cloudsmith_repository.test.slug
 	name            = cloudsmith_repository.test.name
