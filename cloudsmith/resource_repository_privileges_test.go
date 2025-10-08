@@ -83,6 +83,8 @@ resource "cloudsmith_service" "test" {
 	role         = "Member"
 }
 
+data "cloudsmith_user_self" "current" {}
+
 resource "cloudsmith_repository_privileges" "test" {
     organization = cloudsmith_repository.test.namespace
     repository   = cloudsmith_repository.test.slug
@@ -90,6 +92,12 @@ resource "cloudsmith_repository_privileges" "test" {
 	service {
 		privilege = "Read"
 		slug      = cloudsmith_service.test.slug
+	}
+
+	# Include the authenticated account explicitly to satisfy lockout safeguard.
+	service {
+		privilege = "Admin"
+		slug      = data.cloudsmith_user_self.current.slug
 	}
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
@@ -106,6 +114,8 @@ resource "cloudsmith_service" "test" {
 	role         = "Member"
 }
 
+data "cloudsmith_user_self" "current" {}
+
 resource "cloudsmith_repository_privileges" "test" {
     organization = cloudsmith_repository.test.namespace
     repository   = cloudsmith_repository.test.slug
@@ -113,6 +123,12 @@ resource "cloudsmith_repository_privileges" "test" {
 	service {
 		privilege = "Write"
 		slug      = cloudsmith_service.test.slug
+	}
+
+	# Include the authenticated account explicitly to satisfy lockout safeguard.
+	user {
+		privilege = "Admin"
+		slug      = data.cloudsmith_user_self.current.slug
 	}
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
