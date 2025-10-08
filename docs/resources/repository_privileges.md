@@ -4,8 +4,8 @@ The repository privileges resource allows the management of privileges for a giv
 
 Note that while users can be added to repositories in this manner, since Terraform does not (and cannot currently) manage those user accounts, you may encounter issues if the users change or are deleted outside of Terraform.
 
-> [!WARNING] Important: When a repository is first created in Cloudsmith the creating account (user or service account that owns the API key) is automatically granted an implicit Admin privilege. 
-When you later manage privileges via this resource you must explicitly include that account (using a `user` or `service` block with the appropriate `slug`) or the provider will refuse to apply the change to prevent locking you out, you will still be able to apply changes if a `team` block is present, however, you must make sure that the account has sufficient permission within the team or lockout can still occur.
+> [!WARNING] Important: When a repository is first created in Cloudsmith, the creating account (user or service account that owns the API key) is automatically granted an implicit Admin privilege. 
+When you later manage privileges via this resource, you must explicitly include that account (using a `user` or `service` block with the appropriate `slug`). Otherwise, the provider will refuse to apply the change to prevent locking you out. You will still be able to apply changes if a `team` block is present. However, you must make sure that the account has sufficient permission within the team, or lockout can still occur.
 
 See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories/repository-settings#repository-privileges) for full permissions documentation.
 

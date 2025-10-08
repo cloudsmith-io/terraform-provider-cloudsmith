@@ -188,7 +188,7 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 	privileges = append(privileges, expandRepositoryPrivilegeTeams(d)...)
 	privileges = append(privileges, expandRepositoryPrivilegeUsers(d)...)
 
-	// Only hard error if the authenticated account is NOT present in any user/service block
+	// Only return an error if the authenticated account is NOT present in any user/service block
 	// AND there are NO team blocks defined. If team blocks are present, emit a warning only.
 	userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
 	userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
