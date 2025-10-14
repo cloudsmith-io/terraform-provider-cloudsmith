@@ -18,6 +18,109 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func TestAccRepositoryUpstreamCargo_basic(t *testing.T) {
+	t.Parallel()
+
+	const cargoUpstreamResourceName = "cloudsmith_repository_upstream.crates_io"
+
+	testAccRepositoryCargoUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-cargo"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "crates_io" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "cargo"
+    upstream_url  = "https://index.crates.io"
+}
+`, namespace)
+
+	testAccRepositoryCargoUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-cargo"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "crates_io" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Proxy Only"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "cargo"
+	    upstream_url   = "https://index.crates.io"
+	    verify_ssl     = false
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(cargoUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryCargoUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryCargoUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(cargoUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(cargoUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(cargoUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: cargoUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[cargoUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamDart_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1424,6 +1527,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		var err error
 
 		switch upstreamType {
+		case Cargo:
+			req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
 		case Composer:
 			req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
