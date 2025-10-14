@@ -111,6 +111,18 @@ resource "cloudsmith_repository_upstream" "other_docker_upstream" {
 }
 ```
 
+### Go
+
+```hcl
+resource "cloudsmith_repository_upstream" "go_proxy" {
+    name          = "Go Proxy"
+    namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
+    upstream_type = "go"
+    upstream_url  = "https://proxy.golang.org"
+}
+```
+
 ### Helm
 
 ```hcl
@@ -235,7 +247,7 @@ The following arguments are supported:
 |       `priority`        |    N     |    number    |                                                           N/A                                                           |                                                                      Upstream sources are selected for resolving requests by sequential order (1..n), followed by creation date.                                                                      |
 |      `repository`       |    Y     |    string    |                                                           N/A                                                           |                                                                                                     The Repository to which the upstream belongs.                                                                                                     |
 | `upstream_distribution` |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"deb"` to declare the [distribution](https://wiki.debian.org/DebianRepository/Format#Overview) to fetch from the upstream.                                    |
-|     `upstream_type`     |    Y     |    string    | `"composer"`<br>`"cran"`<br>`"dart"`<br>`"deb"`<br>`"docker"`<br>`"helm"`<br>`"maven"`<br>`"npm"`<br>`"nuget"`<br>`"python"`<br>`"rpm"`<br>`"ruby"`<br>`"swift"` | The type of Upstream. |
+|     `upstream_type`     |    Y     |    string    | `"composer"`<br>`"cran"`<br>`"dart"`<br>`"deb"`<br>`"docker"`<br>`"go"`<br>`"helm"`<br>`"maven"`<br>`"npm"`<br>`"nuget"`<br>`"python"`<br>`"rpm"`<br>`"ruby"`<br>`"swift"` | The type of Upstream. |
 |     `upstream_url`      |    Y     |    string    |                                                           N/A                                                           |                                                    The URL for this upstream source. This must be a fully qualified URL including any path elements required to reach the root of the repository. The URL cannot end with a trailing slash.                                                     |
 |      `verify_ssl`       |    N     |     bool     |                                                           N/A                                                           | If enabled, SSL certificates are verified when requests are made to this upstream. It's recommended to leave this enabled for all public sources to help mitigate Man-In-The-Middle (MITM) attacks. Please note this only applies to HTTPS upstreams. |
 

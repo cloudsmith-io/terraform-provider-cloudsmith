@@ -450,6 +450,109 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 	})
 }
 
+func TestAccRepositoryUpstreamGo_basic(t *testing.T) {
+	t.Parallel()
+
+	const goUpstreamResourceName = "cloudsmith_repository_upstream.go_proxy"
+
+	testAccRepositoryGoUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-go"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "go_proxy" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "go"
+    upstream_url  = "https://proxy.golang.org"
+}
+`, namespace)
+
+	testAccRepositoryGoUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-go"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "go_proxy" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Proxy Only"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "go"
+	    upstream_url   = "https://proxy.golang.org"
+	    verify_ssl     = false
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(goUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryGoUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(goUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryGoUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(goUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(goUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(goUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: goUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[goUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamHelm_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1336,6 +1439,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Docker:
 			req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+		case Go:
+			req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
 		case Helm:
 			req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)

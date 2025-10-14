@@ -19,6 +19,7 @@ const (
 	Dart     = "dart"
 	Deb      = "deb"
 	Docker   = "docker"
+	Go       = "go"
 	Helm     = "helm"
 	Maven    = "maven"
 	Npm      = "npm"
@@ -71,6 +72,7 @@ var (
 		Dart,
 		Deb,
 		Docker,
+		Go,
 		Helm,
 		Maven,
 		Npm,
@@ -295,6 +297,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			}
 			return execErr
 		}
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoCreateExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -498,6 +518,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
@@ -723,6 +746,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 		if execErr != nil {
 			return execErr
 		}
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamGoUpdateExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -920,6 +961,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamDockerDeleteExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamGoDeleteExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamHelmDeleteExecute(req)
