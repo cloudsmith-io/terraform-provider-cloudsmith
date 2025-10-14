@@ -856,6 +856,99 @@ resource "cloudsmith_repository_upstream" "helm" {
 	})
 }
 
+func TestAccRepositoryUpstreamHuggingface_basic(t *testing.T) {
+	t.Parallel()
+
+	const huggingfaceUpstreamResourceName = "cloudsmith_repository_upstream.hugging_face"
+
+	testAccRepositoryHuggingfaceUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-huggingface"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "hugging_face" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "huggingface"
+    upstream_url  = "https://huggingface.co"
+}
+`, namespace)
+
+	testAccRepositoryHuggingfaceUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-huggingface"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "hugging_face" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    namespace      = cloudsmith_repository.test.namespace
+	    repository     = cloudsmith_repository.test.slug
+		name           = cloudsmith_repository.test.name
+	    upstream_type  = "huggingface"
+	    upstream_url   = "https://huggingface.co"
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(huggingfaceUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryHuggingfaceUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckResourceAttrSet(huggingfaceUpstreamResourceName, CreatedAt),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, Name, "terraform-acc-test-upstream-huggingface"),
+					resource.TestCheckResourceAttrSet(huggingfaceUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, UpstreamType, "huggingface"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, UpstreamUrl, "https://huggingface.co"),
+					resource.TestCheckResourceAttrSet(huggingfaceUpstreamResourceName, UpdatedAt),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryHuggingfaceUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraHeader1, "X-Custom-Header"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraHeader2, "Access-Control-Allow-Origin"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraValue1, "custom-value"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, ExtraValue2, "*"),
+					resource.TestCheckResourceAttr(huggingfaceUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: huggingfaceUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[huggingfaceUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamMaven_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1647,6 +1740,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Helm:
 			req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+		case HuggingFace:
+			req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
 		case Maven:
 			req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)

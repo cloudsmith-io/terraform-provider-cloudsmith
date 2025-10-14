@@ -14,22 +14,23 @@ import (
 
 // upstream types
 const (
-	Cargo    = "cargo"
-	Composer = "composer"
-	Conda    = "conda"
-	Cran     = "cran"
-	Dart     = "dart"
-	Deb      = "deb"
-	Docker   = "docker"
-	Go       = "go"
-	Helm     = "helm"
-	Maven    = "maven"
-	Npm      = "npm"
-	NuGet    = "nuget"
-	Python   = "python"
-	Rpm      = "rpm"
-	Ruby     = "ruby"
-	Swift    = "swift"
+	Cargo       = "cargo"
+	Composer    = "composer"
+	Conda       = "conda"
+	Cran        = "cran"
+	Dart        = "dart"
+	Deb         = "deb"
+	Docker      = "docker"
+	Go          = "go"
+	Helm        = "helm"
+	HuggingFace = "huggingface"
+	Maven       = "maven"
+	Npm         = "npm"
+	NuGet       = "nuget"
+	Python      = "python"
+	Rpm         = "rpm"
+	Ruby        = "ruby"
+	Swift       = "swift"
 )
 
 // tf state prop names
@@ -78,6 +79,7 @@ var (
 		Docker,
 		Go,
 		Helm,
+		HuggingFace,
 		Maven,
 		Npm,
 		NuGet,
@@ -373,6 +375,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmCreateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreateExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.MavenUpstreamRequest{
@@ -570,6 +590,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
@@ -864,6 +887,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHelmUpdateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdateExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.MavenUpstreamRequest{
@@ -1055,6 +1096,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamHelmDeleteExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDeleteExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamMavenDeleteExecute(req)
