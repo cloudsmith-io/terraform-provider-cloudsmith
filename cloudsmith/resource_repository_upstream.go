@@ -16,6 +16,7 @@ import (
 const (
 	Cargo    = "cargo"
 	Composer = "composer"
+	Conda    = "conda"
 	Cran     = "cran"
 	Dart     = "dart"
 	Deb      = "deb"
@@ -70,6 +71,7 @@ var (
 	upstreamTypes = []string{
 		Cargo,
 		Composer,
+		Conda,
 		Cran,
 		Dart,
 		Deb,
@@ -224,6 +226,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerCreateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaCreateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -529,6 +549,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
@@ -698,6 +721,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamComposerUpdateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCondaUpdateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -993,6 +1034,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamComposerDeleteExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCondaDeleteExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamCranDeleteExecute(req)

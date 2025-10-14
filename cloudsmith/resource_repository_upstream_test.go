@@ -121,6 +121,99 @@ resource "cloudsmith_repository_upstream" "crates_io" {
 	})
 }
 
+func TestAccRepositoryUpstreamConda_basic(t *testing.T) {
+	t.Parallel()
+
+	const condaUpstreamResourceName = "cloudsmith_repository_upstream.conda_forge"
+
+	testAccRepositoryCondaUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-conda"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "conda_forge" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "conda"
+    upstream_url  = "https://conda.anaconda.org/conda-forge"
+}
+`, namespace)
+
+	testAccRepositoryCondaUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-conda"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "conda_forge" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    namespace      = cloudsmith_repository.test.namespace
+	    repository     = cloudsmith_repository.test.slug
+		name           = cloudsmith_repository.test.name
+	    upstream_type  = "conda"
+	    upstream_url   = "https://conda.anaconda.org/conda-forge"
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(condaUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryCondaUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckResourceAttrSet(condaUpstreamResourceName, CreatedAt),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, Name, "terraform-acc-test-upstream-conda"),
+					resource.TestCheckResourceAttrSet(condaUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, UpstreamType, "conda"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, UpstreamUrl, "https://conda.anaconda.org/conda-forge"),
+					resource.TestCheckResourceAttrSet(condaUpstreamResourceName, UpdatedAt),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryCondaUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader1, "X-Custom-Header"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader2, "Access-Control-Allow-Origin"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue1, "custom-value"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue2, "*"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: condaUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[condaUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamDart_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1533,6 +1626,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Composer:
 			req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
+		case Conda:
+			req := pc.APIClient.ReposApi.ReposUpstreamCondaRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
 		case Cran:
 			req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
