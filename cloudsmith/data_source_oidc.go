@@ -34,7 +34,9 @@ func dataSourceOidcRead(d *schema.ResourceData, m interface{}) error {
 			mappingClaim = *mc
 		}
 	}
-	d.Set("mapping_claim", mappingClaim)
+	if err := d.Set("mapping_claim", mappingClaim); err != nil {
+		return fmt.Errorf("error setting mapping_claim: %w", err)
+	}
 
 	// Retrieve dynamic mappings if available
 	apiMappings, err := retrieveAllDynamicMappings(pc, namespace, slugPerm)
