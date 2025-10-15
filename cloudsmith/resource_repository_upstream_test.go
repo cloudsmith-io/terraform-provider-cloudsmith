@@ -949,6 +949,99 @@ resource "cloudsmith_repository_upstream" "hugging_face" {
 	})
 }
 
+func TestAccRepositoryUpstreamHex_basic(t *testing.T) {
+	t.Parallel()
+
+	const hexUpstreamResourceName = "cloudsmith_repository_upstream.hex"
+
+	testAccRepositoryHexUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-hex"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "hex" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "hex"
+    upstream_url  = "https://repo.hex.pm"
+}
+`, namespace)
+
+	testAccRepositoryHexUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-hex"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "hex" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    namespace      = cloudsmith_repository.test.namespace
+	    repository     = cloudsmith_repository.test.slug
+		name           = cloudsmith_repository.test.name
+	    upstream_type  = "hex"
+	    upstream_url   = "https://repo.hex.pm"
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(hexUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryHexUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckResourceAttrSet(hexUpstreamResourceName, CreatedAt),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, Name, "terraform-acc-test-upstream-hex"),
+					resource.TestCheckResourceAttrSet(hexUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, UpstreamType, "hex"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, UpstreamUrl, "https://repo.hex.pm"),
+					resource.TestCheckResourceAttrSet(hexUpstreamResourceName, UpdatedAt),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryHexUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraHeader1, "X-Custom-Header"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraHeader2, "Access-Control-Allow-Origin"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue1, "custom-value"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue2, "*"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: hexUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[hexUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamMaven_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1740,6 +1833,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Helm:
 			req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+		case Hex:
+			req := pc.APIClient.ReposApi.ReposUpstreamHexRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
 		case HuggingFace:
 			req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)

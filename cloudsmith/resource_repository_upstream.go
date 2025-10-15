@@ -23,6 +23,7 @@ const (
 	Docker      = "docker"
 	Go          = "go"
 	Helm        = "helm"
+	Hex         = "hex"
 	HuggingFace = "huggingface"
 	Maven       = "maven"
 	Npm         = "npm"
@@ -79,6 +80,7 @@ var (
 		Docker,
 		Go,
 		Helm,
+		Hex,
 		HuggingFace,
 		Maven,
 		Npm,
@@ -375,6 +377,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmCreateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexCreateExecute(req)
 	case HuggingFace:
 		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
@@ -590,6 +610,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
 	case HuggingFace:
 		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
@@ -887,6 +910,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHelmUpdateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHexUpdateExecute(req)
 	case HuggingFace:
 		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
@@ -1096,6 +1137,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamHelmDeleteExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHexDeleteExecute(req)
 	case HuggingFace:
 		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDeleteExecute(req)
