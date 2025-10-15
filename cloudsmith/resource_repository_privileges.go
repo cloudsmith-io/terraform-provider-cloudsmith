@@ -3,6 +3,7 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -19,6 +20,44 @@ var (
 		"Read",
 	}
 )
+
+// containsAccountSlug returns true if any privilege entry contains the provided slug
+// either as a user or service.
+func containsAccountSlug(privs []cloudsmith.RepositoryPrivilegeDict, slug string) bool {
+	for _, p := range privs {
+		if p.HasUser() && p.GetUser() == slug {
+			return true
+		}
+		if p.HasService() && p.GetService() == slug {
+			return true
+		}
+	}
+	return false
+}
+
+// containsTeam returns true if any privilege entry references a team.
+func containsTeam(privs []cloudsmith.RepositoryPrivilegeDict) bool {
+	for _, p := range privs {
+		if p.HasTeam() {
+			return true
+		}
+	}
+	return false
+}
+
+// setContainsSlug returns true if the *schema.Set contains an element whose slug matches key.
+func setContainsSlug(set *schema.Set, key string) bool {
+	if set == nil {
+		return false
+	}
+	for _, x := range set.List() {
+		m := x.(map[string]interface{})
+		if m["slug"].(string) == key {
+			return true
+		}
+	}
+	return false
+}
 
 // expandRepositoryPrivilegeServices extracts "services" from TF state as a *schema.Set and converts to
 // a slice of structs we can use when interacting with the Cloudsmith API.
@@ -149,12 +188,31 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 	privileges = append(privileges, expandRepositoryPrivilegeTeams(d)...)
 	privileges = append(privileges, expandRepositoryPrivilegeUsers(d)...)
 
+	// Only return an error if the authenticated account is NOT present in any user/service block
+	// AND there are NO team blocks defined. If team blocks are present, emit a warning only.
+	userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
+	userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
+	if err != nil {
+		return fmt.Errorf("error retrieving authenticated account for lockout prevention: %w", err)
+	}
+	currentSlug := userSelf.GetSlug()
+
+	if !containsAccountSlug(privileges, currentSlug) {
+		if !containsTeam(privileges) {
+			return fmt.Errorf(
+				"repository_privileges (%s.%s): configuration must include authenticated account slug '%s' (user or service block) OR at least one team block to avoid potential lockout",
+				organization, repository, currentSlug,
+			)
+		}
+		log.Printf("[WARN] repository_privileges (%s.%s): authenticated account slug '%s' not explicitly included via user/service; ensure access via configured teams to avoid lockout.", organization, repository, currentSlug)
+	}
+
 	req := pc.APIClient.ReposApi.ReposPrivilegesUpdate(pc.Auth, organization, repository)
 	req = req.Data(cloudsmith.RepositoryPrivilegeInputRequest{
 		Privileges: privileges,
 	})
 
-	_, err := pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
+	_, err = pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
 	if err != nil {
 		return err
 	}
@@ -255,6 +313,47 @@ func resourceRepositoryPrivileges() *schema.Resource {
 		Read:   resourceRepositoryPrivilegesRead,
 		Update: resourceRepositoryPrivilegesCreateUpdate,
 		Delete: resourceRepositoryPrivilegesDelete,
+
+		// Plan-time validation to surface lockout risk earlier than apply. We still
+		// keep the apply-time safety net in Create/Update for defense in depth.
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			pc := meta.(*providerConfig)
+			userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
+			userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
+			if err != nil {
+				// If we cannot determine the current user, defer to apply-time logic.
+				return nil
+			}
+			currentSlug := userSelf.GetSlug()
+
+			var userSet *schema.Set
+			if v, ok := d.GetOk("user"); ok {
+				userSet = v.(*schema.Set)
+			}
+			var serviceSet *schema.Set
+			if v, ok := d.GetOk("service"); ok {
+				serviceSet = v.(*schema.Set)
+			}
+			var teamSet *schema.Set
+			if v, ok := d.GetOk("team"); ok {
+				teamSet = v.(*schema.Set)
+			}
+
+			hasUserOrService := setContainsSlug(userSet, currentSlug) || setContainsSlug(serviceSet, currentSlug)
+			teamCount := 0
+			if teamSet != nil {
+				teamCount = teamSet.Len()
+			}
+
+			if !hasUserOrService {
+				if teamCount == 0 {
+					return fmt.Errorf("repository_privileges: authenticated account slug '%s' must be included (user or service block) OR at least one team block must be defined to avoid potential lockout", currentSlug)
+				}
+				log.Printf("[WARN] repository_privileges (plan): authenticated account slug '%s' not explicitly included via user/service; ensure team-based access is sufficient to avoid lockout.", currentSlug)
+			}
+
+			return nil
+		},
 
 		Importer: &schema.ResourceImporter{
 			StateContext: importRepositoryPrivileges,
