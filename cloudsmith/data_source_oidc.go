@@ -43,7 +43,9 @@ func dataSourceOidcRead(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error retrieving dynamic mappings: %w", err)
 	}
-	d.Set("dynamic_mappings", convertMappingsToSetElems(apiMappings))
+	if err := d.Set("dynamic_mappings", convertMappingsToSetElems(apiMappings)); err != nil {
+		return fmt.Errorf("error setting dynamic_mappings: %w", err)
+	}
 
 	d.SetId(fmt.Sprintf("%s.%s", namespace, slugPerm))
 
