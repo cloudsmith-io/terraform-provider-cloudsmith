@@ -45,7 +45,7 @@ The following arguments are supported:
 * `repository` - (Required) If true, the retention rules will be activated for the repository and settings will be updated.
 * `retention_enabled` - (Required) If true, the retention rules will be activated for the repository and settings will be updated.
 * `retention_count_limit` - (Optional) The maximum number of packages to retain. Must be between 0 and 10000.
-* `retention_days_limit` - (Optional) The number of days of packages to retain. Must be between `0` and `180`.
+* `retention_days_limit` - (Optional) The number of days of packages to retain. Must be between `0` and `180`. Default set to 28 days as part of repository creation.
 * `retention_group_by_name` - (Optional) If true, retention will apply to groups of packages by name rather than all packages.
 * `retention_group_by_format` - (Optional) If true, retention will apply to packages by package formats rather than across all package formats.
 * `retention_group_by_package_type` - (Optional) If true, retention will apply to packages by package type rather than across all package types for one or more formats.
