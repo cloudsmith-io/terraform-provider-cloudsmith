@@ -14,19 +14,24 @@ import (
 
 // upstream types
 const (
-	Composer = "composer"
-	Cran     = "cran"
-	Dart     = "dart"
-	Deb      = "deb"
-	Docker   = "docker"
-	Helm     = "helm"
-	Maven    = "maven"
-	Npm      = "npm"
-	NuGet    = "nuget"
-	Python   = "python"
-	Rpm      = "rpm"
-	Ruby     = "ruby"
-	Swift    = "swift"
+	Cargo       = "cargo"
+	Composer    = "composer"
+	Conda       = "conda"
+	Cran        = "cran"
+	Dart        = "dart"
+	Deb         = "deb"
+	Docker      = "docker"
+	Go          = "go"
+	Helm        = "helm"
+	Hex         = "hex"
+	HuggingFace = "huggingface"
+	Maven       = "maven"
+	Npm         = "npm"
+	NuGet       = "nuget"
+	Python      = "python"
+	Rpm         = "rpm"
+	Ruby        = "ruby"
+	Swift       = "swift"
 )
 
 // tf state prop names
@@ -66,12 +71,17 @@ var (
 		"Cache Only",
 	}
 	upstreamTypes = []string{
+		Cargo,
 		Composer,
+		Conda,
 		Cran,
 		Dart,
 		Deb,
 		Docker,
+		Go,
 		Helm,
+		Hex,
+		HuggingFace,
 		Maven,
 		Npm,
 		NuGet,
@@ -184,6 +194,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CargoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoCreateExecute(req)
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.ComposerUpstreamRequest{
@@ -202,6 +230,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerCreateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaCreateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -295,6 +341,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			}
 			return execErr
 		}
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoCreateExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -313,6 +377,42 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmCreateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexCreateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreateExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.MavenUpstreamRequest{
@@ -483,9 +583,15 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	var upstream Upstream
 
 	switch upstreamType {
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
@@ -498,9 +604,18 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
@@ -616,6 +731,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CargoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCargoUpdateExecute(req)
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.ComposerUpstreamRequest{
@@ -634,6 +767,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamComposerUpdateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCondaUpdateExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.CranUpstreamRequest{
@@ -723,6 +874,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 		if execErr != nil {
 			return execErr
 		}
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamGoUpdateExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.HelmUpstreamRequest{
@@ -741,6 +910,42 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHelmUpdateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHexUpdateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdateExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.MavenUpstreamRequest{
@@ -905,9 +1110,15 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCargoDeleteExecute(req)
 	case Composer:
 		req := pc.APIClient.ReposApi.ReposUpstreamComposerDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamComposerDeleteExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCondaDeleteExecute(req)
 	case Cran:
 		req := pc.APIClient.ReposApi.ReposUpstreamCranDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamCranDeleteExecute(req)
@@ -920,9 +1131,18 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamDockerDeleteExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamGoDeleteExecute(req)
 	case Helm:
 		req := pc.APIClient.ReposApi.ReposUpstreamHelmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamHelmDeleteExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHexDeleteExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDeleteExecute(req)
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamMavenDeleteExecute(req)
