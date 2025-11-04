@@ -108,7 +108,7 @@ func optionalBool(d *schema.ResourceData, name string) *bool {
 func optionalInt64(d *schema.ResourceData, name string) *int64 {
 	var optionalValue *int64
 
-	if value, ok := d.GetOk(name); ok { //nolint:staticcheck
+	if value, ok := d.GetOkExists(name); ok { //nolint:staticcheck
 		optionalValue = cloudsmith.PtrInt64(int64(value.(int)))
 	}
 
@@ -119,7 +119,7 @@ func optionalInt64(d *schema.ResourceData, name string) *int64 {
 func optionalString(d *schema.ResourceData, name string) *string {
 	var optionalValue *string
 
-	if value, ok := d.GetOk(name); ok {
+	if value, ok := d.GetOkExists(name); ok { //nolint:staticcheck
 		optionalValue = cloudsmith.PtrString(value.(string))
 	}
 

@@ -33,20 +33,9 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
 		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
 		RetentionPackageQueryString: nullableString(d, "retention_package_query_string"),
-	}
-
-	// Explicitly set these values, even if they're zero
-	if d.HasChange("retention_count_limit") {
-		value := int64(d.Get("retention_count_limit").(int))
-		updateData.RetentionCountLimit = &value
-	}
-	if d.HasChange("retention_days_limit") {
-		value := int64(d.Get("retention_days_limit").(int))
-		updateData.RetentionDaysLimit = &value
-	}
-	if d.HasChange("retention_size_limit") {
-		value := int64(d.Get("retention_size_limit").(int))
-		updateData.RetentionSizeLimit = &value
+		RetentionCountLimit:         optionalInt64(d, "retention_count_limit"),
+		RetentionDaysLimit:          optionalInt64(d, "retention_days_limit"),
+		RetentionSizeLimit:          optionalInt64(d, "retention_size_limit"),
 	}
 
 	req = req.Data(updateData)
