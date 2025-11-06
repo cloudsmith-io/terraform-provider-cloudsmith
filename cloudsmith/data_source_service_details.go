@@ -37,20 +37,40 @@ func dataSourceServiceDetailsRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	// Map fields (include API key; may be redacted if not freshly created)
-	d.Set("created_at", service.GetCreatedAt().Format(time.RFC3339))
-	d.Set("created_by", service.GetCreatedBy())
-	d.Set("created_by_url", service.GetCreatedByUrl())
-	d.Set("description", service.GetDescription())
-	d.Set("key", service.GetKey())
+	if err := d.Set("created_at", service.GetCreatedAt().Format(time.RFC3339)); err != nil {
+		return fmt.Errorf("error setting created_at: %w", err)
+	}
+	if err := d.Set("created_by", service.GetCreatedBy()); err != nil {
+		return fmt.Errorf("error setting created_by: %w", err)
+	}
+	if err := d.Set("created_by_url", service.GetCreatedByUrl()); err != nil {
+		return fmt.Errorf("error setting created_by_url: %w", err)
+	}
+	if err := d.Set("description", service.GetDescription()); err != nil {
+		return fmt.Errorf("error setting description: %w", err)
+	}
+	if err := d.Set("key", service.GetKey()); err != nil {
+		return fmt.Errorf("error setting key: %w", err)
+	}
 	if service.HasKeyExpiresAt() {
 		// key_expires_at only populated if org has API key policy
-		d.Set("key_expires_at", service.GetKeyExpiresAt().Format(time.RFC3339))
+		if err := d.Set("key_expires_at", service.GetKeyExpiresAt().Format(time.RFC3339)); err != nil {
+			return fmt.Errorf("error setting key_expires_at: %w", err)
+		}
 	} else {
-		d.Set("key_expires_at", "")
+		if err := d.Set("key_expires_at", ""); err != nil {
+			return fmt.Errorf("error setting key_expires_at: %w", err)
+		}
 	}
-	d.Set("name", service.GetName())
-	d.Set("role", service.GetRole())
-	d.Set("slug", service.GetSlug())
+	if err := d.Set("name", service.GetName()); err != nil {
+		return fmt.Errorf("error setting name: %w", err)
+	}
+	if err := d.Set("role", service.GetRole()); err != nil {
+		return fmt.Errorf("error setting role: %w", err)
+	}
+	if err := d.Set("slug", service.GetSlug()); err != nil {
+		return fmt.Errorf("error setting slug: %w", err)
+	}
 	if err := d.Set("teams", flattenServiceTeamsDS(service.GetTeams())); err != nil {
 		return fmt.Errorf("error setting teams: %w", err)
 	}
