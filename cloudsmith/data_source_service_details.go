@@ -42,11 +42,12 @@ func dataSourceServiceDetailsRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("created_by_url", service.GetCreatedByUrl())
 	d.Set("description", service.GetDescription())
 	d.Set("key", service.GetKey())
+	keyExpiresAt := ""
 	if service.HasKeyExpiresAt() {
-		// key_expires_at only populated if org has API key policy
-		d.Set("key_expires_at", service.GetKeyExpiresAt().Format(time.RFC3339))
-	} else {
-		d.Set("key_expires_at", "")
+		keyExpiresAt = service.GetKeyExpiresAt().Format(time.RFC3339)
+	}
+	if err := d.Set("key_expires_at", keyExpiresAt); err != nil {
+		return fmt.Errorf("error setting key_expires_at: %w", err)
 	}
 	d.Set("name", service.GetName())
 	d.Set("role", service.GetRole())

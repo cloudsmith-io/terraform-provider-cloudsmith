@@ -18,12 +18,12 @@ func dataSourceTeamMembersRead(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.OrgsApi.OrgsTeamsMembersList(pc.Auth, organization, teamName)
 	teamMembers, resp, err := pc.APIClient.OrgsApi.OrgsTeamsMembersListExecute(req)
+	if is404(resp) {
+		// If either org or team not found, clear state
+		d.SetId("")
+		return nil
+	}
 	if err != nil {
-		if is404(resp) {
-			// If either org or team not found, clear state
-			d.SetId("")
-			return nil
-		}
 		return fmt.Errorf("error retrieving team members for %s/%s: %w", organization, teamName, err)
 	}
 
