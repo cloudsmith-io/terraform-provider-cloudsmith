@@ -41,8 +41,8 @@ func flattenOrganizationTeamMembers(members []cloudsmith.OrganizationTeamMembers
 	out := make([]interface{}, len(members))
 	for i, member := range members {
 		m := make(map[string]interface{})
-		m["role"] = member.Role
-		m["user"] = member.User
+		m["role"] = member.GetRole()
+		m["user"] = member.GetUser()
 		out[i] = m
 	}
 	return out

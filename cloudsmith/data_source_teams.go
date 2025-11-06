@@ -60,7 +60,6 @@ func retrieveTeamListPages(pc *providerConfig, organization string, pageSize int
 	return teams, nil
 }
 
-// flattenTeams converts the API team model into a list of maps for Terraform state.
 // flattenOrgTeams converts a slice of organization teams to terraform list representation.
 func flattenOrgTeams(in []cloudsmith.OrganizationTeam) []interface{} {
 	out := make([]interface{}, len(in))
