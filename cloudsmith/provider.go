@@ -47,6 +47,8 @@ func Provider() *schema.Provider {
 			"cloudsmith_list_org_members":      dataSourceOrganizationMembersList(),
 			"cloudsmith_org_member_details":    dataSourceMemberDetails(),
 			"cloudsmith_user_self":             dataSourceUserSelf(),
+			"cloudsmith_team_list":             dataSourceTeamList(),
+			"cloudsmith_team_members":          dataSourceTeamMembers(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":               resourceEntitlement(),
