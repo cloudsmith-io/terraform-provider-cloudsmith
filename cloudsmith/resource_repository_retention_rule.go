@@ -27,27 +27,25 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	repo := requiredString(d, "repository")
 
 	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+
+	// For integer fields with defaults, we need to always send the value to handle
+	// the case where users explicitly set them to 0 (which would otherwise be
+	// indistinguishable from "not set" using GetOk)
+	retentionCountLimit := int64(d.Get("retention_count_limit").(int))
+	retentionDaysLimit := int64(d.Get("retention_days_limit").(int))
+
 	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
 		RetentionEnabled:            optionalBool(d, "retention_enabled"),
 		RetentionGroupByName:        optionalBool(d, "retention_group_by_name"),
 		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
 		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
 		RetentionPackageQueryString: nullableString(d, "retention_package_query_string"),
+		RetentionCountLimit:         &retentionCountLimit,
+		RetentionDaysLimit:          &retentionDaysLimit,
 	}
 
-	// Explicitly set these values, even if they're zero
-	if d.HasChange("retention_count_limit") {
-		value := int64(d.Get("retention_count_limit").(int))
-		updateData.RetentionCountLimit = &value
-	}
-	if d.HasChange("retention_days_limit") {
-		value := int64(d.Get("retention_days_limit").(int))
-		updateData.RetentionDaysLimit = &value
-	}
-	if d.HasChange("retention_size_limit") {
-		value := int64(d.Get("retention_size_limit").(int))
-		updateData.RetentionSizeLimit = &value
-	}
+	// retention_size_limit has no default, so use optionalInt64 to only send if set
+	updateData.RetentionSizeLimit = optionalInt64(d, "retention_size_limit")
 
 	req = req.Data(updateData)
 
