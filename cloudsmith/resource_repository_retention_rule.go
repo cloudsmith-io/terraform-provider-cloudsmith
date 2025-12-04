@@ -44,8 +44,11 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		RetentionDaysLimit:          &retentionDaysLimit,
 	}
 
-	// retention_size_limit has no default, so use optionalInt64 to only send if set
-	updateData.RetentionSizeLimit = optionalInt64(d, "retention_size_limit")
+	// For retention_size_limit, we need to always send the value to handle
+	// the case where users explicitly set it to 0 (which would otherwise be
+	// indistinguishable from "not set" using GetOk)
+	retentionSizeLimit := int64(d.Get("retention_size_limit").(int))
+	updateData.RetentionSizeLimit = &retentionSizeLimit
 
 	req = req.Data(updateData)
 
