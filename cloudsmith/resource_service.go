@@ -221,7 +221,31 @@ func resourceServiceUpdate(ctx context.Context, d *schema.ResourceData, m interf
 	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
 		return diag.Errorf("error waiting for service (%s) to be updated: %s", d.Id(), err)
 	}
-	if !requiredBool(d, "store_api_key") {
+
+	// If the rotate_api_key field has changed to a non-empty value, trigger an
+	// API key refresh for this service account. The value of rotate_api_key
+	// itself is not sent to the API; it is only used to force a Terraform diff
+	// and therefore an update. Changing it to an empty value (or removing it)
+	// does not trigger a rotation.
+	if d.HasChange("rotate_api_key") {
+		_, newRaw := d.GetChange("rotate_api_key")
+		newVal, _ := newRaw.(string)
+
+		if newVal != "" {
+			refreshReq := pc.APIClient.OrgsApi.OrgsServicesRefresh(pc.Auth, org, d.Id())
+			refreshedService, _, err := pc.APIClient.OrgsApi.OrgsServicesRefreshExecute(refreshReq)
+			if err != nil {
+				return diag.Errorf("error rotating service (%s.%s) API key: %s", org, d.Id(), err)
+			}
+
+			if requiredBool(d, "store_api_key") {
+				d.Set("key", refreshedService.GetKey())
+			} else {
+				d.Set("key", "**redacted**")
+			}
+		}
+	} else if !requiredBool(d, "store_api_key") {
+		// Ensure we never persist the API key in state when store_api_key is false.
 		d.Set("key", "**redacted**")
 	}
 	return resourceServiceRead(ctx, d, m)
@@ -337,6 +361,11 @@ func resourceService() *schema.Resource {
 				Description: "Whether to include the service's API key in Terraform state.",
 				Optional:    true,
 				Default:     true,
+			},
+			"rotate_api_key": {
+				Type:        schema.TypeString,
+				Description: "Arbitrary value used to trigger rotation of the service's API key. Change this value to rotate the key for a service account.",
+				Optional:    true,
 			},
 		},
 	}
