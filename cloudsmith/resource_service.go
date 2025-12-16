@@ -238,14 +238,15 @@ func resourceServiceUpdate(ctx context.Context, d *schema.ResourceData, m interf
 				return diag.Errorf("error rotating service (%s.%s) API key: %s", org, d.Id(), err)
 			}
 
-			if requiredBool(d, "store_api_key") {
-				d.Set("key", refreshedService.GetKey())
-			} else {
-				d.Set("key", "**redacted**")
-			}
+			// Always set the refreshed key first; redaction is handled separately
+			// below based on the current value of store_api_key.
+			d.Set("key", refreshedService.GetKey())
 		}
-	} else if !requiredBool(d, "store_api_key") {
-		// Ensure we never persist the API key in state when store_api_key is false.
+	}
+
+	// Ensure we never persist the API key in state when store_api_key is false,
+	// regardless of whether a rotation took place in this update.
+	if !requiredBool(d, "store_api_key") {
 		d.Set("key", "**redacted**")
 	}
 	return resourceServiceRead(ctx, d, m)

@@ -94,8 +94,17 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					// ensure the resource still exists after rotation
 					testAccServiceCheckExists("cloudsmith_service.test"),
-					// key should still be set after rotation; we don't assert the value
+					// key should still be set after rotation; we don't assert the exact value
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyStoreFalse,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					// when rotating with store_api_key = false, the key must be redacted in state
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "store_api_key", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "**redacted**"),
 				),
 			},
 			{
@@ -111,45 +120,6 @@ func TestAccService_basic(t *testing.T) {
 				},
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"key", "store_api_key", "rotate_api_key"},
-			},
-		},
-	})
-}
-
-// TestAccService_rotate focuses specifically on exercising the rotate_api_key
-// trigger to ensure that rotating a service account's API key works without
-// involving team assignments or import behaviour.
-func TestAccService_rotate(t *testing.T) {
-	t.Parallel()
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccServiceCheckDestroy("cloudsmith_service.test"),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccServiceConfigBasic,
-				Check: resource.ComposeTestCheckFunc(
-					testAccServiceCheckExists("cloudsmith_service.test"),
-					// initial key should be present when store_api_key is true (default)
-					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
-				),
-			},
-			{
-				Config: testAccServiceConfigRotateAPIKeyFirst,
-				Check: resource.ComposeTestCheckFunc(
-					testAccServiceCheckExists("cloudsmith_service.test"),
-					// key should still be set after first rotation
-					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
-				),
-			},
-			{
-				Config: testAccServiceConfigRotateAPIKeySecond,
-				Check: resource.ComposeTestCheckFunc(
-					testAccServiceCheckExists("cloudsmith_service.test"),
-					// key should remain set after subsequent rotations
-					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
-				),
 			},
 		},
 	})
@@ -242,6 +212,15 @@ resource "cloudsmith_service" "test" {
 	name          = "TF Test Service cs"
 	organization  = "%s"
 	rotate_api_key = "second-rotation"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyStoreFalse = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name           = "TF Test Service cs"
+	organization   = "%s"
+	store_api_key  = false
+	rotate_api_key = "third-rotation"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
