@@ -50,7 +50,7 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-          resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
 						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
 						"role": regexp.MustCompile("^Member$"),
 					}),
@@ -82,6 +82,32 @@ func TestAccService_basic(t *testing.T) {
 				),
 			},
 			{
+				Config: testAccServiceConfigRotateAPIKeyFirst,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					// key should be present in state when store_api_key is true
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeySecond,
+				Check: resource.ComposeTestCheckFunc(
+					// ensure the resource still exists after rotation
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					// key should still be set after rotation; we don't assert the exact value
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyStoreFalse,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					// when rotating with store_api_key = false, the key must be redacted in state
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "store_api_key", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "**redacted**"),
+				),
+			},
+			{
 				ResourceName: "cloudsmith_service.test",
 				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
@@ -93,7 +119,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key", "store_api_key"},
+				ImportStateVerifyIgnore: []string{"key", "store_api_key", "rotate_api_key"},
 			},
 		},
 	})
@@ -170,6 +196,31 @@ var testAccServiceConfigBasicUpdateName = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
 	name         = "TF Test Service Updated"
 	organization = "%s"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyFirst = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name          = "TF Test Service cs"
+	organization  = "%s"
+	rotate_api_key = "first-rotation"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeySecond = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name          = "TF Test Service cs"
+	organization  = "%s"
+	rotate_api_key = "second-rotation"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyStoreFalse = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name           = "TF Test Service cs"
+	organization   = "%s"
+	store_api_key  = false
+	rotate_api_key = "third-rotation"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
