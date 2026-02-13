@@ -333,6 +333,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
     namespace       = cloudsmith_repository.test.namespace
     repository      = cloudsmith_repository.test.slug
 	name            = cloudsmith_repository.test.name
+	upstream_distribution = "xenial"
     upstream_type   = "deb"
     upstream_url    = "http://archive.ubuntu.com/ubuntu"
 }
@@ -389,7 +390,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, Priority),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, UpdatedAt),
-					resource.TestCheckResourceAttr(debUpstreamResourceName, UpstreamDistribution, ""),
+					resource.TestCheckResourceAttr(debUpstreamResourceName, UpstreamDistribution, "xenial"),
 					resource.TestCheckResourceAttr(debUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
