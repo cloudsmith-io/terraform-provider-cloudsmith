@@ -33,7 +33,7 @@ func resourceTeamCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.OrgsApi.OrgsTeamsCreate(pc.Auth, org)
 	req = req.Data(cloudsmith.OrganizationTeamRequest{
-		Description: optionalString(d, "description"),
+		Description: nullableString(d, "description"),
 		Name:        requiredString(d, "name"),
 		Slug:        optionalString(d, "slug"),
 		Visibility:  optionalString(d, "visibility"),
@@ -127,7 +127,7 @@ func resourceTeamUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.OrgsApi.OrgsTeamsPartialUpdate(pc.Auth, org, d.Id())
 	req = req.Data(cloudsmith.OrganizationTeamRequestPatch{
-		Description: optionalString(d, "description"),
+		Description: nullableString(d, "description"),
 		Name:        optionalString(d, "name"),
 		Slug:        optionalString(d, "slug"),
 		Visibility:  optionalString(d, "visibility"),
