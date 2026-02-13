@@ -21,6 +21,7 @@ const (
 	Dart        = "dart"
 	Deb         = "deb"
 	Docker      = "docker"
+	Generic     = "generic"
 	Go          = "go"
 	Helm        = "helm"
 	Hex         = "hex"
@@ -51,6 +52,7 @@ const (
 	Mode                 = "mode"
 	Priority             = "priority"
 	UpstreamDistribution = "upstream_distribution"
+	UpstreamPrefix       = "upstream_prefix"
 	UpstreamType         = "upstream_type"
 	UpstreamUrl          = "upstream_url"
 	VerifySsl            = "verify_ssl"
@@ -78,6 +80,7 @@ var (
 		Dart,
 		Deb,
 		Docker,
+		Generic,
 		Go,
 		Helm,
 		Hex,
@@ -341,6 +344,25 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			}
 			return execErr
 		}
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.GenericUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamPrefix: optionalString(d, UpstreamPrefix),
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericCreateExecute(req)
 	case Go:
 		req := pc.APIClient.ReposApi.ReposUpstreamGoCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.GoUpstreamRequest{
@@ -604,6 +626,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericReadExecute(req)
 	case Go:
 		req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
@@ -690,6 +715,8 @@ func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error
 		_ = d.Set(DistroVersions, flattenStrings(u.GetDistroVersions()))
 		_ = d.Set(IncludeSources, u.GetIncludeSources())
 		_ = d.Set(UpstreamDistribution, u.GetUpstreamDistribution())
+	case *cloudsmith.GenericUpstream:
+		_ = d.Set(UpstreamPrefix, u.GetUpstreamPrefix())
 	case *cloudsmith.RpmUpstream:
 		_ = d.Set(DistroVersion, u.GetDistroVersion())
 		_ = d.Set(IncludeSources, u.GetIncludeSources())
@@ -874,6 +901,25 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 		if execErr != nil {
 			return execErr
 		}
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.GenericUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamPrefix: optionalString(d, UpstreamPrefix),
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamGenericUpdateExecute(req)
 	case Go:
 		req := pc.APIClient.ReposApi.ReposUpstreamGoUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.GoUpstreamRequest{
@@ -1131,6 +1177,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Docker:
 		req := pc.APIClient.ReposApi.ReposUpstreamDockerDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamDockerDeleteExecute(req)
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamGenericDeleteExecute(req)
 	case Go:
 		req := pc.APIClient.ReposApi.ReposUpstreamGoDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamGoDeleteExecute(req)
@@ -1356,6 +1405,12 @@ func resourceRepositoryUpstream() *schema.Resource {
 				Description:  "(deb only) The distribution to fetch from the upstream.",
 				Optional:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			UpstreamPrefix: {
+				Type:        schema.TypeString,
+				Description: "(generic only) A unique prefix used to distinguish this upstream source within the repository. Requests including this prefix are routed to this upstream.",
+				Optional:    true,
+				Computed:    true,
 			},
 			UpstreamType: {
 				Type:         schema.TypeString,
