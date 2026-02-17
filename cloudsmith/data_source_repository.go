@@ -19,6 +19,7 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.Set("cdn_url", repository.GetCdnUrl())
+	d.Set("broadcast_state", repository.GetBroadcastState())
 	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
 	d.Set("copy_own", repository.GetCopyOwn())
 	d.Set("copy_packages", repository.GetCopyPackages())
@@ -79,6 +80,11 @@ func dataSourceRepository() *schema.Resource {
 			"cdn_url": {
 				Type:        schema.TypeString,
 				Description: "Base URL from which packages and other artifacts are downloaded.",
+				Computed:    true,
+			},
+			"broadcast_state": {
+				Type:        schema.TypeString,
+				Description: "The broadcast state of the repository.",
 				Computed:    true,
 			},
 			"contextual_auth_realm": {
