@@ -25,6 +25,7 @@ resource "cloudsmith_repository" "my_repository" {
 
 ## Argument Reference
 
+* `broadcast_state` - (Optional) The broadcast state of the repository. Controls repository visibility and access level for broadcasts. Valid values include `Off`, `Private`, `Internal`, `Public`, and `Open-Source`. Defaults to `Off`.
 * `contextual_auth_realm` - (Optional) If set to `true`, missing credentials for this repository where basic authentication is required shall present an enriched value in the 'WWW-Authenticate' header containing the namespace and repository. This can be useful for tooling such as SBT where the authentication realm is used to distinguish and disambiguate credentials.
 * `copy_own` - (Optional) If set to `true`, users can copy any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `copy_packages` - (Optional) This defines the minimum level of privilege required for a user to copy packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific copy setting. Valid values include `Admin`, `Read`, and `Write`.
@@ -75,6 +76,7 @@ resource "cloudsmith_repository" "my_repository" {
 ## Attribute Reference
 
 * `cdn_url` - Base URL from which packages and other artifacts are downloaded.
+* `broadcast_state` - The broadcast state of the repository. Controls repository visibility and access level for broadcasts.
 * `contextual_auth_realm` - If set to `true`, missing credentials for this repository where basic authentication is required shall present an enriched value in the 'WWW-Authenticate' header containing the namespace and repository. This can be useful for tooling such as SBT where the authentication realm is used to distinguish and disambiguate credentials.
 * `copy_own` - If set to `true`, users can copy any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `copy_packages` - This defines the minimum level of privilege required for a user to copy packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific copy setting.
