@@ -67,6 +67,7 @@ func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
 
 	for i, t := range token {
 		token := make(map[string]interface{})
+		token["access_private_broadcasts"] = t.GetAccessPrivateBroadcasts()
 		token["clients"] = t.GetClients()
 		token["created_at"] = t.GetCreatedAt().Format(time.RFC3339)
 		token["created_by"] = t.GetCreatedBy()
@@ -174,6 +175,11 @@ func dataSourceEntitlementList() *schema.Resource {
 				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
+						"access_private_broadcasts": {
+							Type:        schema.TypeBool,
+							Description: "If enabled, this token can be used for private broadcasts.",
+							Computed:    true,
+						},
 						"clients": {
 							Type:        schema.TypeInt,
 							Description: "Number of clients associated with the entitlement token.",
