@@ -46,7 +46,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace)
 	req = req.Data(cloudsmith.RepositoryCreateRequest{
-		BroadcastState:                  optionalString(d, "broadcast_state"),
+		BroadcastState:                   optionalString(d, "broadcast_state"),
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
@@ -203,7 +203,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
 	req = req.Data(cloudsmith.RepositoryRequestPatch{
-		BroadcastState:                  optionalString(d, "broadcast_state"),
+		BroadcastState:                   optionalString(d, "broadcast_state"),
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
