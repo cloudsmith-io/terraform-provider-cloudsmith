@@ -40,6 +40,7 @@ func TestAccRepository_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "is_public", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "replace_packages_by_default", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "broadcast_state", "Off"),
 				),
 			},
 			{
@@ -53,11 +54,16 @@ func TestAccRepository_basic(t *testing.T) {
 				ExpectError: regexp.MustCompile("expected copy_packages to be one of"),
 			},
 			{
+				Config:      testAccRepositoryConfigBasicInvalidBroadcastState,
+				ExpectError: regexp.MustCompile("expected broadcast_state to be one of"),
+			},
+			{
 				Config: testAccRepositoryConfigBasicUpdateProps,
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "tag_pre_releases_as_latest", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "use_entitlements_privilege", "Admin"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "broadcast_state", "Private"),
 				),
 			},
 			{
@@ -153,6 +159,15 @@ resource "cloudsmith_repository" "test" {
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
+var testAccRepositoryConfigBasicInvalidBroadcastState = fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-update"
+	namespace = "%s"
+
+	broadcast_state = "InvalidState"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
 var testAccRepositoryConfigBasicUpdateProps = fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "terraform-acc-test-update"
@@ -165,5 +180,6 @@ resource "cloudsmith_repository" "test" {
 	use_vulnerability_scanning    = false
 	tag_pre_releases_as_latest = true
 	use_entitlements_privilege = "Admin"
+	broadcast_state = "Private"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
