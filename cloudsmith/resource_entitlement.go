@@ -33,15 +33,16 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsCreate(pc.Auth, namespace, repository)
 	req = req.Data(cloudsmith.RepositoryTokenRequest{
-		IsActive:           optionalBool(d, "is_active"),
-		LimitDateRangeFrom: nullableTime(d, "limit_date_range_from"),
-		LimitDateRangeTo:   nullableTime(d, "limit_date_range_to"),
-		LimitNumClients:    nullableInt64(d, "limit_num_clients"),
-		LimitNumDownloads:  nullableInt64(d, "limit_num_downloads"),
-		LimitPackageQuery:  nullableString(d, "limit_package_query"),
-		LimitPathQuery:     nullableString(d, "limitPathQuery"),
-		Name:               requiredString(d, "name"),
-		Token:              optionalString(d, "token"),
+		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
+		IsActive:                optionalBool(d, "is_active"),
+		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
+		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
+		LimitNumClients:         nullableInt64(d, "limit_num_clients"),
+		LimitNumDownloads:       nullableInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:       nullableString(d, "limit_package_query"),
+		LimitPathQuery:          nullableString(d, "limitPathQuery"),
+		Name:                    requiredString(d, "name"),
+		Token:                   optionalString(d, "token"),
 	})
 	req = req.ShowTokens(true)
 
@@ -88,6 +89,7 @@ func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+	d.Set("access_private_broadcasts", entitlement.GetAccessPrivateBroadcasts())
 	d.Set("is_active", entitlement.GetIsActive())
 	d.Set("limit_date_range_from", timeToString(entitlement.GetLimitDateRangeFrom()))
 	d.Set("limit_date_range_to", timeToString(entitlement.GetLimitDateRangeTo()))
@@ -116,15 +118,16 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdate(pc.Auth, namespace, repository, d.Id())
 	req = req.Data(cloudsmith.RepositoryTokenRequestPatch{
-		IsActive:           optionalBool(d, "is_active"),
-		LimitDateRangeFrom: nullableTime(d, "limit_date_range_from"),
-		LimitDateRangeTo:   nullableTime(d, "limit_date_range_to"),
-		LimitNumClients:    nullableInt64(d, "limit_num_clients"),
-		LimitNumDownloads:  nullableInt64(d, "limit_num_downloads"),
-		LimitPackageQuery:  nullableString(d, "limit_package_query"),
-		LimitPathQuery:     nullableString(d, "limit_path_query"),
-		Name:               optionalString(d, "name"),
-		Token:              optionalString(d, "token"),
+		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
+		IsActive:                optionalBool(d, "is_active"),
+		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
+		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
+		LimitNumClients:         nullableInt64(d, "limit_num_clients"),
+		LimitNumDownloads:       nullableInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:       nullableString(d, "limit_package_query"),
+		LimitPathQuery:          nullableString(d, "limit_path_query"),
+		Name:                    optionalString(d, "name"),
+		Token:                   optionalString(d, "token"),
 	})
 	req = req.ShowTokens(true)
 
@@ -190,6 +193,12 @@ func resourceEntitlement() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"access_private_broadcasts": {
+				Type:        schema.TypeBool,
+				Description: "If enabled, this token can be used for private broadcasts.",
+				Optional:    true,
+				Computed:    true,
+			},
 			"is_active": {
 				Type:        schema.TypeBool,
 				Description: "If enabled, the token will allow downloads based on configured restrictions (if any).",
