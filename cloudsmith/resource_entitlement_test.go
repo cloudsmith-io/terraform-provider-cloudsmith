@@ -29,6 +29,7 @@ func TestAccEntitlement_basic(t *testing.T) {
 					testAccEntitlementCheckExists("cloudsmith_entitlement.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "name", "Test Entitlement"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_num_downloads", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_path_query", "/test-path"),
 				),
 			},
 			{
@@ -37,6 +38,7 @@ func TestAccEntitlement_basic(t *testing.T) {
 					testAccEntitlementCheckExists("cloudsmith_entitlement.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "name", "Test Entitlement Update"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_num_downloads", "100"),
+					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_path_query", "/updated-path"),
 				),
 			},
 			{
@@ -133,9 +135,10 @@ resource "cloudsmith_repository" "test" {
 }
 
 resource "cloudsmith_entitlement" "test" {
-    name       = "Test Entitlement"
-    namespace  = "${cloudsmith_repository.test.namespace}"
-    repository = "${cloudsmith_repository.test.slug_perm}"
+    name             = "Test Entitlement"
+    limit_path_query = "/test-path"
+    namespace        = "${cloudsmith_repository.test.namespace}"
+    repository       = "${cloudsmith_repository.test.slug_perm}"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -148,6 +151,7 @@ resource "cloudsmith_repository" "test" {
 resource "cloudsmith_entitlement" "test" {
 	name                = "Test Entitlement Update"
     limit_num_downloads = 100
+    limit_path_query    = "/updated-path"
     namespace           = "${cloudsmith_repository.test.namespace}"
     repository          = "${cloudsmith_repository.test.slug_perm}"
 }

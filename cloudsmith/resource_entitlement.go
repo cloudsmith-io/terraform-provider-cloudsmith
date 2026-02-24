@@ -39,7 +39,7 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 		LimitNumClients:    nullableInt64(d, "limit_num_clients"),
 		LimitNumDownloads:  nullableInt64(d, "limit_num_downloads"),
 		LimitPackageQuery:  nullableString(d, "limit_package_query"),
-		LimitPathQuery:     nullableString(d, "limitPathQuery"),
+		LimitPathQuery:     nullableString(d, "limit_path_query"),
 		Name:               requiredString(d, "name"),
 		Token:              optionalString(d, "token"),
 	})
