@@ -1,6 +1,6 @@
 # Package Deny Policy Resource
 
-The package deny policy resource allows for creation and management of package deny policies within a Cloudsmith organization.
+The `cloudsmith_package_deny_policy` resource allows creation and management of package deny policies within a Cloudsmith namespace.
 
 ## Example Usage
 
@@ -36,7 +36,7 @@ The following arguments are supported:
 
 The following attributes are exported:
 
-* `id` - The ID of the package deny policy.
+* `id` - The ID of the package deny policy (the policy `slug_perm`).
 * `name` - The name of the package deny policy.
 * `description` - The description of the package deny policy.
 * `package_query` - The query used to match the packages to be blocked.
