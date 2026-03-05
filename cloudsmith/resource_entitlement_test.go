@@ -29,7 +29,7 @@ func TestAccEntitlement_basic(t *testing.T) {
 					testAccEntitlementCheckExists("cloudsmith_entitlement.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "name", "Test Entitlement"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "limit_num_downloads", "0"),
-					resource.TestCheckResourceAttrSet("cloudsmith_entitlement.test", "access_private_broadcasts"),
+					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "access_private_broadcasts", "false"),
 				),
 			},
 			{
