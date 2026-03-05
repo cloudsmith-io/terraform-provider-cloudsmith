@@ -27,7 +27,7 @@ jobs:
         TF_ACC=1 go test -v ./... -parallel=8 -timeout=30m
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-        CLOUDSMITH_NAMESPACE: terraform-provider-testing
+        CLOUDSMITH_NAMESPACE: ${{ vars.CLOUDSMITH_NAMESPACE }}
 
     - name: Notify Slack on Success
       if: success()
