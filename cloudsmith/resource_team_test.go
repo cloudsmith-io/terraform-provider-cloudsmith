@@ -23,9 +23,9 @@ func TestAccTeam_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccTeamCheckDestroy("cloudsmith_team.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccTeamCheckDestroy("cloudsmith_team.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccTeamConfigBasic,
@@ -83,7 +83,13 @@ func testAccTeamCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsTeamsRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req)
@@ -110,7 +116,13 @@ func testAccTeamCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsTeamsRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req)

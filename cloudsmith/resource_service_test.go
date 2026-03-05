@@ -23,9 +23,9 @@ func TestAccService_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccServiceCheckDestroy("cloudsmith_service.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccServiceCheckDestroy("cloudsmith_service.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccServiceConfigBasic,
@@ -50,7 +50,7 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-          resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
 						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
 						"role": regexp.MustCompile("^Member$"),
 					}),
@@ -111,7 +111,13 @@ func testAccServiceCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
@@ -138,7 +144,13 @@ func testAccServiceCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)

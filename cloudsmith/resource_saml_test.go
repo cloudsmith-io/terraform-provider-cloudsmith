@@ -13,9 +13,9 @@ func TestAccSaml_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccSamlCheckDestroy("cloudsmith_saml.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccSamlCheckDestroy("cloudsmith_saml.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccSamlConfigBasic,
@@ -66,7 +66,13 @@ func testAccSamlCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("saml resource ID not set")
 		}
 
-		c := testAccProvider.Meta().(*providerConfig)
+		c, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 		samlResources, _, err := c.APIClient.OrgsApi.OrgsSamlGroupSyncList(c.Auth, rs.Primary.Attributes["organization"]).Execute()
 		if err != nil {
 			return fmt.Errorf("error checking saml resource: %w", err)
@@ -94,7 +100,13 @@ func testAccSamlCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("saml resource ID not set")
 		}
 
-		c := testAccProvider.Meta().(*providerConfig)
+		c, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 		_, resp, err := c.APIClient.OrgsApi.OrgsSamlGroupSyncList(c.Auth, rs.Primary.Attributes["organization"]).Execute()
 		if err != nil {
 			return fmt.Errorf("error checking saml resource: %w", err)

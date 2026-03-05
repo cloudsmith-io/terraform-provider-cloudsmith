@@ -16,9 +16,9 @@ func TestAccPackageDenyPolicy_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccPackageDenyPolicyCheckDestroy("cloudsmith_package_deny_policy.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccPackageDenyPolicyCheckDestroy("cloudsmith_package_deny_policy.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccPackageDenyPolicyConfigBasic,
@@ -49,13 +49,17 @@ resource "cloudsmith_package_deny_policy" "test" {
 
 func testAccPackageDenyPolicyCheckDestroy(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		client := testAccProvider.Meta().(*providerConfig).APIClient
+		pc, err := testAccProviderConfigForChecks()
+		if err != nil {
+			return err
+		}
+		client := pc.APIClient
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "cloudsmith_package_deny_policy" {
 				continue
 			}
 
-			_, _, err := client.OrgsApi.OrgsDenyPolicyRead(testAccProvider.Meta().(*providerConfig).Auth, rs.Primary.Attributes["namespace"], rs.Primary.ID).Execute()
+			_, _, err := client.OrgsApi.OrgsDenyPolicyRead(pc.Auth, rs.Primary.Attributes["namespace"], rs.Primary.ID).Execute()
 			if err == nil {
 				return fmt.Errorf("Package deny policy still exists")
 			}
@@ -68,13 +72,17 @@ func testAccPackageDenyPolicyCheckDestroy(name string) resource.TestCheckFunc {
 
 func testAccPackageDenyPolicyCheckExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		client := testAccProvider.Meta().(*providerConfig).APIClient
+		pc, err := testAccProviderConfigForChecks()
+		if err != nil {
+			return err
+		}
+		client := pc.APIClient
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "cloudsmith_package_deny_policy" {
 				continue
 			}
 
-			_, _, err := client.OrgsApi.OrgsDenyPolicyRead(testAccProvider.Meta().(*providerConfig).Auth, rs.Primary.Attributes["namespace"], rs.Primary.ID).Execute()
+			_, _, err := client.OrgsApi.OrgsDenyPolicyRead(pc.Auth, rs.Primary.Attributes["namespace"], rs.Primary.ID).Execute()
 			if err != nil {
 				return fmt.Errorf("Package deny policy does not exist")
 			}

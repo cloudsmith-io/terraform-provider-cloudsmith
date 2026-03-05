@@ -12,9 +12,9 @@ import (
 
 func TestAccSAMLAuth_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccSAMLAuthCheckDestroy("cloudsmith_saml_auth.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccSAMLAuthCheckDestroy("cloudsmith_saml_auth.test"),
 		Steps: []resource.TestStep{
 			{
 				// Basic configuration with URL-based metadata
@@ -66,7 +66,13 @@ func testAccSAMLAuthCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 		organization := resourceState.Primary.Attributes["organization"]
 
 		req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization)
@@ -96,7 +102,13 @@ func testAccSAMLAuthCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 		organization := resourceState.Primary.Attributes["organization"]
 
 		req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization)

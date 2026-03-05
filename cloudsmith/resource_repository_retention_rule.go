@@ -55,6 +55,10 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	// Execute the request
 	_, httpResp, err := req.Execute()
 	if err != nil {
+		if httpResp == nil {
+			return fmt.Errorf("error updating repository retention rule: %s", err)
+		}
+
 		switch httpResp.StatusCode {
 		case 400:
 			return fmt.Errorf("request could not be processed: %s", err)
@@ -67,7 +71,56 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 
-	// Handle the response
+	checkerFunc := func() error {
+		resp, readResp, readErr := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		if readErr != nil {
+			if is404(readResp) {
+				return errKeepWaiting
+			}
+			return readErr
+		}
+
+		if resp.GetRetentionCountLimit() != retentionCountLimit {
+			return errKeepWaiting
+		}
+		if resp.GetRetentionDaysLimit() != retentionDaysLimit {
+			return errKeepWaiting
+		}
+		if resp.GetRetentionSizeLimit() != retentionSizeLimit {
+			return errKeepWaiting
+		}
+
+		if updateData.RetentionEnabled != nil && resp.GetRetentionEnabled() != *updateData.RetentionEnabled {
+			return errKeepWaiting
+		}
+		if updateData.RetentionGroupByName != nil && resp.GetRetentionGroupByName() != *updateData.RetentionGroupByName {
+			return errKeepWaiting
+		}
+		if updateData.RetentionGroupByFormat != nil && resp.GetRetentionGroupByFormat() != *updateData.RetentionGroupByFormat {
+			return errKeepWaiting
+		}
+		if updateData.RetentionGroupByPackageType != nil && resp.GetRetentionGroupByPackageType() != *updateData.RetentionGroupByPackageType {
+			return errKeepWaiting
+		}
+
+		expectedQuery := ""
+		if updateData.RetentionPackageQueryString.IsSet() && updateData.RetentionPackageQueryString.Get() != nil {
+			expectedQuery = *updateData.RetentionPackageQueryString.Get()
+		}
+		actualQuery := ""
+		if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+			actualQuery = *resp.RetentionPackageQueryString.Get()
+		}
+		if expectedQuery != actualQuery {
+			return errKeepWaiting
+		}
+
+		return nil
+	}
+	if waitErr := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); waitErr != nil {
+		return fmt.Errorf("error waiting for repository retention rule (%s.%s) to be updated: %w", namespace, repo, waitErr)
+	}
+
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
 	return resourceRepoRetentionRuleRead(d, meta)
 }
@@ -81,6 +134,10 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	// Execute the request
 	resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
 	if err != nil {
+		if httpResp == nil {
+			return fmt.Errorf("error reading repository retention rule: %s", err)
+		}
+
 		switch httpResp.StatusCode {
 		case 400:
 			return fmt.Errorf("request could not be processed: %s", err)
@@ -124,6 +181,10 @@ func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) e
 
 	_, httpResp, err := req.Execute()
 	if err != nil {
+		if httpResp == nil {
+			return fmt.Errorf("error disabling repository retention rule: %s", err)
+		}
+
 		switch httpResp.StatusCode {
 		case 400:
 			return fmt.Errorf("request could not be processed: %s", err)

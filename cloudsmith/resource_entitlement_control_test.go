@@ -20,9 +20,9 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccEntitlementControlCheckDestroy("cloudsmith_entitlement_control.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccEntitlementControlCheckDestroy("cloudsmith_entitlement_control.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccEntitlementControlConfigBasic,
@@ -36,7 +36,10 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 						if resourceState.Primary.ID == "" {
 							return fmt.Errorf("resource id not set")
 						}
-						pc := testAccProvider.Meta().(*providerConfig)
+						pc, err := testAccProviderConfigForChecks()
+						if err != nil {
+							return err
+						}
 						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 						repository := resourceState.Primary.Attributes["repository"]
 						identifier := resourceState.Primary.ID
@@ -58,7 +61,10 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 						if resourceState.Primary.ID == "" {
 							return fmt.Errorf("resource id not set")
 						}
-						pc := testAccProvider.Meta().(*providerConfig)
+						pc, err := testAccProviderConfigForChecks()
+						if err != nil {
+							return err
+						}
 						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 						repository := resourceState.Primary.Attributes["repository"]
 						identifier := resourceState.Primary.ID
@@ -101,7 +107,13 @@ func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestChe
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]
@@ -132,7 +144,13 @@ func testAccEntitlementControlCheckExists(resourceName string) resource.TestChec
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]

@@ -23,9 +23,9 @@ func TestAccRepository_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryConfigBasic,
@@ -96,7 +96,13 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
@@ -123,7 +129,13 @@ func testAccRepositoryCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)

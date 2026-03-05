@@ -25,38 +25,9 @@ func importManageTeam(ctx context.Context, d *schema.ResourceData, m interface{}
 }
 
 func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
-	// this function will add users to an existing team
-	pc := m.(*providerConfig)
-	organization := requiredString(d, "organization")
-	teamName := requiredString(d, "team_name")
-
-	// Fetching members from the Set, converting to a list
-	teamMembersSet := d.Get("members").(*schema.Set).List()
-	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembersSet))
-
-	for i, v := range teamMembersSet {
-		teamMember := v.(map[string]interface{})
-		teamMembersList[i] = cloudsmith.OrganizationTeamMembership{
-			Role: teamMember["role"].(string),
-			User: teamMember["user"].(string),
-		}
-	}
-
-	teamMembersData := cloudsmith.OrganizationTeamMembers{
-		Members: teamMembersList,
-	}
-
-	req := pc.APIClient.OrgsApi.OrgsTeamsMembersCreate(pc.Auth, organization, teamName)
-	req = req.Data(teamMembersData)
-
-	_, _, err := pc.APIClient.OrgsApi.OrgsTeamsMembersCreateExecute(req)
-	if err != nil {
-		return err
-	}
-
-	d.SetId(fmt.Sprintf("%s.%s", organization, teamName))
-
-	return nil
+	// The team creator is auto-added by Cloudsmith, so create must be idempotent.
+	// Reusing the replace endpoint avoids duplicate-member create failures.
+	return resourceManageTeamUpdateRemove(d, m)
 }
 
 // We're using the replace members endpoint here so we need to compare the existing members with the new members and adjust the delta

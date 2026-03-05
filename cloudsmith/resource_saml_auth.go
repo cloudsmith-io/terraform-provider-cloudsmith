@@ -196,6 +196,8 @@ func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cl
 
 	inlineMetadata := samlAuth.GetSamlMetadataInline()
 	url, hasURL := samlAuth.GetSamlMetadataUrlOk()
+	existingInline := strings.TrimSpace(d.Get("saml_metadata_inline").(string))
+	existingURL := strings.TrimSpace(d.Get("saml_metadata_url").(string))
 
 	if inlineMetadata != "" {
 		if err := setField("saml_metadata_inline", inlineMetadata); err != nil {
@@ -212,7 +214,13 @@ func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cl
 			return err
 		}
 	} else {
-		// Neither present, clear both
+		// Some API reads can temporarily omit both fields just after update.
+		// Preserve configured state in that case to avoid transient diffs/flakes.
+		if existingInline != "" || existingURL != "" {
+			return nil
+		}
+
+		// Neither present and no existing configured value, clear both.
 		if err := setField("saml_metadata_inline", ""); err != nil {
 			return err
 		}

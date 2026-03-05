@@ -19,9 +19,9 @@ func TestAccWebhook_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccWebhookCheckDestroy("cloudsmith_webhook.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccWebhookCheckDestroy("cloudsmith_webhook.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccWebhookConfigBasic,
@@ -81,7 +81,13 @@ func testAccWebhookCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]
@@ -121,7 +127,13 @@ func testAccWebhookCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]

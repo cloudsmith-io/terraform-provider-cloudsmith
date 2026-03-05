@@ -62,9 +62,9 @@ resource "cloudsmith_repository_upstream" "crates_io" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(cargoUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(cargoUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryCargoUpstreamConfigBasic,
@@ -161,9 +161,9 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(condaUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(condaUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryCondaUpstreamConfigBasic,
@@ -258,9 +258,9 @@ resource "cloudsmith_repository_upstream" "pub_dev" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(dartUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(dartUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -367,9 +367,9 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(debUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(debUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryDebUpstreamConfigBasic,
@@ -575,9 +575,9 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 	`, namespace, certPath, keyPath)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(dockerUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(dockerUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -693,9 +693,9 @@ resource "cloudsmith_repository_upstream" "gradle_distributions" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(genericUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(genericUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryGenericUpstreamConfigBasic,
@@ -798,9 +798,9 @@ resource "cloudsmith_repository_upstream" "go_proxy" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(goUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(goUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryGoUpstreamConfigBasic,
@@ -904,9 +904,9 @@ resource "cloudsmith_repository_upstream" "helm" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(helmUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(helmUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1004,9 +1004,9 @@ resource "cloudsmith_repository_upstream" "hugging_face" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(huggingfaceUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(huggingfaceUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryHuggingfaceUpstreamConfigBasic,
@@ -1097,9 +1097,9 @@ resource "cloudsmith_repository_upstream" "hex" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(hexUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(hexUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryHexUpstreamConfigBasic,
@@ -1172,7 +1172,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 
 	testAccRepositoryPythonUpstreamConfigUpdate := fmt.Sprintf(`
 	resource "cloudsmith_repository" "test" {
-		name      = "terraform-acc-test-upstream-python"
+		name      = "terraform-acc-test-upstream-maven"
 		namespace = "%s"
 	}
 
@@ -1194,9 +1194,9 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(mavenUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(mavenUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1300,9 +1300,9 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(npmUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(npmUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1403,9 +1403,9 @@ resource "cloudsmith_repository_upstream" "nuget" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(nugetUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(nugetUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1510,9 +1510,9 @@ resource "cloudsmith_repository_upstream" "pypi" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(pythonUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(pythonUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1621,9 +1621,9 @@ resource "cloudsmith_repository_upstream" "rpm_fusion" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(rpmUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(rpmUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryRpmUpstreamConfigBasic,
@@ -1725,9 +1725,9 @@ resource "cloudsmith_repository_upstream" "rubygems" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(rubyUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(rubyUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryPythonUpstreamConfigBasic,
@@ -1832,9 +1832,9 @@ resource "cloudsmith_repository_upstream" "packagist" {
 	`, namespace)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(composerUpstreamResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryUpstreamCheckDestroy(composerUpstreamResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryComposerUpstreamConfigBasic,
@@ -1903,7 +1903,10 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+		if err != nil {
+			return err
+		}
 
 		namespace := resourceState.Primary.Attributes[Namespace]
 		repository := resourceState.Primary.Attributes[Repository]
@@ -1911,72 +1914,72 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		slugPerm := resourceState.Primary.Attributes[SlugPerm]
 
 		var resp *http.Response
-		var err error
+		var readErr error
 
 		switch upstreamType {
 		case Cargo:
 			req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
 		case Composer:
 			req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
 		case Conda:
 			req := pc.APIClient.ReposApi.ReposUpstreamCondaRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
 		case Cran:
 			req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
 		case Dart:
 			req := pc.APIClient.ReposApi.ReposUpstreamDartRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)
 		case Deb:
 			req := pc.APIClient.ReposApi.ReposUpstreamDebRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDebReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamDebReadExecute(req)
 		case Docker:
 			req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
 		case Generic:
 			req := pc.APIClient.ReposApi.ReposUpstreamGenericRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamGenericReadExecute(req)
 		case Go:
 			req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
 		case Helm:
 			req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
 		case Hex:
 			req := pc.APIClient.ReposApi.ReposUpstreamHexRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
 		case HuggingFace:
 			req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
 		case Maven:
 			req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
 		case Npm:
 			req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
 		case NuGet:
 			req := pc.APIClient.ReposApi.ReposUpstreamNugetRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNugetReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamNugetReadExecute(req)
 		case Python:
 			req := pc.APIClient.ReposApi.ReposUpstreamPythonRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamPythonReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamPythonReadExecute(req)
 		case Rpm:
 			req := pc.APIClient.ReposApi.ReposUpstreamRpmRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamRpmReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamRpmReadExecute(req)
 		case Ruby:
 			req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
 		case Swift:
 			req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, slugPerm)
-			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
+			_, resp, readErr = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
 		default:
 			return fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
 		}
 
-		if err != nil && !is404(resp) {
-			return fmt.Errorf("unable to verify upstream deletion: %w", err)
+		if readErr != nil && !is404(resp) {
+			return fmt.Errorf("unable to verify upstream deletion: %w", readErr)
 		} else if is200(resp) {
 			return fmt.Errorf("unable to verify upstream deletion: still exists: %s", resourceName)
 		}

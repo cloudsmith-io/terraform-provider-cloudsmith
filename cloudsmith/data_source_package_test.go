@@ -27,8 +27,8 @@ func TestAccPackage_data(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccPackageDataSetup(dsPackageTestNamespace, dsPackageTestRepository),
@@ -36,7 +36,11 @@ func TestAccPackage_data(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", dsPackageTestRepository),
 					// Custom TestCheckFunc to upload the package and wait for sync after repository creation
 					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig), false)
+						pc, err := testAccProviderConfigForChecks()
+						if err != nil {
+							return err
+						}
+						return uploadPackage(pc, false)
 					},
 				),
 			},
@@ -71,7 +75,11 @@ func TestAccPackage_data(t *testing.T) {
 						return nil
 					},
 					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
+						pc, err := testAccProviderConfigForChecks()
+						if err != nil {
+							return err
+						}
+						return uploadPackage(pc, true)
 					},
 				),
 			},

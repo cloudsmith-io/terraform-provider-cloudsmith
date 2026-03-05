@@ -16,9 +16,9 @@ func TestAccRepository_data(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryData,

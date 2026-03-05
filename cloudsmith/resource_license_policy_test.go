@@ -15,9 +15,9 @@ func TestAccOrgLicensePolicy_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testOrgLicensePolicyCheckDestroy("cloudsmith_license_policy.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testOrgLicensePolicyCheckDestroy("cloudsmith_license_policy.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testOrgLicensePolicyBasic,
@@ -74,7 +74,13 @@ func testOrgLicensePolicyCheckDestroy(resourceName string) resource.TestCheckFun
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsLicensePolicyRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)
@@ -101,7 +107,13 @@ func testOrgLicensePolicyCheckExists(resourceName string) resource.TestCheckFunc
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		req := pc.APIClient.OrgsApi.OrgsLicensePolicyRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		_, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)

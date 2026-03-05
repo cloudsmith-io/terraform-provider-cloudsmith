@@ -19,9 +19,9 @@ func TestAccEntitlement_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccEntitlementCheckDestroy("cloudsmith_entitlement.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccEntitlementCheckDestroy("cloudsmith_entitlement.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccEntitlementConfigBasic,
@@ -69,7 +69,13 @@ func testAccEntitlementCheckDestroy(resourceName string) resource.TestCheckFunc 
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]
@@ -109,7 +115,13 @@ func testAccEntitlementCheckExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]

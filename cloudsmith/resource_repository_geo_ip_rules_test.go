@@ -59,9 +59,9 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 	t.Parallel()
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRepositoryGeoIpRulesCheckDestroy(ResourceName),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccRepositoryGeoIpRulesCheckDestroy(ResourceName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRepositoryGeoIpRulesConfigCreate,
@@ -110,7 +110,13 @@ func testAccRepositoryGeoIpRulesCheckDestroy(resourceName string) resource.TestC
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		repository := resourceState.Primary.Attributes["repository"]
 
@@ -148,7 +154,13 @@ func testAccRepositoryGeoIpRulesCheckExists(resourceName string, expectedCidrAll
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc, err := testAccProviderConfigForChecks()
+
+		if err != nil {
+
+			return err
+
+		}
 
 		repository := resourceState.Primary.Attributes["repository"]
 

@@ -13,9 +13,9 @@ import (
 func TestAccManageTeam_basic(t *testing.T) {
 	t.Parallel()
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccTeamCheckDestroy("cloudsmith_team.test"),
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
+		CheckDestroy:      testAccTeamCheckDestroy("cloudsmith_team.test"),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccManageTeamConfigBasic,
@@ -25,8 +25,6 @@ func TestAccManageTeam_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.role", "Member"),
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.user", "bblizniak"),
 				),
-				// This is required as when creating a team, the creator gets automatically added which causes a 422 error
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})

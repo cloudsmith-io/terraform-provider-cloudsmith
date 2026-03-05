@@ -1,10 +1,10 @@
 name: Acceptance
 
 on:
+  pull_request:
   push:
     branches:
-    - "*"
-  pull_request:
+      - main
 
 jobs:
   tests:
@@ -24,7 +24,7 @@ jobs:
 
     - name: Run tests
       run: |
-        TF_ACC=1 go test -v ./... -parallel=6 -timeout=30m
+        TF_ACC=1 go test -v ./... -parallel=8 -timeout=30m
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_NAMESPACE: terraform-provider-testing

@@ -14,8 +14,8 @@ import (
 // verifies that the expected fields are set with default values.
 func TestAccDataSourceEntitlementTokenList(t *testing.T) {
 	resource.Test(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceEntitlementTokenListConfig,
