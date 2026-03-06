@@ -31,6 +31,7 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 
 ## Argument Reference
 
+* `access_private_broadcasts` - (Optional) If enabled, this token can be used for private broadcasts.
 * `is_active` - (Optional) If enabled, the token will allow downloads based on configured restrictions (if any).
 * `limit_date_range_from` - (Optional) The starting date/time the token is allowed to be used from.
 * `limit_date_range_to` - (Optional) The ending date/time the token is allowed to be used until.
@@ -45,6 +46,7 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 
 ## Attribute Reference
 
+* `access_private_broadcasts` - If enabled, this token can be used for private broadcasts.
 * `is_active` - If enabled, the token will allow downloads based on configured restrictions (if any).
 * `limit_date_range_from` - The starting date/time the token is allowed to be used from.
 * `limit_date_range_to` - The ending date/time the token is allowed to be used until.

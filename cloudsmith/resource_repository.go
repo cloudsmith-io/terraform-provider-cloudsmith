@@ -46,6 +46,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace)
 	req = req.Data(cloudsmith.RepositoryCreateRequest{
+		BroadcastState:                   optionalString(d, "broadcast_state"),
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
@@ -125,6 +126,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	}
 
 	d.Set("cdn_url", repository.GetCdnUrl())
+	d.Set("broadcast_state", repository.GetBroadcastState())
 	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
 	d.Set("copy_own", repository.GetCopyOwn())
 	d.Set("copy_packages", repository.GetCopyPackages())
@@ -201,6 +203,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
 	req = req.Data(cloudsmith.RepositoryRequestPatch{
+		BroadcastState:                   optionalString(d, "broadcast_state"),
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
@@ -312,6 +315,15 @@ func resourceRepository() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "Base URL from which packages and other artifacts are downloaded.",
 				Computed:    true,
+			},
+			"broadcast_state": {
+				Type: schema.TypeString,
+				Description: "The broadcast state of the repository. Controls repository visibility " +
+					"and access level for broadcasts. " +
+					"Valid values include: `Off`, `Private`, `Internal`, `Public`, `Open-Source`. Defaults to `Off`.",
+				Optional:     true,
+				Default:      "Off",
+				ValidateFunc: validation.StringInSlice([]string{"Off", "Private", "Internal", "Public", "Open-Source"}, false),
 			},
 			"contextual_auth_realm": {
 				Type: schema.TypeBool,

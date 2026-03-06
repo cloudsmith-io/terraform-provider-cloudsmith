@@ -47,6 +47,7 @@ All of the argument attributes are also exported as result attributes.
 The following attribute is additionally exported:
 
 * `entitlement_tokens` - A list of `entitlement_token` entries as discovered by the data source. Each `entitlement_token` has the following attributes:
+  * `access_private_broadcasts` - If enabled, this token can be used for private broadcasts.
   * `clients` - Number of clients associated with the entitlement token.
   * `created_at` - The date/time the token was created at.
   * `created_by` - The user who created the entitlement token.

@@ -3,8 +3,10 @@ name: Acceptance
 on:
   push:
     branches:
-    - "*"
+      - master
   pull_request:
+    branches:
+      - master
 
 jobs:
   tests:
@@ -28,22 +30,3 @@ jobs:
       env:
         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
         CLOUDSMITH_NAMESPACE: terraform-provider-testing
-
-    - name: Notify Slack on Success
-      if: success()
-      uses: rtCamp/action-slack-notify@v2.0.2
-      env:
-        SLACK_ICON: https://avatars0.githubusercontent.com/u/44036562?s=200&v=4
-        SLACK_TITLE: Workflow Succeeded
-        SLACK_USERNAME: Github Actions
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-    - name: Notify Slack on Failure
-      if: failure()
-      uses: rtCamp/action-slack-notify@v2.0.2
-      env:
-        SLACK_COLOR: danger
-        SLACK_ICON: https://avatars0.githubusercontent.com/u/44036562?s=200&v=4
-        SLACK_TITLE: Workflow Failed
-        SLACK_USERNAME: Github Actions
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
