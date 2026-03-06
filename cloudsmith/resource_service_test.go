@@ -22,6 +22,8 @@ import (
 func TestAccService_basic(t *testing.T) {
 	t.Parallel()
 
+	var rotatedKey string
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
@@ -96,6 +98,14 @@ func TestAccService_basic(t *testing.T) {
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					// key should still be set after rotation; we don't assert the exact value
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+					testAccServiceRememberAttr("cloudsmith_service.test", "key", &rotatedKey),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyDecrement,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					testAccServiceCheckResourceAttrMatches("cloudsmith_service.test", "key", &rotatedKey),
 				),
 			},
 			{
@@ -147,6 +157,43 @@ func testAccServiceCheckDestroy(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("unable to verify service deletion: still exists: %s/%s", os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
 		}
 		defer resp.Body.Close()
+
+		return nil
+	}
+}
+
+func testAccServiceRememberAttr(resourceName, attribute string, value *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		attr, ok := resourceState.Primary.Attributes[attribute]
+		if !ok {
+			return fmt.Errorf("attribute not found: %s", attribute)
+		}
+
+		*value = attr
+		return nil
+	}
+}
+
+func testAccServiceCheckResourceAttrMatches(resourceName, attribute string, expected *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		attr, ok := resourceState.Primary.Attributes[attribute]
+		if !ok {
+			return fmt.Errorf("attribute not found: %s", attribute)
+		}
+
+		if attr != *expected {
+			return fmt.Errorf("expected %s to remain %q, got %q", attribute, *expected, attr)
+		}
 
 		return nil
 	}
@@ -212,6 +259,14 @@ resource "cloudsmith_service" "test" {
 	name          = "TF Test Service cs"
 	organization  = "%s"
 	rotate_api_key = 2
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyDecrement = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name           = "TF Test Service cs"
+	organization   = "%s"
+	rotate_api_key = 1
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 

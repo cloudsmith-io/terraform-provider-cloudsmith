@@ -42,7 +42,7 @@ The following arguments are supported:
  	* `role` - (Optional) The service's role in the team. If defined, must be one of `Member` or `Manager`.
  	* `slug` - (Required) The team the service should be added to.
 * `store_api_key` - (Optional) The service's API key to be returned in state. Defaults to `true`. If set to `false`, the "key" value is replaced with `**redacted**`. **NOTE:** This will only be applied to newly created service accounts, **this won't take effect for existing service accounts**.
-* `rotate_api_key` - (Optional) Arbitrary integer used to trigger rotation of the service's API key. Setting this to a non-zero value or incrementing it between non-zero values (for example from `1` to `2`) will rotate the API key for the service account. Removing this field or setting it back to `0` will not trigger a rotation.
+* `rotate_api_key` - (Optional) Arbitrary integer used to trigger rotation of the service's API key. Only increments rotate the API key for the service account. Decreasing the value, removing this field, or setting it to `0` will not trigger a rotation.
 
 ## Attribute Reference
 
