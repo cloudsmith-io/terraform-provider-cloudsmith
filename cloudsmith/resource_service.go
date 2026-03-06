@@ -222,16 +222,16 @@ func resourceServiceUpdate(ctx context.Context, d *schema.ResourceData, m interf
 		return diag.Errorf("error waiting for service (%s) to be updated: %s", d.Id(), err)
 	}
 
-	// If the rotate_api_key field has changed to a non-empty value, trigger an
+	// If the rotate_api_key field has changed to a non-zero value, trigger an
 	// API key refresh for this service account. The value of rotate_api_key
 	// itself is not sent to the API; it is only used to force a Terraform diff
-	// and therefore an update. Changing it to an empty value (or removing it)
-	// does not trigger a rotation.
+	// and therefore an update. Changing it to zero (or removing it) does not
+	// trigger a rotation.
 	if d.HasChange("rotate_api_key") {
 		_, newRaw := d.GetChange("rotate_api_key")
-		newVal, _ := newRaw.(string)
+		newVal, _ := newRaw.(int)
 
-		if newVal != "" {
+		if newVal != 0 {
 			refreshReq := pc.APIClient.OrgsApi.OrgsServicesRefresh(pc.Auth, org, d.Id())
 			refreshedService, _, err := pc.APIClient.OrgsApi.OrgsServicesRefreshExecute(refreshReq)
 			if err != nil {
@@ -364,8 +364,8 @@ func resourceService() *schema.Resource {
 				Default:     true,
 			},
 			"rotate_api_key": {
-				Type:        schema.TypeString,
-				Description: "Arbitrary value used to trigger rotation of the service's API key. Change this value to rotate the key for a service account.",
+				Type:        schema.TypeInt,
+				Description: "Arbitrary integer used to trigger rotation of the service's API key. Increment this value to rotate the key for a service account.",
 				Optional:    true,
 			},
 		},

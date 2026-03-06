@@ -203,7 +203,7 @@ var testAccServiceConfigRotateAPIKeyFirst = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
 	name          = "TF Test Service cs"
 	organization  = "%s"
-	rotate_api_key = "first-rotation"
+	rotate_api_key = 1
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -211,7 +211,7 @@ var testAccServiceConfigRotateAPIKeySecond = fmt.Sprintf(`
 resource "cloudsmith_service" "test" {
 	name          = "TF Test Service cs"
 	organization  = "%s"
-	rotate_api_key = "second-rotation"
+	rotate_api_key = 2
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -220,7 +220,7 @@ resource "cloudsmith_service" "test" {
 	name           = "TF Test Service cs"
 	organization   = "%s"
 	store_api_key  = false
-	rotate_api_key = "third-rotation"
+	rotate_api_key = 3
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
