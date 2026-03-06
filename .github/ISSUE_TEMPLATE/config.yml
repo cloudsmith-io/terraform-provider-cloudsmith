@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Cloudsmith Terraform Provider Documentation
+    url: https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs
+    about: Check the provider documentation and examples
+  - name: Cloudsmith Support
+    url: https://support.cloudsmith.com
+    about: Contact Cloudsmith support for account-specific or workspace-specific issues
