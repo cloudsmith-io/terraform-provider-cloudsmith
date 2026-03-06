@@ -333,6 +333,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
     namespace       = cloudsmith_repository.test.namespace
     repository      = cloudsmith_repository.test.slug
 	name            = cloudsmith_repository.test.name
+	upstream_distribution = "xenial"
     upstream_type   = "deb"
     upstream_url    = "http://archive.ubuntu.com/ubuntu"
 }
@@ -389,7 +390,7 @@ resource "cloudsmith_repository_upstream" "ubuntu" {
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, Priority),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(debUpstreamResourceName, UpdatedAt),
-					resource.TestCheckResourceAttr(debUpstreamResourceName, UpstreamDistribution, ""),
+					resource.TestCheckResourceAttr(debUpstreamResourceName, UpstreamDistribution, "xenial"),
 					resource.TestCheckResourceAttr(debUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -641,6 +642,113 @@ resource "cloudsmith_repository_upstream" "fakedocker" {
 						resourceState.Primary.Attributes[SlugPerm],
 					), nil
 				},
+			},
+		},
+	})
+}
+
+func TestAccRepositoryUpstreamGeneric_basic(t *testing.T) {
+	t.Parallel()
+
+	const genericUpstreamResourceName = "cloudsmith_repository_upstream.gradle_distributions"
+
+	testAccRepositoryGenericUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-generic"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "gradle_distributions" {
+    namespace       = cloudsmith_repository.test.namespace
+    repository      = cloudsmith_repository.test.slug
+	name            = cloudsmith_repository.test.name
+    upstream_type   = "generic"
+    upstream_url    = "https://services.gradle.org"
+    upstream_prefix = "distributions"
+}
+`, namespace)
+
+	testAccRepositoryGenericUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-generic"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "gradle_distributions" {
+		extra_header_1  = "X-Custom-Header"
+	    extra_header_2  = "Access-Control-Allow-Origin"
+	    extra_value_1   = "custom-value"
+	    extra_value_2   = "*"
+	    is_active       = true
+	    mode            = "Proxy Only"
+		name            = cloudsmith_repository.test.name
+	    namespace       = cloudsmith_repository.test.namespace
+	    priority        = 12345
+	    repository      = cloudsmith_repository.test.slug
+	    upstream_type   = "generic"
+	    upstream_url    = "https://services.gradle.org"
+	    upstream_prefix = "distributions"
+	    verify_ssl      = false
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(genericUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryGenericUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, "upstream_prefix", "distributions"),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryGenericUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, "upstream_prefix", "distributions"),
+				),
+			},
+			{
+				ResourceName: genericUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[genericUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -1827,6 +1935,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Docker:
 			req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+		case Generic:
+			req := pc.APIClient.ReposApi.ReposUpstreamGenericRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericReadExecute(req)
 		case Go:
 			req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
