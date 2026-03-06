@@ -12,20 +12,20 @@ import (
 
 // testCheckResourceAttrWithMessage enhances output for attribute checks
 func testCheckResourceAttrWithMessage(resourceName, attrName, expected string) resource.TestCheckFunc {
-       return func(s *terraform.State) error {
-	       rs, ok := s.RootModule().Resources[resourceName]
-	       if !ok {
-		       return fmt.Errorf("Not found: %s", resourceName)
-	       }
-	       actual, ok := rs.Primary.Attributes[attrName]
-	       if !ok {
-		       return fmt.Errorf("Attribute '%s' not found in resource '%s'. State: %#v", attrName, resourceName, rs.Primary.Attributes)
-	       }
-	       if actual != expected {
-		       return fmt.Errorf("Attribute '%s' in resource '%s' expected '%s', got '%s'. Full state: %#v", attrName, resourceName, expected, actual, rs.Primary.Attributes)
-	       }
-	       return nil
-       }
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("Not found: %s", resourceName)
+		}
+		actual, ok := rs.Primary.Attributes[attrName]
+		if !ok {
+			return fmt.Errorf("Attribute '%s' not found in resource '%s'. State: %#v", attrName, resourceName, rs.Primary.Attributes)
+		}
+		if actual != expected {
+			return fmt.Errorf("Attribute '%s' in resource '%s' expected '%s', got '%s'. Full state: %#v", attrName, resourceName, expected, actual, rs.Primary.Attributes)
+		}
+		return nil
+	}
 }
 
 func TestAccRepositoryRetentionRule_basic(t *testing.T) {

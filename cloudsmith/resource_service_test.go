@@ -50,7 +50,7 @@ func TestAccService_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
 					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
-          resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
 						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
 						"role": regexp.MustCompile("^Member$"),
 					}),
