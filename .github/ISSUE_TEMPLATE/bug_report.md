@@ -15,7 +15,7 @@ labels: bug
 
 ## Provider Version
 
-<!-- Run `terraform providers` or check `.terraform.lock.hcl` to show the Cloudsmith provider version. If you are not running the latest provider version, please upgrade first because your issue may already have been fixed. -->
+<!-- Run `terraform version` in this Terraform project directory, or check `.terraform.lock.hcl`, to show the Cloudsmith provider version. If you are not running the latest provider version, please upgrade first because your issue may already have been fixed. -->
 
 ## Affected Resources/Data Sources
 
