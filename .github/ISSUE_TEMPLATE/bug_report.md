@@ -58,7 +58,7 @@ labels: bug
 - **OS**: <!-- e.g. macOS 15, Ubuntu 24.04, Windows 11 -->
 - **Execution Context**: <!-- e.g. local machine, CI, Terraform Cloud -->
 
-## Important Factoids
+## Important Context
 
 <!-- Are there any atypical details about your Cloudsmith account, Terraform setup, or environment that we should know? -->
 
