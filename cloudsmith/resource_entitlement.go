@@ -248,7 +248,8 @@ func resourceEntitlement() *schema.Resource {
 					"grouping. The path evaluated does not include the domain name, the namespace, " +
 					"the entitlement code used, the package format, etc. and it always starts with " +
 					"a forward slash.",
-				Optional: true,
+				Optional:   true,
+				Deprecated: "`limit_path_query` is deprecated and should not be used in new configurations, please use `limit_package_query` instead.",
 			},
 			"name": {
 				Type:         schema.TypeString,
