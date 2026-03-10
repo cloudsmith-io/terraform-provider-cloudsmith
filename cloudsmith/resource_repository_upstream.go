@@ -577,17 +577,11 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 
 	d.SetId(upstream.GetSlugPerm())
 
-	checkerFunc := func() error {
-		if upstream, resp, err = getUpstream(d, m); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for upstream (%s) to be created: %w", d.Id(), err)
+	if err := waitForCreation(func() (*http.Response, error) {
+		_, resp, err := getUpstream(d, m)
+		return resp, err
+	}, "upstream", d.Id()); err != nil {
+		return err
 	}
 
 	// Wait for is_active to become true when expected (nil defaults to true, or explicitly set true).
@@ -1238,17 +1232,11 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 		return err
 	}
 
-	checkerFunc := func() error {
-		if _, resp, err := getUpstream(d, m); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for upstream (%s) to be deleted: %w", d.Id(), err)
+	if err := waitForDeletion(func() (*http.Response, error) {
+		_, resp, err := getUpstream(d, m)
+		return resp, err
+	}, "upstream", d.Id()); err != nil {
+		return err
 	}
 
 	return nil
