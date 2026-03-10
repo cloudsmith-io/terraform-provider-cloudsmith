@@ -35,6 +35,33 @@ func waitForSAMLAuthEnabled(pc *providerConfig, organization string, wantEnabled
 	}
 }
 
+// waitForSAMLMetadata polls until the SAML metadata (inline or URL) matches the
+// expected values or times out. The Cloudsmith API is eventually consistent, so
+// metadata changes may not be immediately reflected after a write.
+func waitForSAMLMetadata(pc *providerConfig, organization, wantInline, wantURL string, timeoutSec int) error {
+	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	for {
+		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+		if resp != nil {
+			resp.Body.Close()
+		}
+		if err == nil {
+			gotInline := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
+			gotURL := ""
+			if u, ok := samlAuth.GetSamlMetadataUrlOk(); ok && u != nil {
+				gotURL = *u
+			}
+			if gotInline == wantInline && gotURL == wantURL {
+				return nil
+			}
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for SAML metadata to be updated")
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
 // samlAuthCreate handles the creation of a new SAML authentication configuration
 func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	pc := m.(*providerConfig)
@@ -100,6 +127,19 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 	// Wait for the backend to reflect the enabled state
 	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+		return diag.FromErr(err)
+	}
+	// Wait for the backend to reflect the metadata changes. The API is eventually
+	// consistent and the inline metadata or URL may not be immediately available.
+	wantInline := ""
+	wantURL := ""
+	if v, ok := d.GetOk("saml_metadata_inline"); ok {
+		wantInline = strings.TrimSpace(v.(string))
+	}
+	if v, ok := d.GetOk("saml_metadata_url"); ok {
+		wantURL = v.(string)
+	}
+	if err := waitForSAMLMetadata(pc, organization, wantInline, wantURL, 30); err != nil {
 		return diag.FromErr(err)
 	}
 	return samlAuthRead(ctx, d, m)
