@@ -590,6 +590,23 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 		return fmt.Errorf("error waiting for upstream (%s) to be created: %w", d.Id(), err)
 	}
 
+	// Wait for is_active to become true when expected (nil defaults to true, or explicitly set true).
+	// Some upstream types (e.g. deb) can take several minutes to activate after creation.
+	if isActive == nil || *isActive {
+		activeChecker := func() error {
+			if upstream, _, err = getUpstream(d, m); err != nil {
+				return err
+			}
+			if !upstream.GetIsActive() {
+				return errKeepWaiting
+			}
+			return nil
+		}
+		if err := waiter(activeChecker, 5*time.Minute, 10*time.Second); err != nil {
+			return fmt.Errorf("error waiting for upstream (%s) to become active: %w", d.Id(), err)
+		}
+	}
+
 	return resourceRepositoryUpstreamRead(d, m)
 }
 
