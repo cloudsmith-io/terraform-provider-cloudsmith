@@ -58,12 +58,17 @@ func waitForSAMLMetadata(pc *providerConfig, organization, wantInline, wantURL s
 				return fmt.Errorf("error reading SAML metadata for %s: %w", organization, err)
 			}
 		} else {
+			// normalize both desired and actual values to avoid spurious
+			// mismatches due to whitespace
+			wantInlineNorm := strings.TrimSpace(wantInline)
+			wantURLNorm := strings.TrimSpace(wantURL)
+
 			gotInline := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
 			gotURL := ""
 			if u, ok := samlAuth.GetSamlMetadataUrlOk(); ok && u != nil {
-				gotURL = *u
+				gotURL = strings.TrimSpace(*u)
 			}
-			if gotInline == wantInline && gotURL == wantURL {
+			if gotInline == wantInlineNorm && gotURL == wantURLNorm {
 				return nil
 			}
 		}
@@ -141,18 +146,22 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
 		return diag.FromErr(err)
 	}
-	// Wait for the backend to reflect the metadata changes. The API is eventually
-	// consistent and the inline metadata or URL may not be immediately available.
-	wantInline := ""
-	wantURL := ""
-	if v, ok := d.GetOk("saml_metadata_inline"); ok {
-		wantInline = strings.TrimSpace(v.(string))
-	}
-	if v, ok := d.GetOk("saml_metadata_url"); ok {
-		wantURL = v.(string)
-	}
-	if err := waitForSAMLMetadata(pc, organization, wantInline, wantURL, 30); err != nil {
-		return diag.FromErr(err)
+	// Only wait for metadata consistency when metadata fields have changed to avoid
+	// unnecessary latency and timeouts on updates that do not touch metadata.
+	if d.HasChange("saml_metadata_inline") || d.HasChange("saml_metadata_url") {
+		// Wait for the backend to reflect the metadata changes. The API is eventually
+		// consistent and the inline metadata or URL may not be immediately available.
+		wantInline := ""
+		wantURL := ""
+		if v, ok := d.GetOk("saml_metadata_inline"); ok {
+			wantInline = strings.TrimSpace(v.(string))
+		}
+		if v, ok := d.GetOk("saml_metadata_url"); ok {
+			wantURL = v.(string)
+		}
+		if err := waitForSAMLMetadata(pc, organization, wantInline, wantURL, 30); err != nil {
+			return diag.FromErr(err)
+		}
 	}
 	return samlAuthRead(ctx, d, m)
 }
