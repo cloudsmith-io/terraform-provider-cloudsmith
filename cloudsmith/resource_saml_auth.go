@@ -21,15 +21,54 @@ func waitForSAMLAuthEnabled(pc *providerConfig, organization string, wantEnabled
 	for {
 		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
 		if resp != nil {
-			defer resp.Body.Close()
+			resp.Body.Close()
 		}
-		if err == nil {
-			if samlAuth.GetSamlAuthEnabled() == wantEnabled {
+		if err != nil {
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// fall through to retry
+			} else {
+				return fmt.Errorf("error reading SAML auth for %s: %w", organization, err)
+			}
+		} else if samlAuth.GetSamlAuthEnabled() == wantEnabled {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for SAML auth enabled=%v for %s", wantEnabled, organization)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+
+// waitForSAMLMetadata polls until the SAML metadata (inline or URL) matches the
+// expected values or times out. The Cloudsmith API is eventually consistent, so
+// metadata changes may not be immediately reflected after a write.
+func waitForSAMLMetadata(pc *providerConfig, organization, wantInline, wantURL string, timeoutSec int) error {
+	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	for {
+		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+		if resp != nil {
+			resp.Body.Close()
+		}
+		if err != nil {
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// fall through to retry
+			} else {
+				return fmt.Errorf("error reading SAML metadata for %s: %w", organization, err)
+			}
+		} else {
+			gotInline := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
+			gotURL := ""
+			if u, ok := samlAuth.GetSamlMetadataUrlOk(); ok && u != nil {
+				gotURL = *u
+			}
+			if gotInline == wantInline && gotURL == wantURL {
 				return nil
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for SAML auth enabled=%v", wantEnabled)
+			return fmt.Errorf("timeout waiting for SAML metadata to be updated for %s", organization)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -100,6 +139,19 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 	// Wait for the backend to reflect the enabled state
 	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+		return diag.FromErr(err)
+	}
+	// Wait for the backend to reflect the metadata changes. The API is eventually
+	// consistent and the inline metadata or URL may not be immediately available.
+	wantInline := ""
+	wantURL := ""
+	if v, ok := d.GetOk("saml_metadata_inline"); ok {
+		wantInline = strings.TrimSpace(v.(string))
+	}
+	if v, ok := d.GetOk("saml_metadata_url"); ok {
+		wantURL = v.(string)
+	}
+	if err := waitForSAMLMetadata(pc, organization, wantInline, wantURL, 30); err != nil {
 		return diag.FromErr(err)
 	}
 	return samlAuthRead(ctx, d, m)
