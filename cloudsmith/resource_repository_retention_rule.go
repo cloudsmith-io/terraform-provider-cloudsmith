@@ -67,8 +67,34 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 
-	// Handle the response
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
+
+	// Wait for the API to reflect the updated retention rule values. The
+	// Cloudsmith API is eventually consistent, so a read immediately after a
+	// write may return stale values. We poll until the count limit and query
+	// string match what was submitted.
+	checkerFunc := func() error {
+		resp, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		if err != nil {
+			return errKeepWaiting
+		}
+		if resp.GetRetentionCountLimit() != retentionCountLimit {
+			return errKeepWaiting
+		}
+		wantQuery := d.Get("retention_package_query_string").(string)
+		gotQuery := ""
+		if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+			gotQuery = *resp.RetentionPackageQueryString.Get()
+		}
+		if gotQuery != wantQuery {
+			return errKeepWaiting
+		}
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for repository retention rule to be updated: %s", err)
+	}
+
 	return resourceRepoRetentionRuleRead(d, meta)
 }
 
