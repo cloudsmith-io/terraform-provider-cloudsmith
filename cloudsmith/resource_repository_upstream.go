@@ -588,7 +588,11 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	// Some upstream types (e.g. deb) can take several minutes to activate after creation.
 	if isActive == nil || *isActive {
 		activeChecker := func() error {
-			if upstream, _, err = getUpstream(d, m); err != nil {
+			var resp *http.Response
+			if upstream, resp, err = getUpstream(d, m); err != nil {
+				if is404(resp) {
+					return errKeepWaiting
+				}
 				return err
 			}
 			if !upstream.GetIsActive() {
