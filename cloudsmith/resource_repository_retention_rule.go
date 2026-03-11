@@ -74,9 +74,14 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	// write may return stale values. We poll until the count limit and query
 	// string match what was submitted.
 	checkerFunc := func() error {
-		resp, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
 		if err != nil {
-			return errKeepWaiting
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if httpResp != nil && httpResp.StatusCode == 404 {
+				return errKeepWaiting
+			}
+			// For all other errors, return the original error so the caller sees the real cause.
+			return err
 		}
 		if resp.GetRetentionCountLimit() != retentionCountLimit {
 			return errKeepWaiting
@@ -92,7 +97,7 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 		return nil
 	}
 	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for repository retention rule to be updated: %s", err)
+		return fmt.Errorf("error waiting for repository retention rule %s/%s to be updated: %w", namespace, repo, err)
 	}
 
 	return resourceRepoRetentionRuleRead(d, meta)
