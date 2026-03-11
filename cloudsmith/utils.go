@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -200,4 +201,55 @@ func waiter(checker waitFunc, timeout, interval time.Duration) error {
 	}
 
 	return errTimedOut
+}
+
+// waitForCreation polls readFunc until a resource becomes available (not 404).
+// readFunc should return the HTTP response and error from a read API call.
+func waitForCreation(readFunc func() (*http.Response, error), resourceType, resourceID string) error {
+	checker := func() error {
+		resp, err := readFunc()
+		if err != nil {
+			if is404(resp) {
+				return errKeepWaiting
+			}
+			return err
+		}
+		return nil
+	}
+	if err := waiter(checker, defaultCreationTimeout, defaultCreationInterval); err != nil {
+		return fmt.Errorf("error waiting for %s (%s) to be created: %w", resourceType, resourceID, err)
+	}
+	return nil
+}
+
+// waitForDeletion polls readFunc until a resource is gone (404).
+// readFunc should return the HTTP response and error from a read API call.
+func waitForDeletion(readFunc func() (*http.Response, error), resourceType, resourceID string) error {
+	checker := func() error {
+		resp, err := readFunc()
+		if err != nil {
+			if is404(resp) {
+				return nil
+			}
+			return err
+		}
+		return errKeepWaiting
+	}
+	if err := waiter(checker, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
+		return fmt.Errorf("error waiting for %s (%s) to be deleted: %w", resourceType, resourceID, err)
+	}
+	return nil
+}
+
+// waitForUpdate pauses briefly to allow eventual consistency to settle after
+// an update.
+func waitForUpdate(resourceType, resourceID string) error {
+	checker := func() error {
+		time.Sleep(5 * time.Second)
+		return nil
+	}
+	if err := waiter(checker, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for %s (%s) to be updated: %w", resourceType, resourceID, err)
+	}
+	return nil
 }
