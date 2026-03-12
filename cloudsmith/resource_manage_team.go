@@ -46,10 +46,10 @@ func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
 		Members: teamMembersList,
 	}
 
-	req := pc.APIClient.OrgsApi.OrgsTeamsMembersCreate(pc.Auth, organization, teamName)
+	req := pc.APIClient.OrgsApi.OrgsTeamsMembersUpdate(pc.Auth, organization, teamName)
 	req = req.Data(teamMembersData)
 
-	_, _, err := pc.APIClient.OrgsApi.OrgsTeamsMembersCreateExecute(req)
+	_, _, err := pc.APIClient.OrgsApi.OrgsTeamsMembersUpdateExecute(req)
 	if err != nil {
 		return err
 	}
