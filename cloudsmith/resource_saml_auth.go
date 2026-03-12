@@ -19,6 +19,7 @@ import (
 func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled bool, wantInline string, wantURL string, timeoutSec int) error {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 	wantInline = strings.TrimSpace(wantInline)
+	wantURL = strings.TrimSpace(wantURL)
 	for {
 		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
 		if resp != nil && resp.Body != nil {
@@ -29,7 +30,7 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 			url, _ := samlAuth.GetSamlMetadataUrlOk()
 			urlValue := ""
 			if url != nil {
-				urlValue = *url
+				urlValue = strings.TrimSpace(*url)
 			}
 
 			metadataMatch := false
@@ -46,7 +47,12 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, wantInline=%q, wantURL=%q)", wantEnabled, wantInline, wantURL)
+			redactedInline := "empty"
+			if wantInline != "" {
+				sum := sha256.Sum256([]byte(wantInline))
+				redactedInline = fmt.Sprintf("len=%d sha256=%s", len(wantInline), hex.EncodeToString(sum[:8]))
+			}
+			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, wantInline=%s, wantURL=%q)", wantEnabled, redactedInline, wantURL)
 		}
 		time.Sleep(1 * time.Second)
 	}
