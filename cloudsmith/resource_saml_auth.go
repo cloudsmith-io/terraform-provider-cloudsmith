@@ -21,14 +21,10 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 	wantInline = strings.TrimSpace(wantInline)
 	for {
 		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
-		if resp != nil {
-			defer resp.Body.Close()
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close() // close immediately to avoid stacking defers in the loop
 		}
-		if err == nil {
-			if samlAuth.GetSamlAuthEnabled() != wantEnabled {
-				goto wait
-			}
-
+		if err == nil && samlAuth.GetSamlAuthEnabled() == wantEnabled {
 			inlineMetadata := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
 			url, _ := samlAuth.GetSamlMetadataUrlOk()
 			urlValue := ""
@@ -36,27 +32,21 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 				urlValue = *url
 			}
 
+			metadataMatch := false
 			if wantInline != "" {
-				if inlineMetadata != wantInline || urlValue != "" {
-					goto wait
-				}
+				metadataMatch = inlineMetadata == wantInline && urlValue == ""
+			} else if wantURL != "" {
+				metadataMatch = urlValue == wantURL && inlineMetadata == ""
+			} else {
+				metadataMatch = inlineMetadata == "" && urlValue == ""
 			}
 
-			if wantURL != "" {
-				if urlValue != wantURL || inlineMetadata != "" {
-					goto wait
-				}
+			if metadataMatch {
+				return nil
 			}
-
-			if wantInline == "" && wantURL == "" && (inlineMetadata != "" || urlValue != "") {
-				goto wait
-			}
-
-			return nil
 		}
-	wait:
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v)", wantEnabled)
+			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, wantInline=%q, wantURL=%q)", wantEnabled, wantInline, wantURL)
 		}
 		time.Sleep(1 * time.Second)
 	}
