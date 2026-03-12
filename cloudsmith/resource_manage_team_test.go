@@ -25,6 +25,8 @@ func TestAccManageTeam_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.role", "Member"),
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.user", "bblizniak"),
 				),
+				// This is required as when creating a team, the creator gets automatically added which causes a 422 error
+				ExpectNonEmptyPlan: true,
 			},
 		},
 	})
