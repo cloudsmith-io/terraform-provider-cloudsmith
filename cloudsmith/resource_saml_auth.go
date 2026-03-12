@@ -16,7 +16,7 @@ import (
 )
 
 // waitForSAMLAuthState polls until the SAML auth state matches the expected values or times out.
-func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled bool, wantInline string, wantURL string, timeoutSec int) error {
+func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled bool, wantEnforced bool, wantInline string, wantURL string, timeoutSec int) error {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 	wantInline = strings.TrimSpace(wantInline)
 	wantURL = strings.TrimSpace(wantURL)
@@ -25,7 +25,7 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close() // close immediately to avoid stacking defers in the loop
 		}
-		if err == nil && samlAuth.GetSamlAuthEnabled() == wantEnabled {
+		if err == nil && samlAuth.GetSamlAuthEnabled() == wantEnabled && samlAuth.GetSamlAuthEnforced() == wantEnforced {
 			inlineMetadata := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
 			url, _ := samlAuth.GetSamlMetadataUrlOk()
 			urlValue := ""
@@ -52,7 +52,7 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 				sum := sha256.Sum256([]byte(wantInline))
 				redactedInline = fmt.Sprintf("len=%d sha256=%s", len(wantInline), hex.EncodeToString(sum[:8]))
 			}
-			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, wantInline=%s, wantURL=%q)", wantEnabled, redactedInline, wantURL)
+			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, enforced=%v, wantInline=%s, wantURL=%q)", wantEnabled, wantEnforced, redactedInline, wantURL)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -80,6 +80,7 @@ func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		pc,
 		organization,
 		d.Get("saml_auth_enabled").(bool),
+		d.Get("saml_auth_enforced").(bool),
 		d.Get("saml_metadata_inline").(string),
 		d.Get("saml_metadata_url").(string),
 		30,
@@ -133,6 +134,7 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		pc,
 		organization,
 		d.Get("saml_auth_enabled").(bool),
+		d.Get("saml_auth_enforced").(bool),
 		d.Get("saml_metadata_inline").(string),
 		d.Get("saml_metadata_url").(string),
 		30,
@@ -160,7 +162,7 @@ func samlAuthDelete(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	// Wait for the backend to reflect the disabled state
-	if err := waitForSAMLAuthState(pc, organization, false, "", "", 30); err != nil {
+	if err := waitForSAMLAuthState(pc, organization, false, false, "", "", 30); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
