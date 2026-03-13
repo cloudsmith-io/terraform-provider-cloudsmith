@@ -577,20 +577,41 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 
 	d.SetId(upstream.GetSlugPerm())
 
-	checkerFunc := func() error {
-		if upstream, resp, err = getUpstream(d, m); err != nil {
-			if is404(resp) {
+	if err := waitForCreation(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
+		return err
+	}
+
+	// Wait for is_active to become true when expected (nil defaults to true, or explicitly set true).
+	// Some upstream types (e.g. deb) can take several minutes to activate after creation.
+	if isActive == nil || *isActive {
+		activeChecker := func() error {
+			var resp *http.Response
+			if upstream, resp, err = getUpstream(d, m); err != nil {
+				if is404(resp) {
+					return errKeepWaiting
+				}
+				return err
+			}
+			if !upstream.GetIsActive() {
 				return errKeepWaiting
 			}
-			return err
+			return nil
 		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for upstream (%s) to be created: %w", d.Id(), err)
+		if err := waiter(activeChecker, 5*time.Minute, 10*time.Second); err != nil {
+			return fmt.Errorf("error waiting for upstream (%s) to become active: %w", d.Id(), err)
+		}
 	}
 
 	return resourceRepositoryUpstreamRead(d, m)
+}
+
+// upstreamReadFunc returns a function suitable for waitForCreation/waitForDeletion
+// that checks whether the upstream resource exists.
+func upstreamReadFunc(d *schema.ResourceData, m interface{}) func() (*http.Response, error) {
+	return func() (*http.Response, error) {
+		_, resp, err := getUpstream(d, m)
+		return resp, err
+	}
 }
 
 func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Response, error) {
@@ -1221,17 +1242,8 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 		return err
 	}
 
-	checkerFunc := func() error {
-		if _, resp, err := getUpstream(d, m); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for upstream (%s) to be deleted: %w", d.Id(), err)
+	if err := waitForDeletion(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
+		return err
 	}
 
 	return nil
