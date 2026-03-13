@@ -242,14 +242,9 @@ func waitForDeletion(readFunc func() (*http.Response, error), resourceType, reso
 }
 
 // waitForUpdate pauses briefly to allow eventual consistency to settle after
-// an update.
+// an update. There is no concrete condition to poll, so we just sleep for a
+// fixed duration.
 func waitForUpdate(resourceType, resourceID string) error {
-	checker := func() error {
-		time.Sleep(5 * time.Second)
-		return nil
-	}
-	if err := waiter(checker, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for %s (%s) to be updated: %w", resourceType, resourceID, err)
-	}
+	time.Sleep(7 * time.Second)
 	return nil
 }
