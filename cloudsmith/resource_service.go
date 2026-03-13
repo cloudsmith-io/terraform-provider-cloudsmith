@@ -3,8 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/go-cty/cty"
@@ -110,18 +110,12 @@ func resourceServiceCreate(ctx context.Context, d *schema.ResourceData, m interf
 	} else {
 		d.Set("key", "**redacted**")
 	}
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return diag.Errorf("error waiting for service (%s) to be created: %s", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
+		return resp, err
+	}, "service", d.Id()); err != nil {
+		return diag.FromErr(err)
 	}
 
 	return resourceServiceRead(ctx, d, m)
@@ -212,14 +206,8 @@ func resourceServiceUpdate(ctx context.Context, d *schema.ResourceData, m interf
 
 	d.SetId(service.GetSlug())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// service being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return diag.Errorf("error waiting for service (%s) to be updated: %s", d.Id(), err)
+	if err := waitForUpdate("service", d.Id()); err != nil {
+		return diag.FromErr(err)
 	}
 
 	// If the rotate_api_key field has changed to a strictly higher value,
@@ -264,18 +252,12 @@ func resourceServiceDelete(ctx context.Context, d *schema.ResourceData, m interf
 		return diag.FromErr(err)
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return diag.Errorf("error waiting for service (%s) to be deleted: %s", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
+		return resp, err
+	}, "service", d.Id()); err != nil {
+		return diag.FromErr(err)
 	}
 
 	return nil

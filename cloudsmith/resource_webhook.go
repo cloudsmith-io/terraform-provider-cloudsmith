@@ -3,8 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -182,18 +182,12 @@ func resourceWebhookCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(webhook.GetSlugPerm())
 
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.WebhooksApi.WebhooksRead(pc.Auth, namespace, repository, d.Id())
-		if _, resp, err := pc.APIClient.WebhooksApi.WebhooksReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for webhook (%s) to be created: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.WebhooksApi.WebhooksReadExecute(req)
+		return resp, err
+	}, "webhook", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceWebhookRead(d, m)
@@ -272,14 +266,8 @@ func resourceWebhookUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(webhook.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for an
-		// entitlement being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for webhook (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("webhook", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceWebhookRead(d, m)
@@ -297,18 +285,12 @@ func resourceWebhookDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.WebhooksApi.WebhooksRead(pc.Auth, namespace, repository, d.Id())
-		if _, resp, err := pc.APIClient.WebhooksApi.WebhooksReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for webhook (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.WebhooksApi.WebhooksReadExecute(req)
+		return resp, err
+	}, "webhook", d.Id()); err != nil {
+		return err
 	}
 
 	return nil

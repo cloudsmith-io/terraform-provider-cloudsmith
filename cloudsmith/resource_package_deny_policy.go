@@ -3,8 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -40,18 +40,12 @@ func packageDenyPolicyCreate(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 	d.SetId(packageDenyPolicy.GetSlugPerm())
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for package deny policy (%s) to be created: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req)
+		return resp, err
+	}, "package deny policy", d.Id()); err != nil {
+		return err
 	}
 	return packageDenyPolicyRead(d, m)
 }
@@ -95,14 +89,8 @@ func packageDenyPolicyUpdate(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 	d.SetId(packageDenyPolicy.GetSlugPerm())
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// deny policy being updated
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for deny policy (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("deny policy", d.Id()); err != nil {
+		return err
 	}
 	return packageDenyPolicyRead(d, m)
 }
@@ -118,19 +106,12 @@ func packageDenyPolicyDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsDenyPolicyRead(pc.Auth, namespace, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for deny policy (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsDenyPolicyReadExecute(req)
+		return resp, err
+	}, "deny policy", d.Id()); err != nil {
+		return err
 	}
 	return nil
 }

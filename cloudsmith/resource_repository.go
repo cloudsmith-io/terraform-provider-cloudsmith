@@ -3,8 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -92,18 +92,12 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(repository.GetSlugPerm())
 
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
-		if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return fmt.Errorf("error reading repository: %w", err)
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for repository (%s) to be created: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+		return resp, err
+	}, "repository", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceRepositoryRead(d, m)
@@ -247,14 +241,8 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(repository.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// repository being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for repository (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("repository", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceRepositoryRead(d, m)
@@ -272,18 +260,12 @@ func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
 	}
 
 	if requiredBool(d, "wait_for_deletion") {
-		checkerFunc := func() error {
+		if err := waitForDeletion(func() (*http.Response, error) {
 			req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
-			if _, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req); err != nil {
-				if is404(resp) {
-					return nil
-				}
-				return fmt.Errorf("error reading repository: %w", err)
-			}
-			return errKeepWaiting
-		}
-		if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-			return fmt.Errorf("error waiting for repository (%s) to be deleted: %w", d.Id(), err)
+			_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+			return resp, err
+		}, "repository", d.Id()); err != nil {
+			return err
 		}
 	}
 
