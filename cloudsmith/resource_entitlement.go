@@ -3,8 +3,8 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -33,15 +33,16 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsCreate(pc.Auth, namespace, repository)
 	req = req.Data(cloudsmith.RepositoryTokenRequest{
-		IsActive:           optionalBool(d, "is_active"),
-		LimitDateRangeFrom: nullableTime(d, "limit_date_range_from"),
-		LimitDateRangeTo:   nullableTime(d, "limit_date_range_to"),
-		LimitNumClients:    nullableInt64(d, "limit_num_clients"),
-		LimitNumDownloads:  nullableInt64(d, "limit_num_downloads"),
-		LimitPackageQuery:  nullableString(d, "limit_package_query"),
-		LimitPathQuery:     nullableString(d, "limitPathQuery"),
-		Name:               requiredString(d, "name"),
-		Token:              optionalString(d, "token"),
+		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
+		IsActive:                optionalBool(d, "is_active"),
+		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
+		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
+		LimitNumClients:         nullableInt64(d, "limit_num_clients"),
+		LimitNumDownloads:       nullableInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:       nullableString(d, "limit_package_query"),
+		LimitPathQuery:          nullableString(d, "limitPathQuery"),
+		Name:                    requiredString(d, "name"),
+		Token:                   optionalString(d, "token"),
 	})
 	req = req.ShowTokens(true)
 
@@ -52,18 +53,12 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(entitlement.GetSlugPerm())
 
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id())
-		if _, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for entitlement (%s) to be created: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
+		return resp, err
+	}, "entitlement", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceEntitlementRead(d, m)
@@ -88,6 +83,7 @@ func resourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+	d.Set("access_private_broadcasts", entitlement.GetAccessPrivateBroadcasts())
 	d.Set("is_active", entitlement.GetIsActive())
 	d.Set("limit_date_range_from", timeToString(entitlement.GetLimitDateRangeFrom()))
 	d.Set("limit_date_range_to", timeToString(entitlement.GetLimitDateRangeTo()))
@@ -116,15 +112,16 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdate(pc.Auth, namespace, repository, d.Id())
 	req = req.Data(cloudsmith.RepositoryTokenRequestPatch{
-		IsActive:           optionalBool(d, "is_active"),
-		LimitDateRangeFrom: nullableTime(d, "limit_date_range_from"),
-		LimitDateRangeTo:   nullableTime(d, "limit_date_range_to"),
-		LimitNumClients:    nullableInt64(d, "limit_num_clients"),
-		LimitNumDownloads:  nullableInt64(d, "limit_num_downloads"),
-		LimitPackageQuery:  nullableString(d, "limit_package_query"),
-		LimitPathQuery:     nullableString(d, "limit_path_query"),
-		Name:               optionalString(d, "name"),
-		Token:              optionalString(d, "token"),
+		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
+		IsActive:                optionalBool(d, "is_active"),
+		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
+		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
+		LimitNumClients:         nullableInt64(d, "limit_num_clients"),
+		LimitNumDownloads:       nullableInt64(d, "limit_num_downloads"),
+		LimitPackageQuery:       nullableString(d, "limit_package_query"),
+		LimitPathQuery:          nullableString(d, "limit_path_query"),
+		Name:                    optionalString(d, "name"),
+		Token:                   optionalString(d, "token"),
 	})
 	req = req.ShowTokens(true)
 
@@ -135,14 +132,8 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(entitlement.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for an
-		// entitlement being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for entitlement (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("entitlement", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceEntitlementRead(d, m)
@@ -160,18 +151,12 @@ func resourceEntitlementDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.EntitlementsApi.EntitlementsRead(pc.Auth, namespace, repository, d.Id())
-		if _, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for entitlement (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.EntitlementsApi.EntitlementsReadExecute(req)
+		return resp, err
+	}, "entitlement", d.Id()); err != nil {
+		return err
 	}
 
 	return nil
@@ -190,6 +175,12 @@ func resourceEntitlement() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"access_private_broadcasts": {
+				Type:        schema.TypeBool,
+				Description: "If enabled, this token can be used for private broadcasts.",
+				Optional:    true,
+				Computed:    true,
+			},
 			"is_active": {
 				Type:        schema.TypeBool,
 				Description: "If enabled, the token will allow downloads based on configured restrictions (if any).",
@@ -239,7 +230,8 @@ func resourceEntitlement() *schema.Resource {
 					"grouping. The path evaluated does not include the domain name, the namespace, " +
 					"the entitlement code used, the package format, etc. and it always starts with " +
 					"a forward slash.",
-				Optional: true,
+				Optional:   true,
+				Deprecated: "`limit_path_query` is deprecated and should not be used in new configurations, please use `limit_package_query` instead.",
 			},
 			"name": {
 				Type:         schema.TypeString,

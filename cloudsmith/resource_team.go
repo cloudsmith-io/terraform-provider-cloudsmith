@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -33,7 +33,7 @@ func resourceTeamCreate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.OrgsApi.OrgsTeamsCreate(pc.Auth, org)
 	req = req.Data(cloudsmith.OrganizationTeamRequest{
-		Description: optionalString(d, "description"),
+		Description: nullableString(d, "description"),
 		Name:        requiredString(d, "name"),
 		Slug:        optionalString(d, "slug"),
 		Visibility:  optionalString(d, "visibility"),
@@ -67,18 +67,12 @@ func resourceTeamCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(team.GetSlugPerm())
 
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsTeamsRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for team (%s) to be created: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req)
+		return resp, err
+	}, "team", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceTeamRead(d, m)
@@ -127,7 +121,7 @@ func resourceTeamUpdate(d *schema.ResourceData, m interface{}) error {
 
 	req := pc.APIClient.OrgsApi.OrgsTeamsPartialUpdate(pc.Auth, org, d.Id())
 	req = req.Data(cloudsmith.OrganizationTeamRequestPatch{
-		Description: optionalString(d, "description"),
+		Description: nullableString(d, "description"),
 		Name:        optionalString(d, "name"),
 		Slug:        optionalString(d, "slug"),
 		Visibility:  optionalString(d, "visibility"),
@@ -139,14 +133,8 @@ func resourceTeamUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(team.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// team being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for team (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("team", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceTeamRead(d, m)
@@ -163,18 +151,12 @@ func resourceTeamDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsTeamsRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for team (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsTeamsReadExecute(req)
+		return resp, err
+	}, "team", d.Id()); err != nil {
+		return err
 	}
 
 	return nil

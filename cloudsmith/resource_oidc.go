@@ -3,10 +3,10 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -181,9 +181,8 @@ func oidcUpdate(d *schema.ResourceData, m interface{}) error {
 	}
 	d.SetId(oidc.GetSlugPerm())
 
-	checkerFunc := func() error { time.Sleep(5 * time.Second); return nil }
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for OIDC config (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("OIDC config", d.Id()); err != nil {
+		return err
 	}
 	return oidcRead(d, m)
 }
@@ -198,19 +197,12 @@ func oidcDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsOpenidConnectRead(pc.Auth, namespace, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for OIDC config (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectReadExecute(req)
+		return resp, err
+	}, "OIDC config", d.Id()); err != nil {
+		return err
 	}
 
 	return nil

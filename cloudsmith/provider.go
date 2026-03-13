@@ -36,6 +36,7 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"cloudsmith_namespace":             dataSourceNamespace(),
+			"cloudsmith_oidc":                  dataSourceOidc(),
 			"cloudsmith_organization":          dataSourceOrganization(),
 			"cloudsmith_package":               dataSourcePackage(),
 			"cloudsmith_package_list":          dataSourcePackageList(),
@@ -46,6 +47,10 @@ func Provider() *schema.Provider {
 			"cloudsmith_list_org_members":      dataSourceOrganizationMembersList(),
 			"cloudsmith_org_member_details":    dataSourceMemberDetails(),
 			"cloudsmith_user_self":             dataSourceUserSelf(),
+			"cloudsmith_team_list":             dataSourceTeamList(),
+			"cloudsmith_team_members":          dataSourceTeamMembers(),
+			"cloudsmith_service_list":          dataSourceServiceList(),
+			"cloudsmith_service_details":       dataSourceServiceDetails(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":               resourceEntitlement(),

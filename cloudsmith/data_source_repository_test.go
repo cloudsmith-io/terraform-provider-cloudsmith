@@ -32,6 +32,7 @@ func TestAccRepository_data(t *testing.T) {
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_own", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_packages", "Admin"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "broadcast_state", "Off"),
 				),
 			},
 		},

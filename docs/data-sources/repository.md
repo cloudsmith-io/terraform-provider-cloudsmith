@@ -31,6 +31,7 @@ All of the argument attributes are also exported as result attributes.
 Additionally, the following attributes are also exported:
 
 * `cdn_url` - Base URL from which packages and other artifacts are downloaded.
+* `broadcast_state` - The broadcast state of the repository. Controls repository visibility and access level for broadcasts.
 * `contextual_auth_realm` - If checked, missing credentials for this repository where basic authentication is required shall present an enriched value in the 'WWW-Authenticate' header containing the namespace and repository. This can be useful for tooling such as SBT where the authentication realm is used to distinguish and disambiguate credentials.
 * `copy_own` - If checked, users can copy any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `copy_packages` - This defines the minimum level of privilege required for a user to copy packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific copy setting.
