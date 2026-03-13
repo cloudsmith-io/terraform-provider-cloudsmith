@@ -21,7 +21,7 @@ func TestAccOidc_data(t *testing.T) {
 			{
 				Config: testAccOidcDataSourceConfig,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test", "name", "test-oidc-terraform-provider"),
+					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test", "name", "test-oidc-terraform-provider-data"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test", "provider_url", "https://test.com"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test", "claims.key", "value"),
@@ -45,7 +45,7 @@ func TestAccOidc_dataDynamic(t *testing.T) {
 			{
 				Config: testAccOidcDataSourceDynamicConfig,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test_dynamic", "name", "test-oidc-terraform-provider-dynamic"),
+					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test_dynamic", "name", "test-oidc-terraform-provider-dynamic-data"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test_dynamic", "enabled", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test_dynamic", "provider_url", "https://dynamic.example.com"),
 					resource.TestCheckResourceAttr("data.cloudsmith_oidc.test_dynamic", "claims.aud", "example"),
@@ -73,7 +73,7 @@ resource "cloudsmith_oidc" "test" {
         "key" = "value"
     }
     enabled = true
-    name = "test-oidc-terraform-provider"
+    name = "test-oidc-terraform-provider-data"
     provider_url = "https://test.com"
     service_accounts = [cloudsmith_service.test.slug]
 }
@@ -99,7 +99,7 @@ resource "cloudsmith_oidc" "test_dynamic" {
 		"aud" = "example"
 	}
 	enabled = true
-	name = "test-oidc-terraform-provider-dynamic"
+	name = "test-oidc-terraform-provider-dynamic-data"
 	provider_url = "https://dynamic.example.com"
 	mapping_claim = "sub"
 	dynamic_mappings {
