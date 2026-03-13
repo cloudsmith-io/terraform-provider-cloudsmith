@@ -15,21 +15,44 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// waitForSAMLAuthEnabled polls until the SAML auth enabled state matches wantEnabled or times out.
-func waitForSAMLAuthEnabled(pc *providerConfig, organization string, wantEnabled bool, timeoutSec int) error {
+// waitForSAMLAuthState polls until the SAML auth state matches the expected values or times out.
+func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled bool, wantEnforced bool, wantInline string, wantURL string, timeoutSec int) error {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+	wantInline = strings.TrimSpace(wantInline)
+	wantURL = strings.TrimSpace(wantURL)
 	for {
 		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
-		if resp != nil {
-			defer resp.Body.Close()
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close() // close immediately to avoid stacking defers in the loop
 		}
-		if err == nil {
-			if samlAuth.GetSamlAuthEnabled() == wantEnabled {
+		if err == nil && samlAuth.GetSamlAuthEnabled() == wantEnabled && samlAuth.GetSamlAuthEnforced() == wantEnforced {
+			inlineMetadata := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
+			url, _ := samlAuth.GetSamlMetadataUrlOk()
+			urlValue := ""
+			if url != nil {
+				urlValue = strings.TrimSpace(*url)
+			}
+
+			metadataMatch := false
+			if wantInline != "" {
+				metadataMatch = inlineMetadata == wantInline && urlValue == ""
+			} else if wantURL != "" {
+				metadataMatch = urlValue == wantURL && inlineMetadata == ""
+			} else {
+				metadataMatch = inlineMetadata == "" && urlValue == ""
+			}
+
+			if metadataMatch {
 				return nil
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for SAML auth enabled=%v", wantEnabled)
+			redactedInline := "empty"
+			if wantInline != "" {
+				sum := sha256.Sum256([]byte(wantInline))
+				redactedInline = fmt.Sprintf("len=%d sha256=%s", len(wantInline), hex.EncodeToString(sum[:8]))
+			}
+			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, enforced=%v, wantInline=%s, wantURL=%q)", wantEnabled, wantEnforced, redactedInline, wantURL)
 		}
 		time.Sleep(1 * time.Second)
 	}
@@ -52,8 +75,16 @@ func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	d.SetId(generateSAMLAuthID(organization, result))
-	// Wait for the backend to reflect the enabled state
-	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+	// Wait for the backend to reflect enabled/metadata state
+	if err := waitForSAMLAuthState(
+		pc,
+		organization,
+		d.Get("saml_auth_enabled").(bool),
+		d.Get("saml_auth_enforced").(bool),
+		d.Get("saml_metadata_inline").(string),
+		d.Get("saml_metadata_url").(string),
+		30,
+	); err != nil {
 		return diag.FromErr(err)
 	}
 	return samlAuthRead(ctx, d, m)
@@ -98,8 +129,16 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	if err != nil {
 		return diag.FromErr(handleSAMLAuthError(err, resp, "updating SAML authentication"))
 	}
-	// Wait for the backend to reflect the enabled state
-	if err := waitForSAMLAuthEnabled(pc, organization, d.Get("saml_auth_enabled").(bool), 30); err != nil {
+	// Wait for the backend to reflect enabled/metadata state
+	if err := waitForSAMLAuthState(
+		pc,
+		organization,
+		d.Get("saml_auth_enabled").(bool),
+		d.Get("saml_auth_enforced").(bool),
+		d.Get("saml_metadata_inline").(string),
+		d.Get("saml_metadata_url").(string),
+		30,
+	); err != nil {
 		return diag.FromErr(err)
 	}
 	return samlAuthRead(ctx, d, m)
@@ -123,7 +162,7 @@ func samlAuthDelete(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	// Wait for the backend to reflect the disabled state
-	if err := waitForSAMLAuthEnabled(pc, organization, false, 30); err != nil {
+	if err := waitForSAMLAuthState(pc, organization, false, false, "", "", 30); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
