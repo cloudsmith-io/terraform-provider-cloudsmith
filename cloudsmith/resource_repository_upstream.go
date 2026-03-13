@@ -577,10 +577,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 
 	d.SetId(upstream.GetSlugPerm())
 
-	if err := waitForCreation(func() (*http.Response, error) {
-		_, resp, err := getUpstream(d, m)
-		return resp, err
-	}, "upstream", d.Id()); err != nil {
+	if err := waitForCreation(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
 		return err
 	}
 
@@ -606,6 +603,15 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	}
 
 	return resourceRepositoryUpstreamRead(d, m)
+}
+
+// upstreamReadFunc returns a function suitable for waitForCreation/waitForDeletion
+// that checks whether the upstream resource exists.
+func upstreamReadFunc(d *schema.ResourceData, m interface{}) func() (*http.Response, error) {
+	return func() (*http.Response, error) {
+		_, resp, err := getUpstream(d, m)
+		return resp, err
+	}
 }
 
 func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Response, error) {
@@ -1236,10 +1242,7 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 		return err
 	}
 
-	if err := waitForDeletion(func() (*http.Response, error) {
-		_, resp, err := getUpstream(d, m)
-		return resp, err
-	}, "upstream", d.Id()); err != nil {
+	if err := waitForDeletion(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
 		return err
 	}
 
