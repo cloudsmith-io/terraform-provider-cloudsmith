@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -63,18 +62,12 @@ func resourceLicensePolicyCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(licensePolicy.GetSlugPerm())
 
-	checkerFunc := func() error {
+	if err := waitForCreation(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsLicensePolicyRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req); err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for license policy (%s) to be created: %s", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)
+		return resp, err
+	}, "license policy", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceLicensePolicyRead(d, m)
@@ -104,14 +97,8 @@ func resourceLicensePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(licensePolicy.GetSlugPerm())
 
-	checkerFunc := func() error {
-		// this is somewhat of a hack until we have a better way to poll for a
-		// policy being updated (changes incoming on the API side)
-		time.Sleep(time.Second * 5)
-		return nil
-	}
-	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
-		return fmt.Errorf("error waiting for license policy (%s) to be updated: %w", d.Id(), err)
+	if err := waitForUpdate("license policy", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceLicensePolicyRead(d, m)
@@ -128,18 +115,12 @@ func resourceLicensePolicyDelete(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	checkerFunc := func() error {
+	if err := waitForDeletion(func() (*http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsLicensePolicyRead(pc.Auth, org, d.Id())
-		if _, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req); err != nil {
-			if is404(resp) {
-				return nil
-			}
-			return err
-		}
-		return errKeepWaiting
-	}
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
-		return fmt.Errorf("error waiting for license policy (%s) to be deleted: %w", d.Id(), err)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsLicensePolicyReadExecute(req)
+		return resp, err
+	}, "license policy", d.Id()); err != nil {
+		return err
 	}
 
 	return nil
