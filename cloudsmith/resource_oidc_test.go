@@ -124,7 +124,7 @@ func TestAccOidc_dynamic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 
 func testAccOidcCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {

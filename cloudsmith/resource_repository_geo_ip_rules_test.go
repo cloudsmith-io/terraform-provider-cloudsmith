@@ -98,7 +98,7 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccRepositoryGeoIpRulesCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -136,7 +136,7 @@ func testAccRepositoryGeoIpRulesCheckDestroy(resourceName string) resource.TestC
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccRepositoryGeoIpRulesCheckExists(resourceName string, expectedCidrAllow string, expectedCidrDeny string, expectedCountryCodeAllow string, expectedCountryCodeDeny string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

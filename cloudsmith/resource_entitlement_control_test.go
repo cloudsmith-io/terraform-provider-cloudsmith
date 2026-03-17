@@ -89,7 +89,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -120,7 +120,7 @@ func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestChe
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccEntitlementControlCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

@@ -1,0 +1,20 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        text: "Error return value of `d\\.Set` is not checked"
+      - linters:
+          - errcheck
+        text: "Error return value of `.*\\.Close` is not checked"
+      - linters:
+          - errcheck
+        text: "Error return value of `fmt\\.Fprint"
+      - linters:
+          - errcheck
+        text: "Error return value of `os\\.Remove` is not checked"
