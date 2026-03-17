@@ -84,7 +84,7 @@ func TestAccRepository_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -111,7 +111,7 @@ func testAccRepositoryCheckDestroy(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccRepositoryCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

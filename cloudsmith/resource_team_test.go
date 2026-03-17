@@ -71,7 +71,7 @@ func TestAccTeam_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccTeamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -98,7 +98,7 @@ func testAccTeamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccTeamCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

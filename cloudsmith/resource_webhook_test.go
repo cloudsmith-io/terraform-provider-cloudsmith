@@ -69,7 +69,7 @@ func TestAccWebhook_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccWebhookCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -109,7 +109,7 @@ func testAccWebhookCheckDestroy(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testAccWebhookCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

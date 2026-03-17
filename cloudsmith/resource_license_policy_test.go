@@ -62,7 +62,7 @@ func TestAccOrgLicensePolicy_basic(t *testing.T) {
 	})
 }
 
-//nolint:goerr113
+//nolint:err113
 func testOrgLicensePolicyCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -89,7 +89,7 @@ func testOrgLicensePolicyCheckDestroy(resourceName string) resource.TestCheckFun
 	}
 }
 
-//nolint:goerr113
+//nolint:err113
 func testOrgLicensePolicyCheckExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]

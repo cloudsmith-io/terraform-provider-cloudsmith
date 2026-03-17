@@ -31,21 +31,21 @@ func (c Checksums) CompareWithPkg(pkg *cloudsmith_api.Package) error {
 	var errs []error
 
 	if c.MD5 != pkg.GetChecksumMd5() {
-		errs = append(errs, fmt.Errorf(checksumMismatchError(c.MD5, pkg.GetChecksumMd5(), "MD5")))
+		errs = append(errs, fmt.Errorf("%s", checksumMismatchError(c.MD5, pkg.GetChecksumMd5(), "MD5")))
 	}
 	if c.SHA1 != pkg.GetChecksumSha1() {
-		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA1, pkg.GetChecksumSha1(), "SHA1")))
+		errs = append(errs, fmt.Errorf("%s", checksumMismatchError(c.SHA1, pkg.GetChecksumSha1(), "SHA1")))
 	}
 	if c.SHA256 != pkg.GetChecksumSha256() {
-		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA256, pkg.GetChecksumSha256(), "SHA256")))
+		errs = append(errs, fmt.Errorf("%s", checksumMismatchError(c.SHA256, pkg.GetChecksumSha256(), "SHA256")))
 	}
 	if c.SHA512 != pkg.GetChecksumSha512() {
-		errs = append(errs, fmt.Errorf(checksumMismatchError(c.SHA512, pkg.GetChecksumSha512(), "SHA512")))
+		errs = append(errs, fmt.Errorf("%s", checksumMismatchError(c.SHA512, pkg.GetChecksumSha512(), "SHA512")))
 	}
 
 	var finalError error = nil
 	for _, err := range errs {
-		finalError = fmt.Errorf("%w\n", err)
+		finalError = fmt.Errorf("%w", err)
 	}
 
 	return finalError
