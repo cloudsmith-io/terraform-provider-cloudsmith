@@ -22,11 +22,15 @@ func TestAccManageTeam_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccTeamCheckExists("cloudsmith_team.test"),
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "team_name", "tf-test-manage-team-members"),
-					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.role", "Member"),
-					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "members.0.user", "bblizniak"),
+					resource.TestCheckTypeSetElemNestedAttrs(
+						"cloudsmith_manage_team.test",
+						"members.*",
+						map[string]string{
+							"role": "Member",
+							"user": "bblizniak",
+						},
+					),
 				),
-				// This is required as when creating a team, the creator gets automatically added which causes a 422 error
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})
