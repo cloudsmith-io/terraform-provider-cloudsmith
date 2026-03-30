@@ -22,6 +22,14 @@ func TestAccManageTeam_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccTeamCheckExists("cloudsmith_team.test"),
 					resource.TestCheckResourceAttr("cloudsmith_manage_team.test", "team_name", "tf-test-manage-team-members"),
+					resource.TestCheckTypeSetElemNestedAttrs(
+						"cloudsmith_manage_team.test",
+						"members.*",
+						map[string]string{
+							"role": "Member",
+							"user": "bblizniak",
+						},
+					),
 				),
 			},
 		},

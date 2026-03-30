@@ -24,8 +24,8 @@ func importManageTeam(ctx context.Context, d *schema.ResourceData, m interface{}
 	return []*schema.ResourceData{d}, nil
 }
 
-func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
-	// this function will add users to an existing team
+func resourceManageTeamReplace(d *schema.ResourceData, m interface{}) error {
+	// this function will replace the members of an existing team
 	pc := m.(*providerConfig)
 	organization := requiredString(d, "organization")
 	teamName := requiredString(d, "team_name")
@@ -136,7 +136,7 @@ func resourceManageTeamRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceManageTeam() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceManageTeamAdd,
+		Create: resourceManageTeamReplace,
 		Read:   resourceManageTeamRead,
 		Update: resourceManageTeamUpdateRemove,
 		Delete: resourceManageTeamUpdateRemove,
