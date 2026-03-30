@@ -32,11 +32,11 @@ func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
 
 	// Fetching members from the Set, converting to a list
 	teamMembersSet := d.Get("members").(*schema.Set).List()
-	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembersSet))
+	teamMembersList := make([]cloudsmith.OrganizationTeamServiceMember, len(teamMembersSet))
 
 	for i, v := range teamMembersSet {
 		teamMember := v.(map[string]interface{})
-		teamMembersList[i] = cloudsmith.OrganizationTeamMembership{
+		teamMembersList[i] = cloudsmith.OrganizationTeamServiceMember{
 			Role: teamMember["role"].(string),
 			User: teamMember["user"].(string),
 		}
@@ -46,10 +46,12 @@ func resourceManageTeamAdd(d *schema.ResourceData, m interface{}) error {
 		Members: teamMembersList,
 	}
 
-	req := pc.APIClient.OrgsApi.OrgsTeamsMembersCreate(pc.Auth, organization, teamName)
+	// Use the replace/update endpoint instead of create/add to handle
+	// cases where members are auto-added during team creation.
+	req := pc.APIClient.OrgsApi.OrgsTeamsMembersUpdate(pc.Auth, organization, teamName)
 	req = req.Data(teamMembersData)
 
-	_, _, err := pc.APIClient.OrgsApi.OrgsTeamsMembersCreateExecute(req)
+	_, _, err := pc.APIClient.OrgsApi.OrgsTeamsMembersUpdateExecute(req)
 	if err != nil {
 		return err
 	}
@@ -67,11 +69,11 @@ func resourceManageTeamUpdateRemove(d *schema.ResourceData, m interface{}) error
 
 	// Fetching members from the Set, converting to a list
 	teamMembersSet := d.Get("members").(*schema.Set).List()
-	teamMembersList := make([]cloudsmith.OrganizationTeamMembership, len(teamMembersSet))
+	teamMembersList := make([]cloudsmith.OrganizationTeamServiceMember, len(teamMembersSet))
 
 	for i, v := range teamMembersSet {
 		teamMember := v.(map[string]interface{})
-		teamMembersList[i] = cloudsmith.OrganizationTeamMembership{
+		teamMembersList[i] = cloudsmith.OrganizationTeamServiceMember{
 			Role: teamMember["role"].(string),
 			User: teamMember["user"].(string),
 		}

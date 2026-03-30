@@ -37,7 +37,7 @@ func dataSourceTeamMembersRead(d *schema.ResourceData, m interface{}) error {
 }
 
 // flattenOrganizationTeamMembers converts []OrganizationTeamMembership into []interface{} for state.
-func flattenOrganizationTeamMembers(members []cloudsmith.OrganizationTeamMembership) []interface{} {
+func flattenOrganizationTeamMembers(members []cloudsmith.OrganizationTeamServiceMember) []interface{} {
 	out := make([]interface{}, len(members))
 	for i, member := range members {
 		m := make(map[string]interface{})
