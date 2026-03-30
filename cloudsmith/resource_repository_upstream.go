@@ -14,6 +14,7 @@ import (
 
 // upstream types
 const (
+	Alpine      = "alpine"
 	Cargo       = "cargo"
 	Composer    = "composer"
 	Conda       = "conda"
@@ -73,6 +74,7 @@ var (
 		"Cache Only",
 	}
 	upstreamTypes = []string{
+		Alpine,
 		Cargo,
 		Composer,
 		Conda,
@@ -197,6 +199,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.AlpineUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamAlpineCreateExecute(req)
 	case Cargo:
 		req := pc.APIClient.ReposApi.ReposUpstreamCargoCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.CargoUpstreamRequest{
@@ -626,6 +646,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	var upstream Upstream
 
 	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamAlpineReadExecute(req)
 	case Cargo:
 		req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
@@ -779,6 +802,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.AlpineUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamAlpineUpdateExecute(req)
 	case Cargo:
 		req := pc.APIClient.ReposApi.ReposUpstreamCargoUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.CargoUpstreamRequest{
@@ -1177,6 +1218,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	var err error
 
 	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamAlpineDeleteExecute(req)
 	case Cargo:
 		req := pc.APIClient.ReposApi.ReposUpstreamCargoDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamCargoDeleteExecute(req)

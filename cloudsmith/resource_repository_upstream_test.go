@@ -18,6 +18,109 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func TestAccRepositoryUpstreamAlpine_basic(t *testing.T) {
+	t.Parallel()
+
+	const alpineUpstreamResourceName = "cloudsmith_repository_upstream.alpine_upstream"
+
+	testAccRepositoryAlpineUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "terraform-acc-test-upstream-alpine"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "alpine_upstream" {
+    namespace     = cloudsmith_repository.test.namespace
+    repository    = cloudsmith_repository.test.slug
+	name          = cloudsmith_repository.test.name
+    upstream_type = "alpine"
+    upstream_url  = "https://dl-cdn.alpinelinux.org/alpine"
+}
+`, namespace)
+
+	testAccRepositoryAlpineUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "terraform-acc-test-upstream-alpine"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "alpine_upstream" {
+		extra_header_1 = "X-Custom-Header"
+	    extra_header_2 = "Access-Control-Allow-Origin"
+	    extra_value_1  = "custom-value"
+	    extra_value_2  = "*"
+	    is_active      = true
+	    mode           = "Proxy Only"
+		name           = cloudsmith_repository.test.name
+	    namespace      = cloudsmith_repository.test.namespace
+	    priority       = 12345
+	    repository     = cloudsmith_repository.test.slug
+	    upstream_type  = "alpine"
+	    upstream_url   = "https://dl-cdn.alpinelinux.org/alpine"
+	    verify_ssl     = false
+	}
+	`, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(alpineUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryAlpineUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryAlpineUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(alpineUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(alpineUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(alpineUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: alpineUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[alpineUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func TestAccRepositoryUpstreamCargo_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1914,6 +2017,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		var err error
 
 		switch upstreamType {
+		case Alpine:
+			req := pc.APIClient.ReposApi.ReposUpstreamAlpineRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamAlpineReadExecute(req)
 		case Cargo:
 			req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
