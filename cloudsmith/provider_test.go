@@ -78,6 +78,10 @@ func TestUniqueRepositoryName_MaxLength(t *testing.T) {
 	}
 }
 
+func testAccNamespace() string {
+	return os.Getenv("CLOUDSMITH_NAMESPACE")
+}
+
 func testAccPreCheck(t *testing.T) {
 	if v := os.Getenv("CLOUDSMITH_API_KEY"); v == "" {
 		t.Fatal("CLOUDSMITH_API_KEY must be set for acceptance tests")

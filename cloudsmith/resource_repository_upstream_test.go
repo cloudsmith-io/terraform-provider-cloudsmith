@@ -22,6 +22,7 @@ func TestAccRepositoryUpstreamAlpine_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-alpine")
+	namespace := testAccNamespace()
 
 	const alpineUpstreamResourceName = "cloudsmith_repository_upstream.alpine_upstream"
 
@@ -127,6 +128,7 @@ func TestAccRepositoryUpstreamCargo_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-cargo")
+	namespace := testAccNamespace()
 
 	const cargoUpstreamResourceName = "cloudsmith_repository_upstream.crates_io"
 
@@ -232,6 +234,7 @@ func TestAccRepositoryUpstreamConda_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-conda")
+	namespace := testAccNamespace()
 
 	const condaUpstreamResourceName = "cloudsmith_repository_upstream.conda_forge"
 
@@ -327,6 +330,7 @@ func TestAccRepositoryUpstreamDart_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-dart")
+	namespace := testAccNamespace()
 
 	const dartUpstreamResourceName = "cloudsmith_repository_upstream.pub_dev"
 
@@ -432,6 +436,7 @@ func TestAccRepositoryUpstreamDeb_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-deb")
+	namespace := testAccNamespace()
 
 	const debUpstreamResourceName = "cloudsmith_repository_upstream.ubuntu"
 
@@ -612,6 +617,7 @@ func TestAccRepositoryUpstreamDocker_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-docker")
+	namespace := testAccNamespace()
 
 	const dockerUpstreamResourceName = "cloudsmith_repository_upstream.fakedocker"
 
@@ -766,6 +772,7 @@ func TestAccRepositoryUpstreamGeneric_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-generic")
+	namespace := testAccNamespace()
 
 	const genericUpstreamResourceName = "cloudsmith_repository_upstream.gradle_distributions"
 
@@ -875,6 +882,7 @@ func TestAccRepositoryUpstreamGo_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-go")
+	namespace := testAccNamespace()
 
 	const goUpstreamResourceName = "cloudsmith_repository_upstream.go_proxy"
 
@@ -980,6 +988,7 @@ func TestAccRepositoryUpstreamHelm_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-helm")
+	namespace := testAccNamespace()
 
 	const helmUpstreamResourceName = "cloudsmith_repository_upstream.helm"
 
@@ -1089,6 +1098,7 @@ func TestAccRepositoryUpstreamHuggingface_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-huggingface")
+	namespace := testAccNamespace()
 
 	const huggingfaceUpstreamResourceName = "cloudsmith_repository_upstream.hugging_face"
 
@@ -1184,6 +1194,7 @@ func TestAccRepositoryUpstreamHex_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-hex")
+	namespace := testAccNamespace()
 
 	const hexUpstreamResourceName = "cloudsmith_repository_upstream.hex"
 
@@ -1279,6 +1290,7 @@ func TestAccRepositoryUpstreamMaven_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-maven")
+	namespace := testAccNamespace()
 
 	const mavenUpstreamResourceName = "cloudsmith_repository_upstream.maven_central"
 
@@ -1385,6 +1397,7 @@ func TestAccRepositoryUpstreamNpm_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-npm")
+	namespace := testAccNamespace()
 
 	const npmUpstreamResourceName = "cloudsmith_repository_upstream.npmjs"
 
@@ -1492,6 +1505,7 @@ func TestAccRepositoryUpstreamNuget_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-nuget")
+	namespace := testAccNamespace()
 
 	const nugetUpstreamResourceName = "cloudsmith_repository_upstream.nuget"
 
@@ -1598,6 +1612,7 @@ func TestAccRepositoryUpstreamPython_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-python")
+	namespace := testAccNamespace()
 
 	const pythonUpstreamResourceName = "cloudsmith_repository_upstream.pypi"
 
@@ -1707,6 +1722,7 @@ func TestAccRepositoryUpstreamRpm_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-rpm")
+	namespace := testAccNamespace()
 
 	const rpmUpstreamResourceName = "cloudsmith_repository_upstream.rpm_fusion"
 
@@ -1817,6 +1833,7 @@ func TestAccRepositoryUpstreamRuby_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-ruby")
+	namespace := testAccNamespace()
 
 	const rubyUpstreamResourceName = "cloudsmith_repository_upstream.rubygems"
 
@@ -1926,6 +1943,7 @@ func TestAccRepositoryUpstreamComposer_basic(t *testing.T) {
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-composer")
+	namespace := testAccNamespace()
 
 	const composerUpstreamResourceName = "cloudsmith_repository_upstream.packagist"
 
