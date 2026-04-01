@@ -7,7 +7,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -16,7 +19,11 @@ import (
 var (
 	testAccProviders map[string]*schema.Provider
 	testAccProvider  *schema.Provider
+
+	testAccRepositoryNameSequence atomic.Uint64
 )
+
+const testAccRepositoryNameMaxLength = 50
 
 //nolint:gochecknoinits
 func init() {
@@ -29,6 +36,45 @@ func init() {
 func TestProvider(t *testing.T) {
 	if err := Provider().InternalValidate(); err != nil {
 		t.Fatalf("err: %s", err)
+	}
+}
+
+// testAccUniqueRepositoryName keeps repository names unique across acceptance
+// test runs while respecting Cloudsmith's 50 character repository name limit.
+func testAccUniqueRepositoryName(base string) string {
+	suffix := fmt.Sprintf("-%d-%d", time.Now().UnixMilli(), testAccRepositoryNameSequence.Add(1))
+	maxBaseLength := testAccRepositoryNameMaxLength - len(suffix)
+
+	if maxBaseLength < 1 {
+		maxBaseLength = 1
+	}
+
+	base = strings.Trim(base, "-")
+	if len(base) > maxBaseLength {
+		base = strings.TrimRight(base[:maxBaseLength], "-")
+	}
+
+	if base == "" {
+		base = "tfacc"
+		if len(base) > maxBaseLength {
+			base = base[:maxBaseLength]
+		}
+	}
+
+	return base + suffix
+}
+
+func TestUniqueRepositoryName_MaxLength(t *testing.T) {
+	t.Parallel()
+
+	name := testAccUniqueRepositoryName("terraform-acc-test-repository-geo-ip-rules")
+	if len(name) > testAccRepositoryNameMaxLength {
+		t.Fatalf("repository name too long: got %d chars: %q", len(name), name)
+	}
+
+	otherName := testAccUniqueRepositoryName("terraform-acc-test-repository-geo-ip-rules")
+	if name == otherName {
+		t.Fatalf("expected unique repository names, got duplicate %q", name)
 	}
 }
 

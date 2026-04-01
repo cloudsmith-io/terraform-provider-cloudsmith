@@ -19,39 +19,40 @@ import (
 )
 
 var (
-	dsPackageTestNamespace  = os.Getenv("CLOUDSMITH_NAMESPACE")
-	dsPackageTestRepository = "terraform-acc-test-package"
+	dsPackageTestNamespace = os.Getenv("CLOUDSMITH_NAMESPACE")
 )
 
 func TestAccPackage_data(t *testing.T) {
 	t.Parallel()
+
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-package")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageDataSetup(dsPackageTestNamespace, dsPackageTestRepository),
+				Config: testAccPackageDataSetup(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", dsPackageTestRepository),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", repositoryName),
 					// Custom TestCheckFunc to upload the package and wait for sync after repository creation
 					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig), false)
+						return uploadPackage(testAccProvider.Meta().(*providerConfig), repositoryName, false)
 					},
 				),
 			},
 			{
-				Config: testAccPackageDataReadPackage(dsPackageTestNamespace, dsPackageTestRepository),
+				Config: testAccPackageDataReadPackage(dsPackageTestNamespace, repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
-					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
 				),
 			},
 			{
-				Config: testAccPackageDataReadPackageDownload(dsPackageTestNamespace, dsPackageTestRepository),
+				Config: testAccPackageDataReadPackageDownload(dsPackageTestNamespace, repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
-					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
 					// Custom TestCheckFunc to check if the file exists at the output path
 					func(s *terraform.State) error {
 						filePath := filepath.Join(os.TempDir(), "hello.txt")
@@ -71,15 +72,15 @@ func TestAccPackage_data(t *testing.T) {
 						return nil
 					},
 					func(s *terraform.State) error {
-						return uploadPackage(testAccProvider.Meta().(*providerConfig), true)
+						return uploadPackage(testAccProvider.Meta().(*providerConfig), repositoryName, true)
 					},
 				),
 			},
 			{
-				Config: testAccPackageDataReadPackageDownloadRepublish(dsPackageTestNamespace, dsPackageTestRepository),
+				Config: testAccPackageDataReadPackageDownloadRepublish(dsPackageTestNamespace, repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
-					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", dsPackageTestRepository),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
 					func(s *terraform.State) error {
 						filePath := filepath.Join(os.TempDir(), "hello.txt")
 						if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -111,7 +112,7 @@ func checkFileContent(filePath string, expectedContent string) error {
 	return nil
 }
 
-func uploadPackage(pc *providerConfig, republish bool) error {
+func uploadPackage(pc *providerConfig, repository string, republish bool) error {
 
 	var (
 		fileContent []byte
@@ -129,7 +130,7 @@ func uploadPackage(pc *providerConfig, republish bool) error {
 		Sha256Checksum: cloudsmith.PtrString(fmt.Sprintf("%x", sha256.Sum256(fileContent))),
 	}
 
-	initRequest := pc.APIClient.FilesApi.FilesCreate(pc.Auth, dsPackageTestNamespace, dsPackageTestRepository)
+	initRequest := pc.APIClient.FilesApi.FilesCreate(pc.Auth, dsPackageTestNamespace, repository)
 	initRequest = initRequest.Data(initPayload)
 	initResponse, _, err := initRequest.Execute()
 	if err != nil {
@@ -176,7 +177,7 @@ func uploadPackage(pc *providerConfig, republish bool) error {
 		PackageFile: rbodyStruct.Identifier,
 	}
 
-	finalizeRequest := pc.APIClient.PackagesApi.PackagesUploadRaw(pc.Auth, dsPackageTestNamespace, dsPackageTestRepository)
+	finalizeRequest := pc.APIClient.PackagesApi.PackagesUploadRaw(pc.Auth, dsPackageTestNamespace, repository)
 	finalizeRequest = finalizeRequest.Data(finalizePayload)
 	finalizeResponse, _, err := finalizeRequest.Execute()
 	if err != nil {
@@ -186,7 +187,7 @@ func uploadPackage(pc *providerConfig, republish bool) error {
 	// Step 3: wait for package sync
 	for {
 		statusRequest := pc.APIClient.PackagesApi.PackagesStatus(
-			pc.Auth, dsPackageTestNamespace, dsPackageTestRepository, finalizeResponse.GetSlugPerm(),
+			pc.Auth, dsPackageTestNamespace, repository, finalizeResponse.GetSlugPerm(),
 		)
 		status, _, err := statusRequest.Execute()
 		if err != nil {
@@ -203,21 +204,21 @@ func uploadPackage(pc *providerConfig, republish bool) error {
 	}
 }
 
-func testAccPackageDataSetup(namespace, repository string) string {
+func testAccPackageDataSetup(repository string) string {
 	return fmt.Sprintf(`
 		resource "cloudsmith_repository" "test" {
-			name      = "%s"
-			namespace = "%s"
+			name                        = "%s"
+			namespace                   = "%s"
 			replace_packages_by_default = true
 		}
-		`, repository, namespace)
+		`, repository, dsPackageTestNamespace)
 }
 
 func testAccPackageDataReadPackage(namespace, repository string) string {
 	return fmt.Sprintf(`
 		resource "cloudsmith_repository" "test" {
-			name      = "%s"
-			namespace = "%s"
+			name                        = "%s"
+			namespace                   = "%s"
 			replace_packages_by_default = true
 		}
 
@@ -237,8 +238,8 @@ func testAccPackageDataReadPackage(namespace, repository string) string {
 func testAccPackageDataReadPackageDownload(namespace, repository string) string {
 	return fmt.Sprintf(`
 		resource "cloudsmith_repository" "test" {
-			name      = "%s"
-			namespace = "%s"
+			name                        = "%s"
+			namespace                   = "%s"
 			replace_packages_by_default = true
 		}
 
@@ -259,8 +260,8 @@ func testAccPackageDataReadPackageDownload(namespace, repository string) string 
 func testAccPackageDataReadPackageDownloadRepublish(namespace, repository string) string {
 	return fmt.Sprintf(`
 		resource "cloudsmith_repository" "test" {
-			name      = "%s"
-			namespace = "%s"
+			name                        = "%s"
+			namespace                   = "%s"
 			replace_packages_by_default = true
 		}
 

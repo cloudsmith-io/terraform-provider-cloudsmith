@@ -31,18 +31,20 @@ func testCheckResourceAttrWithMessage(resourceName, attrName, expected string) r
 func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-repo-retention-rule")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryConfig,
+				Config: testAccRepositoryRetentionRuleConfigRepository(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 				),
 			},
 			{
-				Config: testAccRepositoryRetentionRuleConfigBasic,
+				Config: testAccRepositoryRetentionRuleConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 					testCheckResourceAttrWithMessage("cloudsmith_repository_retention_rule.test", "retention_count_limit", "100"),
@@ -56,7 +58,7 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccRepositoryRetentionRuleConfigZero,
+				Config: testAccRepositoryRetentionRuleConfigZero(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
 					testCheckResourceAttrWithMessage("cloudsmith_repository_retention_rule.test", "retention_count_limit", "0"),
@@ -69,21 +71,24 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 	})
 }
 
-var testAccRepositoryConfig = fmt.Sprintf(`
+func testAccRepositoryRetentionRuleConfigRepository(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test-retention" {
-	name        = "terraform-acc-repo-retention-rule"
-	namespace   = "%s"
+	name      = "%s"
+	namespace = "%s"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryRetentionRuleConfigBasic = fmt.Sprintf(`
+func testAccRepositoryRetentionRuleConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test-retention" {
-	name        = "terraform-acc-repo-retention-rule"
-	namespace   = "%s"
+	name      = "%s"
+	namespace = "%s"
 }
 
 resource "cloudsmith_repository_retention_rule" "test" {
-	namespace = "%s"
+	namespace = cloudsmith_repository.test-retention.namespace
 	repository = cloudsmith_repository.test-retention.name
 	retention_enabled = false
 	retention_count_limit = 100
@@ -94,16 +99,18 @@ resource "cloudsmith_repository_retention_rule" "test" {
 	retention_size_limit = 0
 	retention_package_query_string = "name:test"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryRetentionRuleConfigZero = fmt.Sprintf(`
+func testAccRepositoryRetentionRuleConfigZero(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test-retention" {
-	name        = "terraform-acc-repo-retention-rule"
-	namespace   = "%s"
+	name      = "%s"
+	namespace = "%s"
 }
 
 resource "cloudsmith_repository_retention_rule" "test" {
-	namespace = "%s"
+	namespace = cloudsmith_repository.test-retention.namespace
 	repository = cloudsmith_repository.test-retention.name
 	retention_enabled = false
 	retention_count_limit = 0
@@ -114,4 +121,5 @@ resource "cloudsmith_repository_retention_rule" "test" {
 	retention_size_limit = 0
 	retention_package_query_string = "name:test"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

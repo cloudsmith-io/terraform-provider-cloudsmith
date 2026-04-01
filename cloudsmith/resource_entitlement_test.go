@@ -18,13 +18,15 @@ import (
 func TestAccEntitlement_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-ent")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccEntitlementCheckDestroy("cloudsmith_entitlement.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccEntitlementConfigBasic,
+				Config: testAccEntitlementConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementCheckExists("cloudsmith_entitlement.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "name", "Test Entitlement"),
@@ -33,7 +35,7 @@ func TestAccEntitlement_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccEntitlementConfigBasicUpdate,
+				Config: testAccEntitlementConfigBasicUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementCheckExists("cloudsmith_entitlement.test"),
 					resource.TestCheckResourceAttr("cloudsmith_entitlement.test", "name", "Test Entitlement Update"),
@@ -128,9 +130,10 @@ func testAccEntitlementCheckExists(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-var testAccEntitlementConfigBasic = fmt.Sprintf(`
+func testAccEntitlementConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-ent"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -139,11 +142,13 @@ resource "cloudsmith_entitlement" "test" {
     namespace  = "${cloudsmith_repository.test.namespace}"
     repository = "${cloudsmith_repository.test.slug_perm}"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccEntitlementConfigBasicUpdate = fmt.Sprintf(`
+func testAccEntitlementConfigBasicUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-ent"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -154,4 +159,5 @@ resource "cloudsmith_entitlement" "test" {
     namespace                  = "${cloudsmith_repository.test.namespace}"
     repository                 = "${cloudsmith_repository.test.slug_perm}"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

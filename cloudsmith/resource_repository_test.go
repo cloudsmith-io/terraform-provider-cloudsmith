@@ -22,13 +22,16 @@ import (
 func TestAccRepository_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test")
+	repositoryUpdatedName := testAccUniqueRepositoryName("terraform-acc-test-update")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryConfigBasic,
+				Config: testAccRepositoryConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 					// check a sample of computed properties have been set correctly
@@ -44,21 +47,21 @@ func TestAccRepository_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccRepositoryConfigBasicUpdateName,
+				Config: testAccRepositoryConfigBasicUpdateName(repositoryUpdatedName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 				),
 			},
 			{
-				Config:      testAccRepositoryConfigBasicInvalidProp,
+				Config:      testAccRepositoryConfigBasicInvalidProp(repositoryUpdatedName),
 				ExpectError: regexp.MustCompile("expected copy_packages to be one of"),
 			},
 			{
-				Config:      testAccRepositoryConfigBasicInvalidBroadcastState,
+				Config:      testAccRepositoryConfigBasicInvalidBroadcastState(repositoryUpdatedName),
 				ExpectError: regexp.MustCompile("expected broadcast_state to be one of"),
 			},
 			{
-				Config: testAccRepositoryConfigBasicUpdateProps,
+				Config: testAccRepositoryConfigBasicUpdateProps(repositoryUpdatedName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "tag_pre_releases_as_latest", "true"),
@@ -136,41 +139,50 @@ func testAccRepositoryCheckExists(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-var testAccRepositoryConfigBasic = fmt.Sprintf(`
+func testAccRepositoryConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test"
+	name      = "%s"
 	namespace = "%s"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryConfigBasicUpdateName = fmt.Sprintf(`
+func testAccRepositoryConfigBasicUpdateName(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-update"
+	name      = "%s"
 	namespace = "%s"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryConfigBasicInvalidProp = fmt.Sprintf(`
+func testAccRepositoryConfigBasicInvalidProp(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-update"
+	name      = "%s"
 	namespace = "%s"
 
 	copy_packages = "Sudo"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryConfigBasicInvalidBroadcastState = fmt.Sprintf(`
+func testAccRepositoryConfigBasicInvalidBroadcastState(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-update"
+	name      = "%s"
 	namespace = "%s"
 
 	broadcast_state = "InvalidState"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryConfigBasicUpdateProps = fmt.Sprintf(`
+func testAccRepositoryConfigBasicUpdateProps(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-update"
+	name      = "%s"
 	namespace = "%s"
 
 	contextual_auth_realm         = false
@@ -178,8 +190,9 @@ resource "cloudsmith_repository" "test" {
 	docker_refresh_tokens_enabled = true
 	replace_packages_by_default   = true
 	use_vulnerability_scanning    = false
-	tag_pre_releases_as_latest = true
-	use_entitlements_privilege = "Admin"
-	broadcast_state = "Private"
+	tag_pre_releases_as_latest    = true
+	use_entitlements_privilege    = "Admin"
+	broadcast_state               = "Private"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

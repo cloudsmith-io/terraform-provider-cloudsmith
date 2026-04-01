@@ -19,13 +19,15 @@ import (
 func TestAccEntitlementControl_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-ent-ctrl")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccEntitlementControlCheckDestroy("cloudsmith_entitlement_control.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccEntitlementControlConfigBasic,
+				Config: testAccEntitlementControlConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
 					func(s *terraform.State) error {
@@ -47,7 +49,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccEntitlementControlConfigBasicUpdate,
+				Config: testAccEntitlementControlConfigBasicUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
 					func(s *terraform.State) error {
@@ -171,9 +173,10 @@ func waitForEntitlementControlEnabled(pc *providerConfig, namespace, repository,
 	}
 }
 
-var testAccEntitlementControlConfigBasic = fmt.Sprintf(`
+func testAccEntitlementControlConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-ent-ctrl"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -189,11 +192,13 @@ resource "cloudsmith_entitlement_control" "test" {
     identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
     enabled    = true
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccEntitlementControlConfigBasicUpdate = fmt.Sprintf(`
+func testAccEntitlementControlConfigBasicUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-ent-ctrl"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -209,4 +214,5 @@ resource "cloudsmith_entitlement_control" "test" {
     identifier = data.cloudsmith_entitlement_list.test.entitlement_tokens[0].slug_perm
     enabled    = false
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

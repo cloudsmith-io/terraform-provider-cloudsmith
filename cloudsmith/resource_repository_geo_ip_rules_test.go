@@ -19,37 +19,8 @@ const InitialCountryCodeAllow string = "BV"
 const UpdatedCountryCodeAllow string = "FO"
 const InitialCountryCodeDeny string = "CX"
 const UpdatedCountryCodeDeny string = "CK"
-const configTemplateWithoutRules string = `
-resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-repository-geo-ip-rules"
-	namespace = "%s"
-}
-
-resource "cloudsmith_repository_geo_ip_rules" "test" {
-    namespace          = "${resource.cloudsmith_repository.test.namespace}"
-    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
-}
-`
-const configTemplateWithRules string = `
-resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-repository-geo-ip-rules"
-	namespace = "%s"
-}
-
-resource "cloudsmith_repository_geo_ip_rules" "test" {
-    namespace          = "${resource.cloudsmith_repository.test.namespace}"
-    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
-    cidr_allow         = ["%s"]
-    cidr_deny          = ["%s"]
-    country_code_allow = ["%s"]
-    country_code_deny  = ["%s"]
-}
-`
 
 var namespace = os.Getenv("CLOUDSMITH_NAMESPACE")
-var testAccRepositoryGeoIpRulesConfigCreate = fmt.Sprintf(configTemplateWithRules, namespace, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
-var testAccRepositoryGeoIpRulesConfigUpdate = fmt.Sprintf(configTemplateWithRules, namespace, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
-var testAccRepositoryGeoIpRulesConfigDefault = fmt.Sprintf(configTemplateWithoutRules, namespace)
 
 // TestAccRepositoryGeoIpRules_basic spins up a repository with all default options,
 // creates a set of geo/ip rules for the repository and verifies they exist. Then it
@@ -58,19 +29,21 @@ var testAccRepositoryGeoIpRulesConfigDefault = fmt.Sprintf(configTemplateWithout
 func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-repository-geo-ip-rules")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccRepositoryGeoIpRulesCheckDestroy(ResourceName),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryGeoIpRulesConfigCreate,
+				Config: testAccRepositoryGeoIpRulesConfigCreate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny),
 				),
 			},
 			{
-				Config: testAccRepositoryGeoIpRulesConfigUpdate,
+				Config: testAccRepositoryGeoIpRulesConfigUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny),
 				),
@@ -89,13 +62,63 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAccRepositoryGeoIpRulesConfigDefault,
+				Config: testAccRepositoryGeoIpRulesConfigDefault(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, "", "", "", ""),
 				),
 			},
 		},
 	})
+}
+
+func testAccRepositoryGeoIpRulesConfigDefault(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+}
+`, repositoryName, namespace)
+}
+
+func testAccRepositoryGeoIpRulesConfigCreate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+    cidr_allow         = ["%s"]
+    cidr_deny          = ["%s"]
+    country_code_allow = ["%s"]
+    country_code_deny  = ["%s"]
+}
+`, repositoryName, namespace, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
+}
+
+func testAccRepositoryGeoIpRulesConfigUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+    cidr_allow         = ["%s"]
+    cidr_deny          = ["%s"]
+    country_code_allow = ["%s"]
+    country_code_deny  = ["%s"]
+}
+`, repositoryName, namespace, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
 }
 
 //nolint:err113

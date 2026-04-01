@@ -18,26 +18,28 @@ import (
 func TestAccWebhook_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-webhook")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccWebhookCheckDestroy("cloudsmith_webhook.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccWebhookConfigBasic,
+				Config: testAccWebhookConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccWebhookCheckExists("cloudsmith_webhook.test"),
 					resource.TestCheckResourceAttr("cloudsmith_webhook.test", "request_body_format", "JSON Object"),
 				),
 			},
 			{
-				Config: testAccWebhookConfigBasicUpdate,
+				Config: testAccWebhookConfigBasicUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccWebhookCheckExists("cloudsmith_webhook.test"),
 				),
 			},
 			{
-				Config: testAccWebhookConfigBasicUpdateWithTemplate,
+				Config: testAccWebhookConfigBasicUpdateWithTemplate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccWebhookCheckExists("cloudsmith_webhook.test"),
 					resource.TestCheckResourceAttr("cloudsmith_webhook.test", "template.0.event", "package.created"),
@@ -45,7 +47,7 @@ func TestAccWebhook_basic(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccWebhookConfigBasicUpdateWithTemplateChange,
+				Config: testAccWebhookConfigBasicUpdateWithTemplateChange(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccWebhookCheckExists("cloudsmith_webhook.test"),
 					resource.TestCheckResourceAttr("cloudsmith_webhook.test", "template.1.template", "flap"),
@@ -138,9 +140,10 @@ func testAccWebhookCheckExists(resourceName string) resource.TestCheckFunc {
 	}
 }
 
-var testAccWebhookConfigBasic = fmt.Sprintf(`
+func testAccWebhookConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-webhook"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -151,11 +154,13 @@ resource "cloudsmith_webhook" "test" {
 	events     = ["package.created", "package.deleted", "package.failed", "package.security_scanned", "package.synced", "package.syncing", "package.tags_updated"]
 	target_url = "https://example.com"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccWebhookConfigBasicUpdate = fmt.Sprintf(`
+func testAccWebhookConfigBasicUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-webhook"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -166,11 +171,13 @@ resource "cloudsmith_webhook" "test" {
 	events     = ["package.created", "package.deleted"]
 	target_url = "https://example.com"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccWebhookConfigBasicUpdateWithTemplate = fmt.Sprintf(`
+func testAccWebhookConfigBasicUpdateWithTemplate(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-webhook"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -192,11 +199,13 @@ resource "cloudsmith_webhook" "test" {
 		template = "flop"
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccWebhookConfigBasicUpdateWithTemplateChange = fmt.Sprintf(`
+func testAccWebhookConfigBasicUpdateWithTemplateChange(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-webhook"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -218,4 +227,5 @@ resource "cloudsmith_webhook" "test" {
 		template = "flap"
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
