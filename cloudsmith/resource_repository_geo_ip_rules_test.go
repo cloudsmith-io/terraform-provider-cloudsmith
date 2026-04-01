@@ -3,7 +3,6 @@ package cloudsmith
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -19,37 +18,6 @@ const InitialCountryCodeAllow string = "BV"
 const UpdatedCountryCodeAllow string = "FO"
 const InitialCountryCodeDeny string = "CX"
 const UpdatedCountryCodeDeny string = "CK"
-const configTemplateWithoutRules string = `
-resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-repository-geo-ip-rules"
-	namespace = "%s"
-}
-
-resource "cloudsmith_repository_geo_ip_rules" "test" {
-    namespace          = "${resource.cloudsmith_repository.test.namespace}"
-    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
-}
-`
-const configTemplateWithRules string = `
-resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-repository-geo-ip-rules"
-	namespace = "%s"
-}
-
-resource "cloudsmith_repository_geo_ip_rules" "test" {
-    namespace          = "${resource.cloudsmith_repository.test.namespace}"
-    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
-    cidr_allow         = ["%s"]
-    cidr_deny          = ["%s"]
-    country_code_allow = ["%s"]
-    country_code_deny  = ["%s"]
-}
-`
-
-var namespace = os.Getenv("CLOUDSMITH_NAMESPACE")
-var testAccRepositoryGeoIpRulesConfigCreate = fmt.Sprintf(configTemplateWithRules, namespace, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
-var testAccRepositoryGeoIpRulesConfigUpdate = fmt.Sprintf(configTemplateWithRules, namespace, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
-var testAccRepositoryGeoIpRulesConfigDefault = fmt.Sprintf(configTemplateWithoutRules, namespace)
 
 // TestAccRepositoryGeoIpRules_basic spins up a repository with all default options,
 // creates a set of geo/ip rules for the repository and verifies they exist. Then it
@@ -58,19 +26,21 @@ var testAccRepositoryGeoIpRulesConfigDefault = fmt.Sprintf(configTemplateWithout
 func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-repository-geo-ip-rules")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccRepositoryGeoIpRulesCheckDestroy(ResourceName),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryGeoIpRulesConfigCreate,
+				Config: testAccRepositoryGeoIpRulesConfigCreate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny),
 				),
 			},
 			{
-				Config: testAccRepositoryGeoIpRulesConfigUpdate,
+				Config: testAccRepositoryGeoIpRulesConfigUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny),
 				),
@@ -89,13 +59,63 @@ func TestAccRepositoryGeoIpRules_basic(t *testing.T) {
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAccRepositoryGeoIpRulesConfigDefault,
+				Config: testAccRepositoryGeoIpRulesConfigDefault(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryGeoIpRulesCheckExists(ResourceName, "", "", "", ""),
 				),
 			},
 		},
 	})
+}
+
+func testAccRepositoryGeoIpRulesConfigDefault(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+}
+`, repositoryName, testAccNamespace())
+}
+
+func testAccRepositoryGeoIpRulesConfigCreate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+    cidr_allow         = ["%s"]
+    cidr_deny          = ["%s"]
+    country_code_allow = ["%s"]
+    country_code_deny  = ["%s"]
+}
+`, repositoryName, testAccNamespace(), InitialCidrAllow, InitialCidrDeny, InitialCountryCodeAllow, InitialCountryCodeDeny)
+}
+
+func testAccRepositoryGeoIpRulesConfigUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_geo_ip_rules" "test" {
+    namespace          = "${resource.cloudsmith_repository.test.namespace}"
+    repository         = "${resource.cloudsmith_repository.test.slug_perm}"
+    cidr_allow         = ["%s"]
+    cidr_deny          = ["%s"]
+    country_code_allow = ["%s"]
+    country_code_deny  = ["%s"]
+}
+`, repositoryName, testAccNamespace(), UpdatedCidrAllow, UpdatedCidrDeny, UpdatedCountryCodeAllow, UpdatedCountryCodeDeny)
 }
 
 //nolint:err113
@@ -114,21 +134,21 @@ func testAccRepositoryGeoIpRulesCheckDestroy(resourceName string) resource.TestC
 
 		repository := resourceState.Primary.Attributes["repository"]
 
-		req := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, namespace, repository)
+		req := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, testAccNamespace(), repository)
 		_, resp, err := pc.APIClient.ReposApi.ReposGeoipReadExecute(req)
 		if err != nil && !is404(resp) {
 			return fmt.Errorf("unable to verify geo/ip rules deletion: %w", err)
 		} else if is200(resp) {
-			return fmt.Errorf("unable to verify geo/ip rules deletion: still exists: %s/%s", namespace, repository)
+			return fmt.Errorf("unable to verify geo/ip rules deletion: still exists: %s/%s", testAccNamespace(), repository)
 		}
 		defer resp.Body.Close()
 
-		rreq := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, repository)
+		rreq := pc.APIClient.ReposApi.ReposRead(pc.Auth, testAccNamespace(), repository)
 		_, resp, err = pc.APIClient.ReposApi.ReposReadExecute(rreq)
 		if err != nil && !is404(resp) {
 			return fmt.Errorf("unable to verify repository deletion: %w", err)
 		} else if is200(resp) {
-			return fmt.Errorf("unable to verify repository deletion: still exists: %s/%s", namespace, repository)
+			return fmt.Errorf("unable to verify repository deletion: still exists: %s/%s", testAccNamespace(), repository)
 		}
 		defer resp.Body.Close()
 
@@ -152,7 +172,7 @@ func testAccRepositoryGeoIpRulesCheckExists(resourceName string, expectedCidrAll
 
 		repository := resourceState.Primary.Attributes["repository"]
 
-		req := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, namespace, repository)
+		req := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, testAccNamespace(), repository)
 		geoIpRules, resp, err := pc.APIClient.ReposApi.ReposGeoipReadExecute(req)
 		if err != nil {
 			return fmt.Errorf("unable to verify Geo/IP rules existence: %w", err)

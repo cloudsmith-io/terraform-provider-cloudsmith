@@ -16,32 +16,34 @@ import (
 func TestAccRepositoryPrivileges_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-privs")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryPrivilegesConfigBasic,
+				Config: testAccRepositoryPrivilegesConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Read"),
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicUpdatePrivilege,
+				Config: testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicAddTeam,
+				Config: testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
 					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "team.0.privilege", "Write"),
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicAddAnotherTeam,
+				Config: testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
 					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_repository_privileges.test", "team.*", map[string]string{
@@ -71,9 +73,10 @@ func TestAccRepositoryPrivileges_basic(t *testing.T) {
 	})
 }
 
-var testAccRepositoryPrivilegesConfigBasic = fmt.Sprintf(`
+func testAccRepositoryPrivilegesConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-privs"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -100,11 +103,13 @@ resource "cloudsmith_repository_privileges" "test" {
 		slug      = data.cloudsmith_user_self.current.slug
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryPrivilegesConfigBasicUpdatePrivilege = fmt.Sprintf(`
+func testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-privs"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -131,11 +136,13 @@ resource "cloudsmith_repository_privileges" "test" {
 		slug      = data.cloudsmith_user_self.current.slug
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryPrivilegesConfigBasicAddTeam = fmt.Sprintf(`
+func testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-privs"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -164,11 +171,13 @@ resource "cloudsmith_repository_privileges" "test" {
 		slug      = cloudsmith_team.test_1.slug
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
 
-var testAccRepositoryPrivilegesConfigBasicAddAnotherTeam = fmt.Sprintf(`
+func testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-privs"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -207,4 +216,5 @@ resource "cloudsmith_repository_privileges" "test" {
 		slug      = cloudsmith_team.test_1.slug
 	}
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

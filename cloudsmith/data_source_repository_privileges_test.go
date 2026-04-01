@@ -12,13 +12,15 @@ import (
 func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
 	t.Parallel()
 
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-read-privs")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceRepositoryPrivilegesConfigBasic,
+				Config: testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.cloudsmith_repository_privileges.test_data", "service.#"),
 				),
@@ -27,9 +29,10 @@ func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
 	})
 }
 
-var testAccDataSourceRepositoryPrivilegesConfigBasic = fmt.Sprintf(`
+func testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-read-privs"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -62,4 +65,5 @@ data "cloudsmith_repository_privileges" "test_data" {
 	repository   = cloudsmith_repository_privileges.test.repository
 	depends_on = [cloudsmith_repository.test]
   }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}

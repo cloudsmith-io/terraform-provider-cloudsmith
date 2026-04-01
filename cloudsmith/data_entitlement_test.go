@@ -13,12 +13,14 @@ import (
 // verifies it exists, then reads the same entitlement token using a data source and
 // verifies that the expected fields are set with default values.
 func TestAccDataSourceEntitlementTokenList(t *testing.T) {
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-ent-list")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceEntitlementTokenListConfig,
+				Config: testAccDataSourceEntitlementTokenListConfig(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("cloudsmith_entitlement.test", "name"),
 				),
@@ -27,9 +29,10 @@ func TestAccDataSourceEntitlementTokenList(t *testing.T) {
 	})
 }
 
-var testAccDataSourceEntitlementTokenListConfig = fmt.Sprintf(`
+func testAccDataSourceEntitlementTokenListConfig(repositoryName string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
-	name      = "terraform-acc-test-ent-list"
+	name      = "%s"
 	namespace = "%s"
 }
 
@@ -41,6 +44,7 @@ resource "cloudsmith_entitlement" "test" {
 data "cloudsmith_entitlement_list" "test" {
     query      = ["name:Test Entitlement"]
     repository = "${cloudsmith_repository.test.slug_perm}"
-    namespace  = "%s"
+    namespace  = cloudsmith_repository.test.namespace
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
