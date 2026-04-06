@@ -15,6 +15,7 @@ func main() {
 
 	plugin.Serve(&plugin.ServeOpts{
 		ProviderFunc: cloudsmith.Provider,
+		ProviderAddr: "registry.terraform.io/cloudsmith-io/cloudsmith",
 		Debug:        debugMode,
 	})
 }
