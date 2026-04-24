@@ -76,6 +76,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
 		TagPreReleasesAsLatest:           optionalBool(d, "tag_pre_releases_as_latest"),
 		UseDebianLabels:                  optionalBool(d, "use_debian_labels"),
+		ManageEntitlementsPrivilege:      optionalString(d, "manage_entitlements_privilege"),
 		UseEntitlementsPrivilege:         optionalString(d, "use_entitlements_privilege"),
 		UseDefaultCargoUpstream:          optionalBool(d, "use_default_cargo_upstream"),
 		UseNoarchPackages:                optionalBool(d, "use_noarch_packages"),
@@ -159,6 +160,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("strict_npm_validation", repository.GetStrictNpmValidation())
 	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
 	d.Set("use_debian_labels", repository.GetUseDebianLabels())
+	d.Set("manage_entitlements_privilege", repository.GetManageEntitlementsPrivilege())
 	d.Set("use_entitlements_privilege", repository.GetUseEntitlementsPrivilege())
 	d.Set("use_default_cargo_upstream", repository.GetUseDefaultCargoUpstream())
 	d.Set("use_noarch_packages", repository.GetUseNoarchPackages())
@@ -226,6 +228,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		Slug:                             optionalString(d, "slug"),
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
 		UseDebianLabels:                  optionalBool(d, "use_debian_labels"),
+		ManageEntitlementsPrivilege:      optionalString(d, "manage_entitlements_privilege"),
 		UseEntitlementsPrivilege:         optionalString(d, "use_entitlements_privilege"),
 		UseDefaultCargoUpstream:          optionalBool(d, "use_default_cargo_upstream"),
 		UseNoarchPackages:                optionalBool(d, "use_noarch_packages"),
@@ -601,6 +604,13 @@ func resourceRepository() *schema.Resource {
 					"'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.",
 				Optional: true,
 				Computed: true,
+			},
+			"manage_entitlements_privilege": {
+				Type:         schema.TypeString,
+				Description:  "This defines the minimum level of privilege required for a user to manage entitlement tokens with private repositories. Management is the ability to create, alter, enable, disable or delete all tokens within a repository. Possible values: Read, Write, Admin.",
+				Computed:     true,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
 			},
 			"use_entitlements_privilege": {
 				Type:         schema.TypeString,
