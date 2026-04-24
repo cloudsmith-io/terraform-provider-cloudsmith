@@ -29,4 +29,3 @@ data "cloudsmith_team_members" "members" {
 * `members` - (Computed) A list of team members. Each member has the following attributes:
   * `role` - The role assigned to the user within the team (e.g., `Member`, `Manager`).
   * `user` - The username of the member.
-

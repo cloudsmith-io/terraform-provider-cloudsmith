@@ -39,4 +39,3 @@ data "cloudsmith_service_list" "services" {
   * `teams` - List of team assignments for the service. Each team has:
     * `role` - Role of the service within the team context.
     * `slug` - Team slug.
-

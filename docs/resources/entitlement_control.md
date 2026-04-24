@@ -7,7 +7,7 @@ The entitlement control resource allows enabling and disabling of existing Entit
 
 See [docs.cloudsmith.com](https://docs.cloudsmith.com/software-distribution/entitlement-tokens) for full entitlement documentation.
 
-## Example Usage 
+## Example Usage
 
 > **Note:** Ensure `entitlement_tokens` array is returning entitlement tokens (and not an empty array) before using the control resource. By default the example should work, but if there were any changes made to repo settings, the expected behaviour might be different.
 

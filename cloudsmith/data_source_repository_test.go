@@ -28,13 +28,14 @@ func TestAccRepository_data(t *testing.T) {
 					testAccRepositoryCheckExists("cloudsmith_repository.test"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", repositoryName),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "name", repositoryName),
-					// testing 5 representative fields, could be exhaustive here but feels like overkill for now
+					// testing representative fields, could be exhaustive here but feels like overkill for now
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "contextual_auth_realm", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "docker_refresh_tokens_enabled", "false"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_own", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "resync_packages", "Admin"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "broadcast_state", "Off"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "manage_entitlements_privilege", "Write"),
 				),
 			},
 		},
@@ -46,6 +47,8 @@ func testAccRepositoryData(repositoryName string) string {
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
 	namespace = "%s"
+
+	manage_entitlements_privilege = "Write"
 }
 
 data "cloudsmith_repository" "test" {

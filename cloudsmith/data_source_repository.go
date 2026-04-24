@@ -59,6 +59,7 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("use_debian_labels", repository.GetUseDebianLabels())
 	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
 	d.Set("use_default_cargo_upstream", repository.GetUseDefaultCargoUpstream())
+	d.Set("manage_entitlements_privilege", repository.GetManageEntitlementsPrivilege())
 	d.Set("use_entitlements_privilege", repository.GetUseEntitlementsPrivilege())
 	d.Set("use_noarch_packages", repository.GetUseNoarchPackages())
 	d.Set("use_source_packages", repository.GetUseSourcePackages())
@@ -351,6 +352,11 @@ func dataSourceRepository() *schema.Resource {
 					"Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless " +
 					"explicitly specified as belong to another registry.",
 				Computed: true,
+			},
+			"manage_entitlements_privilege": {
+				Type:        schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to manage entitlement tokens with private repositories. Management is the ability to create, alter, enable, disable or delete all tokens within a repository. Possible values: Read, Write, Admin.",
+				Computed:    true,
 			},
 			"use_entitlements_privilege": {
 				Type:        schema.TypeString,
