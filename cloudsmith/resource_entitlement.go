@@ -30,10 +30,10 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
+	accessPrivateBroadcasts := optionalBool(d, "access_private_broadcasts")
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsCreate(pc.Auth, namespace, repository)
 	req = req.Data(cloudsmith.RepositoryTokenRequest{
-		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
 		IsActive:                optionalBool(d, "is_active"),
 		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
 		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
@@ -59,6 +59,15 @@ func resourceEntitlementCreate(d *schema.ResourceData, m interface{}) error {
 		return resp, err
 	}, "entitlement", d.Id()); err != nil {
 		return err
+	}
+
+	if accessPrivateBroadcasts != nil && *accessPrivateBroadcasts {
+		if err := setEntitlementPrivateBroadcasts(pc, namespace, repository, d.Id(), *accessPrivateBroadcasts); err != nil {
+			return err
+		}
+		if err := waitForUpdate("entitlement", d.Id()); err != nil {
+			return err
+		}
 	}
 
 	return resourceEntitlementRead(d, m)
@@ -109,10 +118,11 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
+	desiredAccessPrivateBroadcasts := requiredBool(d, "access_private_broadcasts")
+	accessPrivateBroadcastsChanged := d.HasChange("access_private_broadcasts")
 
 	req := pc.APIClient.EntitlementsApi.EntitlementsPartialUpdate(pc.Auth, namespace, repository, d.Id())
 	req = req.Data(cloudsmith.RepositoryTokenRequestPatch{
-		AccessPrivateBroadcasts: optionalBool(d, "access_private_broadcasts"),
 		IsActive:                optionalBool(d, "is_active"),
 		LimitDateRangeFrom:      nullableTime(d, "limit_date_range_from"),
 		LimitDateRangeTo:        nullableTime(d, "limit_date_range_to"),
@@ -134,6 +144,15 @@ func resourceEntitlementUpdate(d *schema.ResourceData, m interface{}) error {
 
 	if err := waitForUpdate("entitlement", d.Id()); err != nil {
 		return err
+	}
+
+	if accessPrivateBroadcastsChanged {
+		if err := setEntitlementPrivateBroadcasts(pc, namespace, repository, d.Id(), desiredAccessPrivateBroadcasts); err != nil {
+			return err
+		}
+		if err := waitForUpdate("entitlement", d.Id()); err != nil {
+			return err
+		}
 	}
 
 	return resourceEntitlementRead(d, m)
@@ -160,6 +179,13 @@ func resourceEntitlementDelete(d *schema.ResourceData, m interface{}) error {
 	}
 
 	return nil
+}
+
+// access_private_broadcasts is only writable through the dedicated toggle endpoint.
+func setEntitlementPrivateBroadcasts(pc *providerConfig, namespace, repository, entitlement string, value bool) error {
+	req := cloudsmith.NewRepositoryTokenPrivateBroadcastsRequest(value)
+	_, err := pc.APIClient.EntitlementsApi.EntitlementsTogglePrivateBroadcasts(pc.Auth, namespace, repository, entitlement).Data(*req).Execute()
+	return err
 }
 
 //nolint:funlen
