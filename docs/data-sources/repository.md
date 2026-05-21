@@ -37,8 +37,8 @@ Additionally, the following attributes are also exported:
 * `copy_packages` - This defines the minimum level of privilege required for a user to copy packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific copy setting.
 * `cosign_signing_enabled` - When enabled, all pushed (or pulled from upstream) OCI packages and artifacts will be signed using cosign with the repository's ECDSA key. This generates a distinct cosign signature artifact per artifact.
 * `created_at` - ISO 8601 timestamp at which the repository was created.
-* `default_privilege` - This defines the default level of privilege that all of your organization members have for this * `deleted_at` - ISO 8601 timestamp at which the repository was deleted.
-repository. This does not include collaborators, but applies to any member of the org regardless of their own membership role (i.e. it applies to owners, managers and members). Be careful if setting this to admin, because any member will be able to change settings.
+* `default_privilege` - This defines the default level of privilege that all of your organization members have for this repository. This does not include collaborators, but applies to any member of the org regardless of their own membership role (i.e. it applies to owners, managers and members). Be careful if setting this to admin, because any member will be able to change settings.
+* `deleted_at` - ISO 8601 timestamp at which the repository was deleted.
 * `delete_own` - If checked, users can delete any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `delete_packages` - This defines the minimum level of privilege required for a user to delete packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific delete setting.
 * `description` - A description of the repository's purpose/contents.

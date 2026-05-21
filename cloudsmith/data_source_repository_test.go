@@ -36,6 +36,9 @@ func TestAccRepository_data(t *testing.T) {
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "broadcast_state", "Off"),
 					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "manage_entitlements_privilege", "Write"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "cosign_signing_enabled", "true"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "nuget_native_signing_enabled", "true"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "npm_upstream_tags_take_precedence", "true"),
 				),
 			},
 		},
@@ -48,7 +51,10 @@ resource "cloudsmith_repository" "test" {
 	name      = "%s"
 	namespace = "%s"
 
-	manage_entitlements_privilege = "Write"
+	manage_entitlements_privilege     = "Write"
+	cosign_signing_enabled            = true
+	nuget_native_signing_enabled      = true
+	npm_upstream_tags_take_precedence = true
 }
 
 data "cloudsmith_repository" "test" {
