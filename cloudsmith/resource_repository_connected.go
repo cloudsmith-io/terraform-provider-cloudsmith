@@ -52,19 +52,13 @@ func resourceRepositoryConnectedCreate(d *schema.ResourceData, m interface{}) er
 
 	d.SetId(connected.GetSlugPerm())
 
-	checkerFunc := func() error {
+	readFunc := func() (*http.Response, error) {
 		readReq := pc.APIClient.ReposApi.ReposConnectedRead(pc.Auth, namespace, repository, d.Id())
 		_, resp, err := pc.APIClient.ReposApi.ReposConnectedReadExecute(readReq)
-		if err != nil {
-			if is404(resp) {
-				return errKeepWaiting
-			}
-			return err
-		}
-		return nil
+		return resp, err
 	}
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
-		return fmt.Errorf("error waiting for connected repository (%s) to be created: %w", d.Id(), err)
+	if err := waitForCreation(readFunc, "connected repository", d.Id()); err != nil {
+		return err
 	}
 
 	return resourceRepositoryConnectedRead(d, m)
@@ -177,7 +171,7 @@ func resourceRepositoryConnected() *schema.Resource {
 			},
 			TargetRepository: {
 				Type:         schema.TypeString,
-				Description:  "The slug (slug_perm) of the target Repository to connect to.",
+				Description:  "The slug of the target Repository to connect to.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,

@@ -2,7 +2,6 @@ package cloudsmith
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -90,7 +89,7 @@ func retrieveAllConnectedRepositories(pc *providerConfig, namespace, repository 
 		req = req.Page(page)
 		req = req.PageSize(pageSize)
 
-		resp, httpResp, err := pc.APIClient.ReposApi.ReposConnectedListExecute(req)
+		resp, _, err := pc.APIClient.ReposApi.ReposConnectedListExecute(req)
 		if err != nil {
 			return nil, err
 		}
@@ -100,13 +99,6 @@ func retrieveAllConnectedRepositories(pc *providerConfig, namespace, repository 
 
 		if int64(len(results)) < pageSize {
 			break
-		}
-		if httpResp != nil {
-			if pageTotalStr := httpResp.Header.Get("X-Pagination-Pagetotal"); pageTotalStr != "" {
-				if pageTotal, perr := strconv.ParseInt(pageTotalStr, 10, 64); perr == nil && page >= pageTotal {
-					break
-				}
-			}
 		}
 		page++
 	}
