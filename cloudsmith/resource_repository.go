@@ -75,6 +75,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		StorageRegion:                    optionalString(d, "storage_region"),
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
 		TagPreReleasesAsLatest:           optionalBool(d, "tag_pre_releases_as_latest"),
+		NpmUpstreamTagsTakePrecedence:    optionalBool(d, "npm_upstream_tags_take_precedence"),
 		UseDebianLabels:                  optionalBool(d, "use_debian_labels"),
 		ManageEntitlementsPrivilege:      optionalString(d, "manage_entitlements_privilege"),
 		UseEntitlementsPrivilege:         optionalString(d, "use_entitlements_privilege"),
@@ -159,6 +160,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("storage_region", repository.GetStorageRegion())
 	d.Set("strict_npm_validation", repository.GetStrictNpmValidation())
 	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
+	d.Set("npm_upstream_tags_take_precedence", repository.GetNpmUpstreamTagsTakePrecedence())
 	d.Set("use_debian_labels", repository.GetUseDebianLabels())
 	d.Set("manage_entitlements_privilege", repository.GetManageEntitlementsPrivilege())
 	d.Set("use_entitlements_privilege", repository.GetUseEntitlementsPrivilege())
@@ -224,6 +226,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		ScanPackages:                     optionalString(d, "scan_packages"),
 		ShowSetupAll:                     optionalBool(d, "show_setup_all"),
 		TagPreReleasesAsLatest:           optionalBool(d, "tag_pre_releases_as_latest"),
+		NpmUpstreamTagsTakePrecedence:    optionalBool(d, "npm_upstream_tags_take_precedence"),
 		RepositoryTypeStr:                optionalString(d, "repository_type"),
 		Slug:                             optionalString(d, "slug"),
 		StrictNpmValidation:              optionalBool(d, "strict_npm_validation"),
@@ -594,6 +597,12 @@ func resourceRepository() *schema.Resource {
 			"tag_pre_releases_as_latest": {
 				Type:        schema.TypeBool,
 				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
+				Optional:    true,
+				Default:     false,
+			},
+			"npm_upstream_tags_take_precedence": {
+				Type:        schema.TypeBool,
+				Description: "If checked, npm distribution tags from configured upstreams will take precedence over matching local tags. When both upstream and local repositories have the same tag name (e.g., 'latest'), the upstream tag will be used instead of the local one, even if the local repository has a semantically higher version.",
 				Optional:    true,
 				Default:     false,
 			},
