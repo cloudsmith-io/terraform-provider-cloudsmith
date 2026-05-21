@@ -50,6 +50,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
+		CosignSigningEnabled:             optionalBool(d, "cosign_signing_enabled"),
 		DefaultPrivilege:                 optionalString(d, "default_privilege"),
 		DeleteOwn:                        optionalBool(d, "delete_own"),
 		DeletePackages:                   optionalString(d, "delete_packages"),
@@ -59,6 +60,8 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		MoveOwn:                          optionalBool(d, "move_own"),
 		MovePackages:                     optionalString(d, "move_packages"),
 		Name:                             requiredString(d, "name"),
+		NpmUpstreamTagsTakePrecedence:    optionalBool(d, "npm_upstream_tags_take_precedence"),
+		NugetNativeSigningEnabled:        optionalBool(d, "nuget_native_signing_enabled"),
 		ProxyNpmjs:                       optionalBool(d, "proxy_npmjs"),
 		ProxyPypi:                        optionalBool(d, "proxy_pypi"),
 		RawPackageIndexEnabled:           optionalBool(d, "raw_package_index_enabled"),
@@ -125,6 +128,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
 	d.Set("copy_own", repository.GetCopyOwn())
 	d.Set("copy_packages", repository.GetCopyPackages())
+	d.Set("cosign_signing_enabled", repository.GetCosignSigningEnabled())
 	d.Set("created_at", timeToString(repository.GetCreatedAt()))
 	d.Set("default_privilege", repository.GetDefaultPrivilege())
 	d.Set("delete_own", repository.GetDeleteOwn())
@@ -140,6 +144,8 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("move_packages", repository.GetMovePackages())
 	d.Set("name", repository.GetName())
 	d.Set("namespace_url", repository.GetNamespaceUrl())
+	d.Set("npm_upstream_tags_take_precedence", repository.GetNpmUpstreamTagsTakePrecedence())
+	d.Set("nuget_native_signing_enabled", repository.GetNugetNativeSigningEnabled())
 	d.Set("proxy_npmjs", repository.GetProxyNpmjs())
 	d.Set("proxy_pypi", repository.GetProxyPypi())
 	d.Set("raw_package_index_enabled", repository.GetRawPackageIndexEnabled())
@@ -203,6 +209,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		ContextualAuthRealm:              optionalBool(d, "contextual_auth_realm"),
 		CopyOwn:                          optionalBool(d, "copy_own"),
 		CopyPackages:                     optionalString(d, "copy_packages"),
+		CosignSigningEnabled:             optionalBool(d, "cosign_signing_enabled"),
 		DefaultPrivilege:                 optionalString(d, "default_privilege"),
 		DeleteOwn:                        optionalBool(d, "delete_own"),
 		DeletePackages:                   optionalString(d, "delete_packages"),
@@ -212,6 +219,8 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		MoveOwn:                          optionalBool(d, "move_own"),
 		MovePackages:                     optionalString(d, "move_packages"),
 		Name:                             optionalString(d, "name"),
+		NpmUpstreamTagsTakePrecedence:    optionalBool(d, "npm_upstream_tags_take_precedence"),
+		NugetNativeSigningEnabled:        optionalBool(d, "nuget_native_signing_enabled"),
 		ProxyNpmjs:                       optionalBool(d, "proxy_npmjs"),
 		ProxyPypi:                        optionalBool(d, "proxy_pypi"),
 		RawPackageIndexEnabled:           optionalBool(d, "raw_package_index_enabled"),
@@ -337,6 +346,14 @@ func resourceRepository() *schema.Resource {
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write"}, false),
 			},
+			"cosign_signing_enabled": {
+				Type: schema.TypeBool,
+				Description: "When enabled, all pushed (or pulled from upstream) OCI packages and artifacts will be signed " +
+					"using cosign with the repository's ECDSA key. This generates a distinct cosign signature artifact " +
+					"per artifact.",
+				Optional: true,
+				Computed: true,
+			},
 			"created_at": {
 				Type:        schema.TypeString,
 				Description: "ISO 8601 timestamp at which the repository was created.",
@@ -447,6 +464,23 @@ func resourceRepository() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "API endpoint where data about this namespace can be retrieved.",
 				Computed:    true,
+			},
+			"npm_upstream_tags_take_precedence": {
+				Type: schema.TypeBool,
+				Description: "If checked, npm distribution tags from configured upstreams will take precedence over matching " +
+					"local tags. When both upstream and local repositories have the same tag name (e.g., 'latest'), the " +
+					"upstream tag will be used instead of the local one, even if the local repository has a semantically " +
+					"higher version.",
+				Optional: true,
+				Computed: true,
+			},
+			"nuget_native_signing_enabled": {
+				Type: schema.TypeBool,
+				Description: "When enabled, all pushed (or pulled from upstream) nuget packages and artifacts will be signed " +
+					"using the repository's X.509 RSA certificate. Additionally, the nuget RepositorySignature index will " +
+					"list all of the repository's signing certificates including the ones from configured upstreams.",
+				Optional: true,
+				Computed: true,
 			},
 			"proxy_npmjs": {
 				Type: schema.TypeBool,

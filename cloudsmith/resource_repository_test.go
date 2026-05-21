@@ -68,6 +68,9 @@ func TestAccRepository_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "manage_entitlements_privilege", "Write"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "use_entitlements_privilege", "Admin"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "broadcast_state", "Private"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "cosign_signing_enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "nuget_native_signing_enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "npm_upstream_tags_take_precedence", "true"),
 				),
 			},
 			{
@@ -186,15 +189,18 @@ resource "cloudsmith_repository" "test" {
 	name      = "%s"
 	namespace = "%s"
 
-	contextual_auth_realm         = false
-	copy_packages                 = "Write"
-	docker_refresh_tokens_enabled = true
-	replace_packages_by_default   = true
-	use_vulnerability_scanning    = false
-	tag_pre_releases_as_latest    = true
-	manage_entitlements_privilege = "Write"
-	use_entitlements_privilege    = "Admin"
-	broadcast_state               = "Private"
+	contextual_auth_realm             = false
+	copy_packages                     = "Write"
+	docker_refresh_tokens_enabled     = true
+	replace_packages_by_default       = true
+	use_vulnerability_scanning        = false
+	tag_pre_releases_as_latest        = true
+	manage_entitlements_privilege     = "Write"
+	use_entitlements_privilege        = "Admin"
+	broadcast_state                   = "Private"
+	cosign_signing_enabled            = true
+	nuget_native_signing_enabled      = true
+	npm_upstream_tags_take_precedence = true
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 }
