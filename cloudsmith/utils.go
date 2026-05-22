@@ -1,6 +1,7 @@
 package cloudsmith
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -68,6 +69,37 @@ func is404(resp *http.Response) bool {
 	}
 
 	return resp.StatusCode == http.StatusNotFound
+}
+
+// formatAPIError extracts the response body from a generated-SDK error and
+// returns an error whose message surfaces the API-provided detail / fields.
+func formatAPIError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var apiErr *cloudsmith.GenericOpenAPIError
+	if !errors.As(err, &apiErr) {
+		return err
+	}
+
+	body := apiErr.Body()
+	if len(body) == 0 {
+		return err
+	}
+
+	var parsed struct {
+		Detail string          `json:"detail"`
+		Fields json.RawMessage `json:"fields,omitempty"`
+	}
+	if jsonErr := json.Unmarshal(body, &parsed); jsonErr == nil && parsed.Detail != "" {
+		if len(parsed.Fields) > 0 && string(parsed.Fields) != "null" {
+			return fmt.Errorf("%s (fields: %s)", parsed.Detail, string(parsed.Fields))
+		}
+		return fmt.Errorf("%s", parsed.Detail)
+	}
+
+	return fmt.Errorf("API error: %s", string(body))
 }
 
 func nullableInt64(d *schema.ResourceData, name string) cloudsmith.NullableInt64 {
