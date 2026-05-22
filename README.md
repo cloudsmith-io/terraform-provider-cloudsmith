@@ -88,6 +88,41 @@ output "packages" {
 }
 ```
 
+Connect two repositories so the source resolves packages against the target
+
+```
+provider "cloudsmith" {
+    api_key = "my-api-key"
+}
+
+data "cloudsmith_namespace" "my_namespace" {
+  slug = "my-namespace"
+}
+
+resource "cloudsmith_repository" "source" {
+    name      = "source-repo"
+    namespace = data.cloudsmith_namespace.my_namespace.slug_perm
+}
+
+resource "cloudsmith_repository" "target" {
+    name      = "target-repo"
+    namespace = data.cloudsmith_namespace.my_namespace.slug_perm
+}
+
+resource "cloudsmith_repository_connected" "link" {
+    namespace         = cloudsmith_repository.source.namespace
+    repository        = cloudsmith_repository.source.slug_perm
+    target_repository = cloudsmith_repository.target.slug
+    is_active         = true
+    priority          = 1
+}
+
+data "cloudsmith_repository_connected_list" "all" {
+    namespace  = cloudsmith_repository.source.namespace
+    repository = cloudsmith_repository.source.slug_perm
+}
+```
+
 Testing the Provider
 -----------------------
 
