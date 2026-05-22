@@ -300,6 +300,26 @@ func TestPaginateAllHTTP_NilResponseErrors(t *testing.T) {
 	}
 }
 
+func TestPaginateAllHTTP_NotFoundReturnsEmpty(t *testing.T) {
+	calls := 0
+	exec := func(page, pageSize int64) ([]int64, *http.Response, error) {
+		calls++
+		resp := &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{}}
+		return nil, resp, nil
+	}
+
+	out, err := PaginateAllHTTP[int64](exec, PaginationOptions{PageSize: 5})
+	if err != nil {
+		t.Fatalf("expected nil error on 404, got %v", err)
+	}
+	if len(out) != 0 {
+		t.Fatalf("expected empty result on 404, got %d items", len(out))
+	}
+	if calls != 1 {
+		t.Fatalf("expected 1 exec call, got %d", calls)
+	}
+}
+
 func TestPaginateAllHTTP_ExecErrorPropagates(t *testing.T) {
 	sentinel := errors.New("api boom")
 	exec := func(page, pageSize int64) ([]int64, *http.Response, error) {

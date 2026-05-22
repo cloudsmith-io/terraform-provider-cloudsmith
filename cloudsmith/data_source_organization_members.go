@@ -11,7 +11,7 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
-func retrieveOrgMemeberListPages(pc *providerConfig, organization string, isActive bool) ([]cloudsmith.OrganizationMembership, error) {
+func retrieveOrgMemberListPages(pc *providerConfig, organization string, isActive bool) ([]cloudsmith.OrganizationMembership, error) {
 	exec := func(page, ps int64) ([]cloudsmith.OrganizationMembership, *http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsMembersList(pc.Auth, organization).
 			Page(page).
@@ -27,7 +27,7 @@ func dataSourceOrganizationMembersListRead(d *schema.ResourceData, m interface{}
 	namespace := d.Get("namespace").(string)
 	isActive := d.Get("is_active").(bool)
 
-	members, err := retrieveOrgMemeberListPages(pc, namespace, isActive)
+	members, err := retrieveOrgMemberListPages(pc, namespace, isActive)
 	if err != nil {
 		return fmt.Errorf("error retrieving organization members: %s", err)
 	}

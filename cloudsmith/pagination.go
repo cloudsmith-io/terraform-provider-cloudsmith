@@ -82,11 +82,16 @@ func PaginateAll[T any](fetch PageFetcher[T], opts PaginationOptions) ([]T, erro
 }
 
 // PaginateAllHTTP validates Cloudsmith pagination headers before paginating.
+// A 404 response is treated as an empty list so callers can short-circuit
+// "not found" without hitting header-parsing errors.
 func PaginateAllHTTP[T any](exec PageExecutor[T], opts PaginationOptions) ([]T, error) {
 	fetch := func(page, pageSize int64) ([]T, int64, error) {
 		results, resp, err := exec(page, pageSize)
 		if err != nil {
 			return nil, 0, err
+		}
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return nil, 0, nil
 		}
 		total, err := parsePageTotal(resp)
 		if err != nil {
