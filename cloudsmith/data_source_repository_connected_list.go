@@ -73,7 +73,9 @@ func dataSourceRepositoryConnectedListRead(d *schema.ResourceData, m interface{}
 		return err
 	}
 
-	_ = d.Set("connected_repositories", flattenConnectedRepositories(connected))
+	if err := d.Set("connected_repositories", flattenConnectedRepositories(connected)); err != nil {
+		return fmt.Errorf("setting connected_repositories for %s/%s: %w", namespace, repository, err)
+	}
 	d.SetId(fmt.Sprintf("%s/%s/connected", namespace, repository))
 
 	return nil
