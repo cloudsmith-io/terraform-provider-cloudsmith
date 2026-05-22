@@ -69,9 +69,9 @@ func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	result, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	result, _, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
 	if err != nil {
-		return diag.FromErr(handleSAMLAuthError(err, resp, "creating SAML authentication"))
+		return diag.FromErr(handleSAMLAuthError(err, "creating SAML authentication"))
 	}
 
 	d.SetId(generateSAMLAuthID(organization, result))
@@ -101,7 +101,7 @@ func samlAuthRead(ctx context.Context, d *schema.ResourceData, m interface{}) di
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(handleSAMLAuthError(err, resp, "reading SAML authentication"))
+		return diag.FromErr(handleSAMLAuthError(err, "reading SAML authentication"))
 	}
 
 	d.Set("organization", organization)
@@ -125,9 +125,9 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	}
 
 	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	_, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	_, _, err = pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
 	if err != nil {
-		return diag.FromErr(handleSAMLAuthError(err, resp, "updating SAML authentication"))
+		return diag.FromErr(handleSAMLAuthError(err, "updating SAML authentication"))
 	}
 	// Wait for the backend to reflect enabled/metadata state
 	if err := waitForSAMLAuthState(
@@ -156,9 +156,9 @@ func samlAuthDelete(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	samlAuth.SetSamlMetadataUrl("")
 
 	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	_, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	_, _, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
 	if err != nil {
-		return diag.FromErr(handleSAMLAuthError(err, resp, "deleting SAML authentication"))
+		return diag.FromErr(handleSAMLAuthError(err, "deleting SAML authentication"))
 	}
 
 	// Wait for the backend to reflect the disabled state
@@ -179,7 +179,7 @@ func samlAuthImport(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("SAML authentication not found for organization %s", organization)
 		}
-		return nil, handleSAMLAuthError(err, resp, "importing SAML authentication")
+		return nil, handleSAMLAuthError(err, "importing SAML authentication")
 	}
 
 	d.Set("organization", organization)
@@ -285,12 +285,11 @@ func generateSAMLAuthID(organization string, samlAuth *cloudsmith.OrganizationSA
 	return hex.EncodeToString(hash[:])
 }
 
-// handleSAMLAuthError creates formatted error messages for API operations
-func handleSAMLAuthError(err error, resp *http.Response, action string) error {
-	if resp != nil {
-		return fmt.Errorf("error %s: %v (status: %d)", action, err, resp.StatusCode)
-	}
-	return fmt.Errorf("error %s: %v", action, err)
+// handleSAMLAuthError wraps an API error with the SAML action context while
+// routing through formatAPIError so any typed ErrorDetail (detail/fields)
+// from the API is surfaced to the caller.
+func handleSAMLAuthError(err error, action string) error {
+	return fmt.Errorf("error %s: %w", action, formatAPIError(err))
 }
 
 // resourceSAMLAuth returns a schema.Resource for managing SAML authentication configuration.

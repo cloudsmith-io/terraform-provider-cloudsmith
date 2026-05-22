@@ -71,8 +71,25 @@ func is404(resp *http.Response) bool {
 	return resp.StatusCode == http.StatusNotFound
 }
 
-// formatAPIError extracts the response body from a generated-SDK error and
-// returns an error whose message surfaces the API-provided detail / fields.
+// apiErrorBody is a permissive parse of the JSON error body returned by the
+// Cloudsmith API. We use json.RawMessage for Fields because the SDK's typed
+// ErrorDetail uses map[string][]string, which fails to decode some real API
+// responses (e.g. nested objects). Falling back to a raw message lets us
+// surface the body verbatim instead of leaking the SDK unmarshal error.
+type apiErrorBody struct {
+	Detail string          `json:"detail"`
+	Fields json.RawMessage `json:"fields,omitempty"`
+}
+
+// formatAPIError surfaces API-provided detail/fields from a generated-SDK
+// error. Order of preference:
+//  1. SDK's typed ErrorDetail model (populated for status codes the SDK
+//     decodes per-endpoint, e.g. 400/404/422 with a compatible body).
+//  2. Raw response body parsed permissively. Required because the SDK's
+//     ErrorDetail.Fields is map[string][]string and some real API responses
+//     do not match that schema, causing the SDK to return the unmarshal
+//     error verbatim (the original bug from issue #203).
+//  3. Original error, unchanged.
 func formatAPIError(err error) error {
 	if err == nil {
 		return nil
@@ -83,15 +100,25 @@ func formatAPIError(err error) error {
 		return err
 	}
 
+	if detail, ok := apiErr.Model().(cloudsmith.ErrorDetail); ok {
+		if detail.HasFields() {
+			return fmt.Errorf("%s (fields: %v)", detail.GetDetail(), detail.GetFields())
+		}
+		return fmt.Errorf("%s", detail.GetDetail())
+	}
+
 	body := apiErr.Body()
 	if len(body) == 0 {
 		return err
 	}
+	return formatAPIErrorBody(body)
+}
 
-	var parsed struct {
-		Detail string          `json:"detail"`
-		Fields json.RawMessage `json:"fields,omitempty"`
-	}
+// formatAPIErrorBody parses a raw API error body and returns a formatted error.
+// Split out from formatAPIError so the parsing logic is unit-testable without
+// needing to construct a generated-SDK error (its body field is unexported).
+func formatAPIErrorBody(body []byte) error {
+	var parsed apiErrorBody
 	if jsonErr := json.Unmarshal(body, &parsed); jsonErr == nil && parsed.Detail != "" {
 		if len(parsed.Fields) > 0 && string(parsed.Fields) != "null" {
 			return fmt.Errorf("%s (fields: %s)", parsed.Detail, string(parsed.Fields))
