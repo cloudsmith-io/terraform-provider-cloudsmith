@@ -9,19 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func retrieveEntitlmentListPages(pc *providerConfig, namespace, repository, query string, showToken, activeToken bool) ([]cloudsmith.RepositoryToken, error) {
-	exec := func(page, ps int64) ([]cloudsmith.RepositoryToken, *http.Response, error) {
-		req := pc.APIClient.EntitlementsApi.EntitlementsList(pc.Auth, namespace, repository).
-			Page(page).
-			PageSize(ps).
-			ShowTokens(showToken).
-			Query(query).
-			Active(activeToken)
-		return pc.APIClient.EntitlementsApi.EntitlementsListExecute(req)
-	}
-	return PaginateAllHTTP[cloudsmith.RepositoryToken](exec, PaginationOptions{})
-}
-
 func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
 	tokenList := make([]interface{}, len(token))
 
@@ -76,10 +63,19 @@ func dataSourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
 	query := buildQueryString(d.Get("query").(*schema.Set))
-	showTokenVal := optionalBool(d, "show_token")
-	activeTokenVal := optionalBool(d, "active_token")
+	showTokenVal := *optionalBool(d, "show_token")
+	activeTokenVal := *optionalBool(d, "active_token")
 
-	entitlementList, err := retrieveEntitlmentListPages(pc, namespace, repository, query, *showTokenVal, *activeTokenVal)
+	exec := func(page, ps int64) ([]cloudsmith.RepositoryToken, *http.Response, error) {
+		req := pc.APIClient.EntitlementsApi.EntitlementsList(pc.Auth, namespace, repository).
+			Page(page).
+			PageSize(ps).
+			ShowTokens(showTokenVal).
+			Query(query).
+			Active(activeTokenVal)
+		return pc.APIClient.EntitlementsApi.EntitlementsListExecute(req)
+	}
+	entitlementList, err := PaginateAllHTTP[cloudsmith.RepositoryToken](exec, PaginationOptions{})
 	if err != nil {
 		return err
 	}

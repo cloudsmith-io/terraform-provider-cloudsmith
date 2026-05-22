@@ -68,7 +68,11 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 	return samlRead(d, m)
 }
 
-func retrieveSAMLSyncListPages(pc *providerConfig, organization string) ([]cloudsmith.OrganizationGroupSync, error) {
+func samlRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+
+	organization := requiredString(d, "organization")
+
 	exec := func(page, ps int64) ([]cloudsmith.OrganizationGroupSync, *http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization).
 			Page(page).
@@ -79,15 +83,7 @@ func retrieveSAMLSyncListPages(pc *providerConfig, organization string) ([]cloud
 		}
 		return results, resp, err
 	}
-	return PaginateAllHTTP[cloudsmith.OrganizationGroupSync](exec, PaginationOptions{})
-}
-
-func samlRead(d *schema.ResourceData, m interface{}) error {
-	pc := m.(*providerConfig)
-
-	organization := requiredString(d, "organization")
-
-	samlList, err := retrieveSAMLSyncListPages(pc, organization)
+	samlList, err := PaginateAllHTTP[cloudsmith.OrganizationGroupSync](exec, PaginationOptions{})
 	if err != nil {
 		return err
 	}

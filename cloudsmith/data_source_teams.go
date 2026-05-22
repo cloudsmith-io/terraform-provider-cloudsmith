@@ -10,16 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func retrieveTeamListPages(pc *providerConfig, organization string) ([]cloudsmith.OrganizationTeam, error) {
-	exec := func(page, ps int64) ([]cloudsmith.OrganizationTeam, *http.Response, error) {
-		req := pc.APIClient.OrgsApi.OrgsTeamsList(pc.Auth, organization).
-			Page(page).
-			PageSize(ps)
-		return pc.APIClient.OrgsApi.OrgsTeamsListExecute(req)
-	}
-	return PaginateAllHTTP[cloudsmith.OrganizationTeam](exec, PaginationOptions{})
-}
-
 func flattenOrgTeams(in []cloudsmith.OrganizationTeam) []interface{} {
 	out := make([]interface{}, len(in))
 	for i, team := range in {
@@ -39,7 +29,13 @@ func dataSourceTeamListRead(d *schema.ResourceData, m interface{}) error {
 
 	organization := requiredString(d, "organization")
 
-	teams, err := retrieveTeamListPages(pc, organization)
+	exec := func(page, ps int64) ([]cloudsmith.OrganizationTeam, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsTeamsList(pc.Auth, organization).
+			Page(page).
+			PageSize(ps)
+		return pc.APIClient.OrgsApi.OrgsTeamsListExecute(req)
+	}
+	teams, err := PaginateAllHTTP[cloudsmith.OrganizationTeam](exec, PaginationOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving teams for organization %s: %w", organization, err)
 	}

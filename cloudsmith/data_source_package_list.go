@@ -13,23 +13,6 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
 
-func retrievePackageListPages(pc *providerConfig, namespace, repository, query string, mostRecent bool) ([]cloudsmith.Package, error) {
-	exec := func(page, ps int64) ([]cloudsmith.Package, *http.Response, error) {
-		req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository).
-			Page(page).
-			PageSize(ps).
-			Query(query)
-		return pc.APIClient.PackagesApi.PackagesListExecute(req)
-	}
-
-	opts := PaginationOptions{}
-	if mostRecent {
-		opts.PageSize = 1
-		opts.MaxResults = 1
-	}
-	return PaginateAllHTTP[cloudsmith.Package](exec, opts)
-}
-
 func buildQueryString(set *schema.Set) string {
 	var query strings.Builder
 	for _, v := range set.List() {
@@ -47,7 +30,19 @@ func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	query := buildQueryString(d.Get("filters").(*schema.Set))
 	mostRecent := requiredBool(d, "most_recent")
 
-	packagesList, err := retrievePackageListPages(pc, namespace, repository, query, mostRecent)
+	exec := func(page, ps int64) ([]cloudsmith.Package, *http.Response, error) {
+		req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository).
+			Page(page).
+			PageSize(ps).
+			Query(query)
+		return pc.APIClient.PackagesApi.PackagesListExecute(req)
+	}
+	opts := PaginationOptions{}
+	if mostRecent {
+		opts.PageSize = 1
+		opts.MaxResults = 1
+	}
+	packagesList, err := PaginateAllHTTP[cloudsmith.Package](exec, opts)
 	if err != nil {
 		return err
 	}

@@ -10,22 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func retrieveServiceListPages(pc *providerConfig, organization string, query, sort *string) ([]cloudsmith.Service, error) {
-	exec := func(page, ps int64) ([]cloudsmith.Service, *http.Response, error) {
-		req := pc.APIClient.OrgsApi.OrgsServicesList(pc.Auth, organization).
-			Page(page).
-			PageSize(ps)
-		if query != nil && *query != "" {
-			req = req.Query(*query)
-		}
-		if sort != nil && *sort != "" {
-			req = req.Sort(*sort)
-		}
-		return pc.APIClient.OrgsApi.OrgsServicesListExecute(req)
-	}
-	return PaginateAllHTTP[cloudsmith.Service](exec, PaginationOptions{})
-}
-
 func flattenServices(in []cloudsmith.Service) []interface{} {
 	out := make([]interface{}, len(in))
 	for i, s := range in {
@@ -72,7 +56,19 @@ func dataSourceServiceListRead(d *schema.ResourceData, m interface{}) error {
 		sortPtr = &ss
 	}
 
-	services, err := retrieveServiceListPages(pc, organization, queryPtr, sortPtr)
+	exec := func(page, ps int64) ([]cloudsmith.Service, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsServicesList(pc.Auth, organization).
+			Page(page).
+			PageSize(ps)
+		if queryPtr != nil && *queryPtr != "" {
+			req = req.Query(*queryPtr)
+		}
+		if sortPtr != nil && *sortPtr != "" {
+			req = req.Sort(*sortPtr)
+		}
+		return pc.APIClient.OrgsApi.OrgsServicesListExecute(req)
+	}
+	services, err := PaginateAllHTTP[cloudsmith.Service](exec, PaginationOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving services for %s: %w", organization, err)
 	}
