@@ -2,6 +2,8 @@
 
 The `cloudsmith_repository_connected_list` data source returns all connected repositories configured for a given source repository.
 
+By default, each source repository has a soft limit of 5 connected repository connections. Contact Cloudsmith support if you need this limit increased.
+
 ## Example Usage
 
 ```hcl

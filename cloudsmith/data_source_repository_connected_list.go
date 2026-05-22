@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -82,30 +83,18 @@ func dataSourceRepositoryConnectedListRead(d *schema.ResourceData, m interface{}
 }
 
 func retrieveAllConnectedRepositories(pc *providerConfig, namespace, repository string) ([]cloudsmith.ConnectedRepository, error) {
-	var all []cloudsmith.ConnectedRepository
-	var page int64 = 1
-	const pageSize int64 = 100
-
-	for {
-		req := pc.APIClient.ReposApi.ReposConnectedList(pc.Auth, namespace, repository)
-		req = req.Page(page)
-		req = req.PageSize(pageSize)
-
-		resp, _, err := pc.APIClient.ReposApi.ReposConnectedListExecute(req)
+	exec := func(page, ps int64) ([]cloudsmith.ConnectedRepository, *http.Response, error) {
+		req := pc.APIClient.ReposApi.ReposConnectedList(pc.Auth, namespace, repository).
+			Page(page).
+			PageSize(ps)
+		payload, httpResp, err := pc.APIClient.ReposApi.ReposConnectedListExecute(req)
 		if err != nil {
-			return nil, err
+			return nil, httpResp, err
 		}
-
-		results := resp.GetResults()
-		all = append(all, results...)
-
-		if int64(len(results)) < pageSize {
-			break
-		}
-		page++
+		return payload.GetResults(), httpResp, nil
 	}
 
-	return all, nil
+	return PaginateAllHTTP[cloudsmith.ConnectedRepository](exec, PaginationOptions{})
 }
 
 func flattenConnectedRepositories(items []cloudsmith.ConnectedRepository) []interface{} {

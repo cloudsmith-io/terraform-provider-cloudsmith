@@ -2,6 +2,8 @@
 
 The repository connected resource allows the management of connections between two Cloudsmith repositories within the same organization. A connection links a source repository to a target repository so that requests to the source can be resolved against the target as well, according to a configurable lookup priority.
 
+By default, each source repository has a soft limit of 5 connected repository connections. Contact Cloudsmith support if you need this limit increased.
+
 See [docs.cloudsmith.com](https://docs.cloudsmith.com) for full Connected Repositories documentation.
 
 ## Example Usage

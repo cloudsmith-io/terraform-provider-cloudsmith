@@ -3,7 +3,7 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"net/http"
 	"strings"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -68,63 +68,18 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 	return samlRead(d, m)
 }
 
-func retrieveSAMLSyncListPage(pc *providerConfig, organization string, pageSize int64, pageCount int64) ([]cloudsmith.OrganizationGroupSync, int64, error) {
-	req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization)
-	req = req.Page(pageCount)
-	req = req.PageSize(pageSize)
-
-	samlPage, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncListExecute(req)
-	if err != nil {
+func retrieveSAMLSyncListPages(pc *providerConfig, organization string) ([]cloudsmith.OrganizationGroupSync, error) {
+	exec := func(page, ps int64) ([]cloudsmith.OrganizationGroupSync, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization).
+			Page(page).
+			PageSize(ps)
+		results, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncListExecute(req)
 		if is404(resp) {
-			return nil, 0, nil
+			return nil, resp, nil
 		}
-		return nil, 0, err
+		return results, resp, err
 	}
-
-	pageTotal, err := strconv.ParseInt(resp.Header.Get("X-Pagination-Pagetotal"), 10, 64)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return samlPage, pageTotal, nil
-
-}
-
-func retrieveSAMLSyncListPages(pc *providerConfig, organization string, pageSize int64, pageCount int64) ([]cloudsmith.OrganizationGroupSync, error) {
-	var pageCurrentCount int64 = 1
-
-	// A negative or zero count is assumed to mean retrieve the largest size page
-	samlList := []cloudsmith.OrganizationGroupSync{}
-	if pageSize == -1 || pageSize == 0 {
-		pageSize = 100
-	}
-
-	// If no count is supplied assumed to mean retrieve all pages
-	// we have to retrieve a page to get this count
-	if pageCount == -1 || pageCount == 0 {
-		var samlPage []cloudsmith.OrganizationGroupSync
-		var err error
-		samlPage, _, err = retrieveSAMLSyncListPage(pc, organization, pageSize, 1)
-		if err != nil {
-			return nil, err
-		}
-		samlList = append(samlList, samlPage...)
-		pageCurrentCount++
-	}
-
-	for {
-		samlPage, totalPages, err := retrieveSAMLSyncListPage(pc, organization, pageSize, pageCurrentCount)
-		if err != nil {
-			return nil, err
-		}
-		samlList = append(samlList, samlPage...)
-		if pageCurrentCount >= totalPages {
-			break
-		}
-		pageCurrentCount++
-	}
-
-	return samlList, nil
+	return PaginateAllHTTP[cloudsmith.OrganizationGroupSync](exec, PaginationOptions{})
 }
 
 func samlRead(d *schema.ResourceData, m interface{}) error {
@@ -132,13 +87,11 @@ func samlRead(d *schema.ResourceData, m interface{}) error {
 
 	organization := requiredString(d, "organization")
 
-	var pageCount, pageSize int64 = -1, -1
-	samlList, err := retrieveSAMLSyncListPages(pc, organization, pageSize, pageCount)
+	samlList, err := retrieveSAMLSyncListPages(pc, organization)
 	if err != nil {
 		return err
 	}
 
-	// Iterate over the saml array to find the matching item
 	for _, item := range samlList {
 		if item.GetSlugPerm() == d.Id() {
 			d.Set("idp_key", item.IdpKey)
@@ -153,7 +106,6 @@ func samlRead(d *schema.ResourceData, m interface{}) error {
 		}
 	}
 
-	// If no matching item is found, unset the ID and return
 	d.SetId("")
 	return nil
 }

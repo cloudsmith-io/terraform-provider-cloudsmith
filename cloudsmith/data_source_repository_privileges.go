@@ -74,31 +74,24 @@ func dataSourceRepositoryPrivileges() *schema.Resource {
 	}
 }
 
-// dataSourceRepositoryPrivilegesRead retrieves privileges information for the specified repository.
 func dataSourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	organization := d.Get("organization").(string)
 	repository := d.Get("repository").(string)
 
-	req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
-	// TODO: add a proper loop here to ensure we always get all privs,
-	// regardless of how many are configured.
-	req = req.Page(1)
-	req = req.PageSize(1000)
-	privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
+	all, notFound, err := retrieveRepositoryPrivilegePages(pc, organization, repository)
 	if err != nil {
-		if is404(resp) {
-			d.SetId("")
-			return nil
-		}
-
 		return err
 	}
+	if notFound {
+		d.SetId("")
+		return nil
+	}
 
-	d.Set("service", flattenRepositoryPrivilegeServices(privileges.GetPrivileges()))
-	d.Set("team", flattenRepositoryPrivilegeTeams(privileges.GetPrivileges()))
-	d.Set("user", flattenRepositoryPrivilegeUsers(privileges.GetPrivileges()))
+	d.Set("service", flattenRepositoryPrivilegeServices(all))
+	d.Set("team", flattenRepositoryPrivilegeTeams(all))
+	d.Set("user", flattenRepositoryPrivilegeUsers(all))
 
 	d.SetId(fmt.Sprintf("%s/%s", organization, repository))
 
