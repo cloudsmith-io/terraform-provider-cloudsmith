@@ -264,16 +264,10 @@ func retrieveRepositoryPrivilegePages(pc *providerConfig, organization, reposito
 	const pageSize int64 = 1000
 
 	// ReposPrivilegesList accepts page/page_size but does not emit the standard
-	// X-Pagination-* response headers used by PaginateAllHTTP.
+	// X-Pagination-* response headers used by PaginateAllHTTP. Iteration stops
+	// when a short page is returned.
 	var all []cloudsmith.RepositoryPrivilegeDict
 	for page := int64(1); ; page++ {
-		if page > DefaultMaxPages {
-			return nil, false, fmt.Errorf(
-				"repository privileges pagination exceeded MaxPages (%d); aborting to prevent runaway iteration",
-				DefaultMaxPages,
-			)
-		}
-
 		req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository).
 			Page(page).
 			PageSize(pageSize)

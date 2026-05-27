@@ -61,22 +61,6 @@ func TestPaginateAll_SinglePageWithHeader(t *testing.T) {
 	}
 }
 
-func TestPaginateAll_HitMaxPages(t *testing.T) {
-	calls := 0
-	fetch := func(page, pageSize int64) ([]int64, int64, error) {
-		calls++
-		return makeItems((page-1)*pageSize, pageSize), 9999, nil
-	}
-
-	_, err := PaginateAll[int64](fetch, PaginationOptions{PageSize: 10, MaxPages: 3})
-	if err == nil {
-		t.Fatalf("expected MaxPages error, got nil")
-	}
-	if calls != 1 {
-		t.Fatalf("expected early MaxPages error after 1 call, got %d", calls)
-	}
-}
-
 func TestPaginateAll_HitMaxResults(t *testing.T) {
 	fetch := func(page, pageSize int64) ([]int64, int64, error) {
 		return makeItems((page-1)*pageSize, pageSize), 100, nil
@@ -94,7 +78,7 @@ func TestPaginateAll_HitMaxResults(t *testing.T) {
 	}
 }
 
-func TestPaginateAll_MaxResultsCanStopBeforeMaxPages(t *testing.T) {
+func TestPaginateAll_MaxResultsStopsEarly(t *testing.T) {
 	calls := 0
 	fetch := func(page, pageSize int64) ([]int64, int64, error) {
 		calls++
@@ -103,7 +87,6 @@ func TestPaginateAll_MaxResultsCanStopBeforeMaxPages(t *testing.T) {
 
 	got, err := PaginateAll[int64](fetch, PaginationOptions{
 		PageSize:   10,
-		MaxPages:   1,
 		MaxResults: 5,
 	})
 	if err != nil {

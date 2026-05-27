@@ -8,7 +8,6 @@ import (
 
 const (
 	DefaultPageSize int64 = 100
-	DefaultMaxPages int64 = 650
 
 	paginationCountHeader     = "X-Pagination-Count"
 	paginationPageHeader      = "X-Pagination-Page"
@@ -16,10 +15,9 @@ const (
 	paginationPageSizeHeader  = "X-Pagination-PageSize"
 )
 
-// PaginationOptions controls page size and result caps.
+// PaginationOptions controls page size and optional result cap.
 type PaginationOptions struct {
 	PageSize   int64
-	MaxPages   int64
 	MaxResults int64
 }
 
@@ -29,48 +27,29 @@ type PageFetcher[T any] func(page, pageSize int64) (results []T, totalPages int6
 // PageExecutor matches the generated SDK's list Execute methods.
 type PageExecutor[T any] func(page, pageSize int64) (results []T, resp *http.Response, err error)
 
-// PaginateAll collects pages until MaxResults or the API-reported page total.
+// PaginateAll collects every page reported by the API, stopping early only when
+// MaxResults is reached. Iteration ends when the current page equals the
+// API-reported total page count (X-Pagination-PageTotal).
 func PaginateAll[T any](fetch PageFetcher[T], opts PaginationOptions) ([]T, error) {
 	pageSize := opts.PageSize
 	if pageSize <= 0 {
 		pageSize = DefaultPageSize
 	}
-	maxPages := opts.MaxPages
-	if maxPages <= 0 {
-		maxPages = DefaultMaxPages
-	}
 
 	var all []T
-	var totalPages int64
 	var page int64 = 1
 	for {
-		if page > maxPages {
-			return nil, fmt.Errorf(
-				"pagination exceeded MaxPages (%d); aborting to prevent runaway iteration",
-				maxPages,
-			)
-		}
-
-		results, tp, err := fetch(page, pageSize)
+		results, totalPages, err := fetch(page, pageSize)
 		if err != nil {
 			return nil, err
 		}
 		all = append(all, results...)
-		if tp < 0 {
-			return nil, fmt.Errorf("pagination returned invalid total page count %d", tp)
+		if totalPages < 0 {
+			return nil, fmt.Errorf("pagination returned invalid total page count %d", totalPages)
 		}
-		totalPages = tp
 
 		if opts.MaxResults > 0 && int64(len(all)) >= opts.MaxResults {
 			return all[:opts.MaxResults], nil
-		}
-
-		if totalPages > maxPages && (opts.MaxResults <= 0 || maxPages*pageSize < opts.MaxResults) {
-			return nil, fmt.Errorf(
-				"pagination requires %d pages, exceeding MaxPages (%d)",
-				totalPages,
-				maxPages,
-			)
 		}
 
 		if page >= totalPages {
