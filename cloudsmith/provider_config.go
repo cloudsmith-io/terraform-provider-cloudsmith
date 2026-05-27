@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	cloudsmithv2 "github.com/cloudsmith-io/cloudsmith-go-v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 )
@@ -19,9 +20,11 @@ type providerConfig struct {
 
 	// initialised Cloudsmith API client
 	APIClient *cloudsmith.APIClient
+
+	V2ApiClient *cloudsmithv2.Cloudsmith
 }
 
-func newProviderConfig(apiHost string, apiKey string, headers map[string]interface{}, userAgent string) (*providerConfig, diag.Diagnostics) {
+func newProviderConfig(apiHost, apiHostV2, apiKey string, headers map[string]interface{}, userAgent string) (*providerConfig, diag.Diagnostics) {
 	if apiKey == "" {
 		return nil, diag.FromErr(errMissingCredentials)
 	}
@@ -56,7 +59,21 @@ func newProviderConfig(apiHost string, apiKey string, headers map[string]interfa
 		return nil, diag.FromErr(errors.New("invalid API credentials"))
 	}
 
-	return &providerConfig{Auth: auth, APIClient: apiClient}, nil
+	v2Options := []cloudsmithv2.SDKOption{
+		cloudsmithv2.WithClient(httpClient),
+	}
+	if apiKey != "" {
+		v2Options = append(v2Options, cloudsmithv2.WithSecurity(apiKey))
+	}
+	if apiHostV2 != "" {
+		v2Options = append(v2Options, cloudsmithv2.WithServerURL(apiHostV2))
+	}
+
+	return &providerConfig{
+		Auth:        auth,
+		APIClient:   apiClient,
+		V2ApiClient: cloudsmithv2.New(v2Options...),
+	}, nil
 }
 
 func (pc *providerConfig) GetAPIKey() string {

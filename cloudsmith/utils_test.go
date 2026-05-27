@@ -4,6 +4,8 @@ package cloudsmith
 import (
 	"errors"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func TestFormatAPIError_Nil(t *testing.T) {
@@ -80,5 +82,48 @@ func TestFormatAPIErrorBody(t *testing.T) {
 				t.Fatalf("expected %q, got %q", tc.want, err.Error())
 			}
 		})
+	}
+}
+
+func TestOptionalInt64IncludesExplicitZero(t *testing.T) {
+	t.Parallel()
+
+	resourceSchema := map[string]*schema.Schema{
+		"precedence": {
+			Type:     schema.TypeInt,
+			Optional: true,
+			Computed: true,
+		},
+	}
+
+	d := schema.TestResourceDataRaw(t, resourceSchema, map[string]interface{}{
+		"precedence": 0,
+	})
+
+	value := optionalInt64(d, "precedence")
+	if value == nil {
+		t.Fatal("expected explicit zero to be preserved")
+		return
+	}
+	if *value != 0 {
+		t.Fatalf("expected explicit zero, got %d", *value)
+	}
+}
+
+func TestOptionalInt64Unset(t *testing.T) {
+	t.Parallel()
+
+	resourceSchema := map[string]*schema.Schema{
+		"precedence": {
+			Type:     schema.TypeInt,
+			Optional: true,
+			Computed: true,
+		},
+	}
+
+	d := schema.TestResourceDataRaw(t, resourceSchema, map[string]interface{}{})
+
+	if value := optionalInt64(d, "precedence"); value != nil {
+		t.Fatalf("expected unset value to be nil, got %d", *value)
 	}
 }

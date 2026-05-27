@@ -168,7 +168,7 @@ func optionalBool(d *schema.ResourceData, name string) *bool {
 func optionalInt64(d *schema.ResourceData, name string) *int64 {
 	var optionalValue *int64
 
-	if value, ok := d.GetOk(name); ok { //nolint:staticcheck
+	if value, ok := d.GetOkExists(name); ok { //nolint:staticcheck
 		optionalValue = cloudsmith.PtrInt64(int64(value.(int)))
 	}
 
@@ -194,6 +194,20 @@ func requiredBool(d *schema.ResourceData, name string) bool {
 // requiredString retrieves a string from Terraform state
 func requiredString(d *schema.ResourceData, name string) string {
 	return d.Get(name).(string)
+}
+
+func boolOrFalse(v *bool) bool {
+	if v == nil {
+		return false
+	}
+	return *v
+}
+
+func int64OrZero(v *int64) int64 {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 // stringSlicesAreEqual compares two string slices and returns true if they are equal.
