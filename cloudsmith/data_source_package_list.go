@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -11,58 +12,6 @@ import (
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 )
-
-func retrievePackageListPage(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, int64, error) {
-	req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository)
-	req = req.Page(pageCount)
-	req = req.PageSize(pageSize)
-	req = req.Query(query)
-
-	packagesPage, httpResponse, err := pc.APIClient.PackagesApi.PackagesListExecute(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	pageTotal, err := strconv.ParseInt(httpResponse.Header.Get("X-Pagination-Pagetotal"), 10, 64)
-	if err != nil {
-		return nil, 0, err
-	}
-	return packagesPage, pageTotal, nil
-}
-
-func retrievePackageListPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64) ([]cloudsmith.Package, error) {
-
-	var pageCurrentCount int64 = 1
-
-	// A negative or zero count is assumed to mean retrieve the largest size page
-	packagesList := []cloudsmith.Package{}
-	if pageSize == -1 || pageSize == 0 {
-		pageSize = 100
-	}
-
-	// If no count is supplied assmumed to mean retrieve all pages
-	// we have to retreive a page to get this count
-	if pageCount == -1 || pageCount == 0 {
-		var packagesPage []cloudsmith.Package
-		var err error
-		packagesPage, pageCount, err = retrievePackageListPage(pc, namespace, repository, query, pageSize, 1)
-		if err != nil {
-			return nil, err
-		}
-		packagesList = append(packagesList, packagesPage...)
-		pageCurrentCount++
-	}
-
-	for pageCurrentCount <= pageCount {
-		packagesPage, _, err := retrievePackageListPage(pc, namespace, repository, query, pageSize, pageCount)
-		if err != nil {
-			return nil, err
-		}
-		packagesList = append(packagesList, packagesPage...)
-		pageCurrentCount++
-
-	}
-	return packagesList, nil
-}
 
 func buildQueryString(set *schema.Set) string {
 	var query strings.Builder
@@ -81,12 +30,19 @@ func dataSourcePackageListRead(d *schema.ResourceData, m interface{}) error {
 	query := buildQueryString(d.Get("filters").(*schema.Set))
 	mostRecent := requiredBool(d, "most_recent")
 
-	var pageCount, pageSize int64 = -1, -1
-	if mostRecent {
-		pageCount = 1
-		pageSize = 1
+	exec := func(page, ps int64) ([]cloudsmith.Package, *http.Response, error) {
+		req := pc.APIClient.PackagesApi.PackagesList(pc.Auth, namespace, repository).
+			Page(page).
+			PageSize(ps).
+			Query(query)
+		return pc.APIClient.PackagesApi.PackagesListExecute(req)
 	}
-	packagesList, err := retrievePackageListPages(pc, namespace, repository, query, pageSize, pageCount)
+	opts := PaginationOptions{}
+	if mostRecent {
+		opts.PageSize = 1
+		opts.MaxResults = 1
+	}
+	packagesList, err := PaginateAllHTTP[cloudsmith.Package](exec, opts)
 	if err != nil {
 		return err
 	}

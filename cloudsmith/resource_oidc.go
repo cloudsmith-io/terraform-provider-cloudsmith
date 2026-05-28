@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
@@ -287,43 +286,33 @@ func resourceOIDC() *schema.Resource {
 	}
 }
 
-// returns a list of maps for state.
 func retrieveAllDynamicMappings(pc *providerConfig, namespace, slugPerm string) ([]map[string]interface{}, error) {
-	var result []map[string]interface{}
-	const pageSize int64 = 500
-	var page int64 = 1
-	for {
-		req := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsList(pc.Auth, namespace, slugPerm).Page(page).PageSize(pageSize)
-		dmList, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsListExecute(req)
-		if err != nil {
-			if resp != nil && is404(resp) { // treat missing as none
-				break
-			}
-			return nil, err
+	exec := func(page, ps int64) ([]cloudsmith.DynamicMapping, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsList(pc.Auth, namespace, slugPerm).
+			Page(page).
+			PageSize(ps)
+		results, resp, err := pc.APIClient.OrgsApi.OrgsOpenidConnectDynamicMappingsListExecute(req)
+		if is404(resp) {
+			return nil, resp, nil
 		}
-		for _, dm := range dmList {
-			result = append(result, map[string]interface{}{
-				"claim_value":     dm.GetClaimValue(),
-				"service_account": dm.GetServiceAccount(),
-			})
-		}
-		if resp == nil {
-			break
-		}
-		pageTotalStr := resp.Header.Get("X-Pagination-Pagetotal")
-		if pageTotalStr == "" {
-			break
-		}
-		totalPages, err := strconv.ParseInt(pageTotalStr, 10, 64)
-		if err != nil || page >= totalPages {
-			break
-		}
-		page++
+		return results, resp, err
 	}
-	return result, nil
+
+	mappings, err := PaginateAllHTTP[cloudsmith.DynamicMapping](exec, PaginationOptions{PageSize: 500})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]map[string]interface{}, 0, len(mappings))
+	for _, dm := range mappings {
+		out = append(out, map[string]interface{}{
+			"claim_value":     dm.GetClaimValue(),
+			"service_account": dm.GetServiceAccount(),
+		})
+	}
+	return out, nil
 }
 
-// Helper utilities
 func buildDynamicMappingObjectsFromSet(set *schema.Set) []cloudsmith.DynamicMapping {
 	if set == nil {
 		return nil

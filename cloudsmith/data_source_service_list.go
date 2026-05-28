@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -9,57 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// retrieveServiceListPage fetches a single page of services.
-func retrieveServiceListPage(pc *providerConfig, organization string, pageSize int64, page int64, query, sort *string) ([]cloudsmith.Service, int64, error) {
-	req := pc.APIClient.OrgsApi.OrgsServicesList(pc.Auth, organization)
-	req = req.Page(page)
-	req = req.PageSize(pageSize)
-	if query != nil && *query != "" {
-		req = req.Query(*query)
-	}
-	if sort != nil && *sort != "" {
-		req = req.Sort(*sort)
-	}
-
-	servicesPage, httpResp, err := pc.APIClient.OrgsApi.OrgsServicesListExecute(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	pageTotal, err := strconv.ParseInt(httpResp.Header.Get("X-Pagination-Pagetotal"), 10, 64)
-	if err != nil {
-		return nil, 0, err
-	}
-	return servicesPage, pageTotal, nil
-}
-
-// retrieveServiceListPages retrieves all pages of services.
-func retrieveServiceListPages(pc *providerConfig, organization string, pageSize, pageCount int64, query, sort *string) ([]cloudsmith.Service, error) {
-	var current int64 = 1
-	services := []cloudsmith.Service{}
-	if pageSize <= 0 {
-		pageSize = 100
-	}
-	if pageCount <= 0 {
-		first, total, err := retrieveServiceListPage(pc, organization, pageSize, 1, query, sort)
-		if err != nil {
-			return nil, err
-		}
-		services = append(services, first...)
-		pageCount = total
-		current++
-	}
-	for current <= pageCount {
-		pageData, _, err := retrieveServiceListPage(pc, organization, pageSize, current, query, sort)
-		if err != nil {
-			return nil, err
-		}
-		services = append(services, pageData...)
-		current++
-	}
-	return services, nil
-}
-
-// flattenServices converts []Service into []interface{} for TF state.
 func flattenServices(in []cloudsmith.Service) []interface{} {
 	out := make([]interface{}, len(in))
 	for i, s := range in {
@@ -96,7 +46,6 @@ func dataSourceServiceListRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 	organization := requiredString(d, "organization")
 
-	// Optional filtering/sorting arguments
 	var queryPtr, sortPtr *string
 	if v, ok := d.GetOk("query"); ok {
 		qs := v.(string)
@@ -107,8 +56,19 @@ func dataSourceServiceListRead(d *schema.ResourceData, m interface{}) error {
 		sortPtr = &ss
 	}
 
-	// Always iterate all pages (Terraform expectation).
-	services, err := retrieveServiceListPages(pc, organization, -1, -1, queryPtr, sortPtr)
+	exec := func(page, ps int64) ([]cloudsmith.Service, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsServicesList(pc.Auth, organization).
+			Page(page).
+			PageSize(ps)
+		if queryPtr != nil && *queryPtr != "" {
+			req = req.Query(*queryPtr)
+		}
+		if sortPtr != nil && *sortPtr != "" {
+			req = req.Sort(*sortPtr)
+		}
+		return pc.APIClient.OrgsApi.OrgsServicesListExecute(req)
+	}
+	services, err := PaginateAllHTTP[cloudsmith.Service](exec, PaginationOptions{})
 	if err != nil {
 		return fmt.Errorf("error retrieving services for %s: %w", organization, err)
 	}
@@ -117,7 +77,6 @@ func dataSourceServiceListRead(d *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("error setting services: %w", err)
 	}
 
-	// ephemeral ID
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 	return nil
 }

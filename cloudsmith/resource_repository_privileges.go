@@ -238,30 +238,13 @@ func resourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) err
 	organization := requiredString(d, "organization")
 	repository := requiredString(d, "repository")
 
-	var allPrivileges []cloudsmith.RepositoryPrivilegeDict
-	page := int64(1)
-	pageSize := int64(1000)
-
-	for {
-		req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository)
-		req = req.Page(page)
-		req = req.PageSize(pageSize)
-		privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
-		if err != nil {
-			if is404(resp) {
-				d.SetId("")
-				return nil
-			}
-			return formatAPIError(err)
-		}
-
-		allPrivileges = append(allPrivileges, privileges.GetPrivileges()...)
-
-		// Check if we have retrieved all pages
-		if int64(len(privileges.GetPrivileges())) < pageSize {
-			break
-		}
-		page++
+	allPrivileges, notFound, err := retrieveRepositoryPrivilegePages(pc, organization, repository)
+	if err != nil {
+		return err
+	}
+	if notFound {
+		d.SetId("")
+		return nil
 	}
 
 	d.Set("service", flattenRepositoryPrivilegeServices(allPrivileges))
@@ -275,6 +258,33 @@ func resourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) err
 	d.Set("repository", repository)
 
 	return nil
+}
+
+func retrieveRepositoryPrivilegePages(pc *providerConfig, organization, repository string) ([]cloudsmith.RepositoryPrivilegeDict, bool, error) {
+	const pageSize int64 = 1000
+
+	// ReposPrivilegesList accepts page/page_size but does not emit the standard
+	// X-Pagination-* response headers used by PaginateAllHTTP. Iteration stops
+	// when a short page is returned.
+	var all []cloudsmith.RepositoryPrivilegeDict
+	for page := int64(1); ; page++ {
+		req := pc.APIClient.ReposApi.ReposPrivilegesList(pc.Auth, organization, repository).
+			Page(page).
+			PageSize(pageSize)
+		privileges, resp, err := pc.APIClient.ReposApi.ReposPrivilegesListExecute(req)
+		if is404(resp) {
+			return nil, true, nil
+		}
+		if err != nil {
+			return nil, false, err
+		}
+
+		pagePrivileges := privileges.GetPrivileges()
+		all = append(all, pagePrivileges...)
+		if int64(len(pagePrivileges)) < pageSize {
+			return all, false, nil
+		}
+	}
 }
 
 func resourceRepositoryPrivilegesDelete(d *schema.ResourceData, m interface{}) error {

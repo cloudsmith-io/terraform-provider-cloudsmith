@@ -1,66 +1,13 @@
 package cloudsmith
 
 import (
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
-
-func retrieveEntitlmentTokenListPage(pc *providerConfig, namespace string, repository string, page int64, pageSize int64, showToken bool, query string, activeToken bool) ([]cloudsmith.RepositoryToken, int64, error) {
-	req := pc.APIClient.EntitlementsApi.EntitlementsList(pc.Auth, namespace, repository)
-	req = req.Page(page)
-	req = req.PageSize(pageSize)
-	req = req.ShowTokens(showToken)
-	req = req.Query(query)
-	req = req.Active(activeToken)
-
-	tokensPage, httpResponse, err := pc.APIClient.EntitlementsApi.EntitlementsListExecute(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	pageTotal, err := strconv.ParseInt(httpResponse.Header.Get("X-Pagination-Pagetotal"), 10, 64)
-	if err != nil {
-		return nil, 0, err
-	}
-	return tokensPage, pageTotal, nil
-}
-
-func retrieveEntitlmentListPages(pc *providerConfig, namespace string, repository string, query string, pageSize int64, pageCount int64, showToken bool, activeToken bool) ([]cloudsmith.RepositoryToken, error) {
-
-	var pageCurrentCount int64 = 1
-
-	// A negative or zero count is assumed to mean retrieve the largest size page
-	tokensList := []cloudsmith.RepositoryToken{}
-	if pageSize == -1 || pageSize == 0 {
-		pageSize = 100
-	}
-
-	// If no count is supplied assmumed to mean retrieve all pages
-	// we have to retreive a page to get this count
-	if pageCount == -1 || pageCount == 0 {
-		var tokensPage []cloudsmith.RepositoryToken
-		var err error
-		tokensPage, pageCount, err = retrieveEntitlmentTokenListPage(pc, namespace, repository, 1, pageSize, showToken, query, activeToken)
-		if err != nil {
-			return nil, err
-		}
-		tokensList = append(tokensList, tokensPage...)
-		pageCurrentCount++
-	}
-
-	for pageCurrentCount <= pageCount {
-		tokensPage, _, err := retrieveEntitlmentTokenListPage(pc, namespace, repository, pageCount, pageSize, showToken, query, activeToken)
-		if err != nil {
-			return nil, err
-		}
-		tokensList = append(tokensList, tokensPage...)
-		pageCurrentCount++
-	}
-
-	return tokensList, nil
-}
 
 func flattenEntitlementToken(token []cloudsmith.RepositoryToken) []interface{} {
 	tokenList := make([]interface{}, len(token))
@@ -116,12 +63,19 @@ func dataSourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 	namespace := requiredString(d, "namespace")
 	repository := requiredString(d, "repository")
 	query := buildQueryString(d.Get("query").(*schema.Set))
-	showTokenVal := optionalBool(d, "show_token")
-	activeTokenVal := optionalBool(d, "active_token")
+	showTokenVal := *optionalBool(d, "show_token")
+	activeTokenVal := *optionalBool(d, "active_token")
 
-	var pageCount, pageSize int64 = -1, -1
-
-	entitlementList, err := retrieveEntitlmentListPages(pc, namespace, repository, query, pageSize, pageCount, *showTokenVal, *activeTokenVal)
+	exec := func(page, ps int64) ([]cloudsmith.RepositoryToken, *http.Response, error) {
+		req := pc.APIClient.EntitlementsApi.EntitlementsList(pc.Auth, namespace, repository).
+			Page(page).
+			PageSize(ps).
+			ShowTokens(showTokenVal).
+			Query(query).
+			Active(activeTokenVal)
+		return pc.APIClient.EntitlementsApi.EntitlementsListExecute(req)
+	}
+	entitlementList, err := PaginateAllHTTP[cloudsmith.RepositoryToken](exec, PaginationOptions{})
 	if err != nil {
 		return err
 	}
