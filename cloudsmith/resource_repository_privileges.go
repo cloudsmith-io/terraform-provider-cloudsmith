@@ -214,7 +214,7 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 
 	_, err = pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
 	if err != nil {
-		return err
+		return formatAPIError(err)
 	}
 
 	d.SetId(fmt.Sprintf("%s.%s", organization, repository))
@@ -252,7 +252,7 @@ func resourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) err
 				d.SetId("")
 				return nil
 			}
-			return err
+			return formatAPIError(err)
 		}
 
 		allPrivileges = append(allPrivileges, privileges.GetPrivileges()...)
@@ -290,7 +290,7 @@ func resourceRepositoryPrivilegesDelete(d *schema.ResourceData, m interface{}) e
 
 	_, err := pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
 	if err != nil {
-		return err
+		return formatAPIError(err)
 	}
 
 	checkerFunc := func() error {

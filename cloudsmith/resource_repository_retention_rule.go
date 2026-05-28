@@ -53,18 +53,9 @@ func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) e
 	req = req.Data(updateData)
 
 	// Execute the request
-	_, httpResp, err := req.Execute()
+	_, _, err := req.Execute()
 	if err != nil {
-		switch httpResp.StatusCode {
-		case 400:
-			return fmt.Errorf("request could not be processed: %s", err)
-		case 404:
-			return fmt.Errorf("namespace or repository not found: %s", err)
-		case 422:
-			return fmt.Errorf("missing or invalid parameters: %s", err)
-		default:
-			return fmt.Errorf("error updating repository retention rule: %s", err)
-		}
+		return fmt.Errorf("error updating repository retention rule: %w", formatAPIError(err))
 	}
 
 	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
@@ -110,18 +101,9 @@ func resourceRepoRetentionRuleRead(d *schema.ResourceData, meta interface{}) err
 	repo := requiredString(d, "repository")
 
 	// Execute the request
-	resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+	resp, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
 	if err != nil {
-		switch httpResp.StatusCode {
-		case 400:
-			return fmt.Errorf("request could not be processed: %s", err)
-		case 404:
-			return fmt.Errorf("namespace or repository not found: %s", err)
-		case 422:
-			return fmt.Errorf("missing or invalid parameters: %s", err)
-		default:
-			return fmt.Errorf("error reading repository retention rule: %s", err)
-		}
+		return fmt.Errorf("error reading repository retention rule: %w", formatAPIError(err))
 	}
 
 	d.Set("retention_count_limit", resp.RetentionCountLimit)
@@ -155,16 +137,10 @@ func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) e
 
 	_, httpResp, err := req.Execute()
 	if err != nil {
-		switch httpResp.StatusCode {
-		case 400:
-			return fmt.Errorf("request could not be processed: %s", err)
-		case 404:
+		if httpResp != nil && httpResp.StatusCode == 404 {
 			return nil
-		case 422:
-			return fmt.Errorf("missing or invalid parameters: %s", err)
-		default:
-			return fmt.Errorf("error disabling repository retention rule: %s", err)
 		}
+		return fmt.Errorf("error disabling repository retention rule: %w", formatAPIError(err))
 	}
 
 	d.SetId("")

@@ -2,9 +2,7 @@ package cloudsmith
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -39,30 +37,9 @@ func resourceTeamCreate(d *schema.ResourceData, m interface{}) error {
 		Visibility:  optionalString(d, "visibility"),
 	})
 
-	team, resp, err := pc.APIClient.OrgsApi.OrgsTeamsCreateExecute(req)
+	team, _, err := pc.APIClient.OrgsApi.OrgsTeamsCreateExecute(req)
 	if err != nil {
-		if resp != nil && resp.StatusCode == 422 {
-			bodyBytes, readErr := io.ReadAll(resp.Body)
-			if readErr != nil {
-				return fmt.Errorf("encountered an error: %w", err)
-			}
-			var apiError map[string]interface{}
-			jsonErr := json.Unmarshal(bodyBytes, &apiError)
-			if jsonErr != nil {
-				return fmt.Errorf("encountered an error: %w", err)
-			}
-			if fields, ok := apiError["fields"].(map[string]interface{}); ok {
-				for _, v := range fields {
-					if messages, ok := v.([]interface{}); ok && len(messages) > 0 {
-						if message, ok := messages[0].(string); ok {
-							return fmt.Errorf("error: %s", message)
-						}
-					}
-				}
-			}
-			return fmt.Errorf("encountered an error: %v", apiError)
-		}
-		return err
+		return formatAPIError(err)
 	}
 
 	d.SetId(team.GetSlugPerm())
