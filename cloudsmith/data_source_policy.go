@@ -21,7 +21,7 @@ func dataSourcePolicyRead(ctx context.Context, d *schema.ResourceData, m interfa
 		if apierrors.IsNotFound(err) {
 			return diag.Errorf("policy %q not found in workspace %q", policySlugPerm, workspace)
 		}
-		return diag.FromErr(fmt.Errorf("retrieving policy %q in workspace %q: %w", policySlugPerm, workspace, err))
+		return diag.FromErr(fmt.Errorf("retrieving policy %q in workspace %q: %w", policySlugPerm, workspace, formatV2APIError(err)))
 	}
 	if resp == nil || resp.Policy == nil {
 		return diag.Errorf("policy %q not found in workspace %q", policySlugPerm, workspace)

@@ -72,7 +72,7 @@ func resourcePolicyActionCreate(ctx context.Context, d *schema.ResourceData, m i
 		ctx, policySlug, workspace, &body,
 	)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("creating action on policy %q in workspace %q: %w", policySlug, workspace, err))
+		return diag.FromErr(fmt.Errorf("creating action on policy %q in workspace %q: %w", policySlug, workspace, formatV2APIError(err)))
 	}
 	if resp == nil || resp.PolicyAction == nil {
 		return diag.Errorf("policy action create returned no body")
@@ -97,7 +97,7 @@ func resourcePolicyActionRead(ctx context.Context, d *schema.ResourceData, m int
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("retrieving action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, err))
+		return diag.FromErr(fmt.Errorf("retrieving action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
 	}
 	if resp == nil || resp.PolicyAction == nil {
 		d.SetId("")
@@ -118,7 +118,7 @@ func resourcePolicyActionUpdate(ctx context.Context, d *schema.ResourceData, m i
 		ctx, d.Id(), policySlug, workspace, &body,
 	)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("updating action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, err))
+		return diag.FromErr(fmt.Errorf("updating action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
 	}
 	return resourcePolicyActionRead(ctx, d, m)
 }
@@ -131,7 +131,7 @@ func resourcePolicyActionDelete(ctx context.Context, d *schema.ResourceData, m i
 		ctx, d.Id(), policySlug, workspace,
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return diag.FromErr(fmt.Errorf("deleting action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, err))
+		return diag.FromErr(fmt.Errorf("deleting action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
 	}
 	return nil
 }

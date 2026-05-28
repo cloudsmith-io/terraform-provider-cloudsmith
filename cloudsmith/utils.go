@@ -11,6 +11,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	v2apierrors "github.com/cloudsmith-io/cloudsmith-go-v2/models/apierrors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -127,6 +128,40 @@ func formatAPIErrorBody(body []byte) error {
 	}
 
 	return fmt.Errorf("API error: %s", string(body))
+}
+
+// formatV2APIError surfaces API-provided detail/fields from a v2-SDK error.
+// Order of preference:
+//  1. SDK's typed apierrors.ErrorDetail (populated when the response body
+//     decodes into the typed model).
+//  2. apierrors.APIError raw body parsed permissively via formatAPIErrorBody.
+//     The v2 SDK's ErrorDetail.Fields is map[string][]string, so responses
+//     with non-matching field shapes (e.g. nested objects) don't decode
+//     into the typed model and surface as APIError; this branch keeps that
+//     case readable instead of dumping "Status N\n<json blob>".
+//  3. Original error, unchanged.
+func formatV2APIError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var detail *v2apierrors.ErrorDetail
+	if errors.As(err, &detail) {
+		if len(detail.Fields) > 0 {
+			return fmt.Errorf("%s (fields: %v)", detail.Detail, detail.Fields)
+		}
+		return fmt.Errorf("%s", detail.Detail)
+	}
+
+	var apiErr *v2apierrors.APIError
+	if errors.As(err, &apiErr) {
+		if apiErr.Body == "" {
+			return err
+		}
+		return formatAPIErrorBody([]byte(apiErr.Body))
+	}
+
+	return err
 }
 
 func nullableInt64(d *schema.ResourceData, name string) cloudsmith.NullableInt64 {

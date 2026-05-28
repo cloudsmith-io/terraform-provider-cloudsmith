@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	maxPolicyListPages    int64 = 100
 	maxPolicyListPageSize int64 = 100
-	maxPolicyListResults        = maxPolicyListPages * maxPolicyListPageSize
+	maxPolicyListResults  int64 = 100 * maxPolicyListPageSize
 )
 
 var policyListPageSize = maxPolicyListPageSize
@@ -33,38 +32,26 @@ func dataSourcePolicyListRead(ctx context.Context, d *schema.ResourceData, m int
 		Sort:      optionalString(d, "sort"),
 	}
 
-	var all []components.Policy
-	resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesList(ctx, req)
-	for page := int64(1); ; page++ {
-		if err != nil {
-			return diag.FromErr(fmt.Errorf("listing policies in workspace %q: %w", workspace, err))
-		}
-		if resp == nil {
-			break
-		}
-		if resp.PaginatedPolicyList == nil {
-			break
-		}
-		nextTotal := int64(len(all)) + int64(len(resp.PaginatedPolicyList.Results))
-		if nextTotal > maxPolicyListResults {
-			return diag.Errorf(
-				"listing policies in workspace %q exceeded the maximum supported result set (%d policies); refine the query",
-				workspace,
-				maxPolicyListResults,
-			)
-		}
-		all = append(all, resp.PaginatedPolicyList.Results...)
-		if total := resp.PaginatedPolicyList.Pagetotal; total != nil && page >= *total {
-			break
-		}
-		if page >= maxPolicyListPages {
-			return diag.Errorf(
-				"listing policies in workspace %q exceeded the maximum supported pagination depth (%d pages); refine the query",
-				workspace,
-				maxPolicyListPages,
-			)
-		}
-		resp, err = resp.Next()
+	first, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesList(ctx, req)
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("listing policies in workspace %q: %w", workspace, formatV2APIError(err)))
+	}
+
+	all, err := PaginateAllV2[operations.WorkspacesPoliciesListResponse, components.Policy](
+		first,
+		func(r *operations.WorkspacesPoliciesListResponse) []components.Policy {
+			if r == nil || r.PaginatedPolicyList == nil {
+				return nil
+			}
+			return r.PaginatedPolicyList.Results
+		},
+		func(r *operations.WorkspacesPoliciesListResponse) (*operations.WorkspacesPoliciesListResponse, error) {
+			return r.Next()
+		},
+		maxPolicyListResults,
+	)
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("listing policies in workspace %q: %w", workspace, formatV2APIError(err)))
 	}
 
 	if err := d.Set("policies", flattenPolicies(all)); err != nil {

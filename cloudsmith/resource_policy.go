@@ -41,7 +41,7 @@ func resourcePolicyCreate(ctx context.Context, d *schema.ResourceData, m interfa
 		ctx, workspace, body,
 	)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("creating policy in workspace %q: %w", workspace, err))
+		return diag.FromErr(fmt.Errorf("creating policy in workspace %q: %w", workspace, formatV2APIError(err)))
 	}
 	if resp == nil || resp.Policy == nil {
 		return diag.Errorf("policy create returned no body")
@@ -61,7 +61,7 @@ func resourcePolicyRead(ctx context.Context, d *schema.ResourceData, m interface
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("retrieving policy %q in workspace %q: %w", d.Id(), workspace, err))
+		return diag.FromErr(fmt.Errorf("retrieving policy %q in workspace %q: %w", d.Id(), workspace, formatV2APIError(err)))
 	}
 	if resp == nil || resp.Policy == nil {
 		d.SetId("")
@@ -94,7 +94,7 @@ func resourcePolicyUpdate(ctx context.Context, d *schema.ResourceData, m interfa
 		ctx, d.Id(), workspace, body,
 	)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("updating policy %q in workspace %q: %w", d.Id(), workspace, err))
+		return diag.FromErr(fmt.Errorf("updating policy %q in workspace %q: %w", d.Id(), workspace, formatV2APIError(err)))
 	}
 	if resp != nil && resp.Policy != nil {
 		setPolicyOnSchema(d, resp.Policy, "slug_perm")
@@ -110,7 +110,7 @@ func resourcePolicyDelete(ctx context.Context, d *schema.ResourceData, m interfa
 		ctx, d.Id(), workspace,
 	)
 	if err != nil && !apierrors.IsNotFound(err) {
-		return diag.FromErr(fmt.Errorf("deleting policy %q in workspace %q: %w", d.Id(), workspace, err))
+		return diag.FromErr(fmt.Errorf("deleting policy %q in workspace %q: %w", d.Id(), workspace, formatV2APIError(err)))
 	}
 	return nil
 }
