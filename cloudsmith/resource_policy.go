@@ -215,7 +215,7 @@ func resourcePolicy() *schema.Resource {
 			},
 			"read_only": {
 				Type:        schema.TypeBool,
-				Description: "Whether the policy is read-only (only specific variables can be updated).",
+				Description: "Whether the policy is read-only. Read-only policies cannot be updated through this provider.",
 				Computed:    true,
 			},
 			"created_at": {
