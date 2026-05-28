@@ -14,13 +14,13 @@ data "cloudsmith_policy_list" "named" {
 
 ## Argument Reference
 
-* `workspace` - (Required) Workspace.
+* `workspace` - (Required) The workspace the policies belong to.
 * `query` - (Required) A search string limiting the results (e.g. `name:my-policy`).
 * `sort` - (Optional) Comma-separated sort fields. Legal fields: `created_at`, `enabled`, `name`, `precedence`, `version`, `updated_at`. Prefix with `-` for descending. Defaults to `-created_at` on the server side when omitted.
 
 ## Attribute Reference
 
-* `policies` - List of policy objects. Each entry has the same attributes as [`data.cloudsmith_policy`](policy.md).
+* `policies` - A list of policy objects. Each entry has the same attributes as [`data.cloudsmith_policy`](policy.md).
 
 ## See Also
 

@@ -1,6 +1,6 @@
 # Policy Resource
 
-Manages a workspace policy in Cloudsmith. The body is authored as [rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](policy_action.md).
+Manages a workspace policy in Cloudsmith. The body is authored as [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](policy_action.md).
 
 ## Example Usage
 
@@ -33,10 +33,10 @@ default allow := true
 
 ## Argument Reference
 
-* `workspace` - (Required) Workspace the policy belongs to.
+* `workspace` - (Required) The workspace the policy belongs to.
 * `name` - (Required) The name of the policy.
 * `description` - (Optional) The description of the policy.
-* `rego` - (Required) The rego source for the policy logic.
+* `rego` - (Required) The Rego source for the policy logic.
 * `enabled` - (Optional, default `true`) If `true`, the policy is enabled.
 * `is_terminal` - (Optional, default `false`) If `true` and the policy matches, no further policies are evaluated.
 * `precedence` - (Optional) The order in which this policy is evaluated relative to other policies.
@@ -44,7 +44,7 @@ default allow := true
 ## Attribute Reference
 
 * `slug_perm` - The unique permanent slug of the policy.
-* `version` - The version of the rego code.
+* `version` - The version of the Rego code.
 * `read_only` - Whether the policy is read-only. Read-only policies cannot be updated through this provider; use `terraform state rm` or `lifecycle { ignore_changes = [...] }`.
 * `created_at`, `updated_at` - RFC 3339 timestamps.
 

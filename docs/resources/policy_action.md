@@ -33,10 +33,10 @@ resource "cloudsmith_policy_action" "tag" {
 
 ## Argument Reference
 
-* `workspace` - (Required) Workspace the policy belongs to.
-* `policy_slug_perm` - (Required, ForceNew) The `slug_perm` of the policy this action belongs to.
+* `workspace` - (Required) The workspace the policy belongs to.
+* `policy_slug_perm` - (Required, ForceNew — changing this forces the action to be re-created) The `slug_perm` of the policy this action belongs to.
 * `precedence` - (Optional) The order in which this action occurs relative to other actions for the same policy.
-* `set_package_state` - (Optional) `package_state` must be one of `AVAILABLE`, `DELETED`, `QUARANTINED`, `HIDDEN`.
+* `set_package_state` - (Optional) `package_state` must be one of `AVAILABLE`, `DELETED`, `QUARANTINED`, or `HIDDEN`.
 * `add_package_tags` - (Optional) `tags` is an unordered set of strings to add.
 * `remove_package_tags` - (Optional) `tags` is an unordered set of strings to remove.
 
