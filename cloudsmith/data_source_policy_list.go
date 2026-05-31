@@ -3,6 +3,7 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -13,43 +14,37 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-const (
-	maxPolicyListPageSize int64 = 100
-	maxPolicyListResults  int64 = 100 * maxPolicyListPageSize
-)
-
-var policyListPageSize = maxPolicyListPageSize
+var policyListPageSize = DefaultPageSize
 
 func dataSourcePolicyListRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	workspace := requiredString(d, "workspace")
 	pc := m.(*providerConfig)
-	pageSize := policyListPageSize
-	req := operations.WorkspacesPoliciesListRequest{
-		Workspace: workspace,
-		Page:      1,
-		PageSize:  &pageSize,
-		Query:     optionalString(d, "query"),
-		Sort:      optionalString(d, "sort"),
+	query := optionalString(d, "query")
+	sort := optionalString(d, "sort")
+
+	exec := func(page, pageSize int64) ([]components.Policy, *http.Response, error) {
+		req := operations.WorkspacesPoliciesListRequest{
+			Workspace: workspace,
+			Page:      page,
+			PageSize:  &pageSize,
+			Query:     query,
+			Sort:      sort,
+		}
+		resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesList(ctx, req)
+		if err != nil {
+			return nil, nil, err
+		}
+		var results []components.Policy
+		if resp.PaginatedPolicyList != nil {
+			results = resp.PaginatedPolicyList.Results
+		}
+		return results, resp.HTTPMeta.Response, nil
 	}
 
-	first, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesList(ctx, req)
-	if err != nil {
-		return diag.FromErr(fmt.Errorf("listing policies in workspace %q: %w", workspace, formatV2APIError(err)))
-	}
-
-	all, err := PaginateAllV2[operations.WorkspacesPoliciesListResponse, components.Policy](
-		first,
-		func(r *operations.WorkspacesPoliciesListResponse) []components.Policy {
-			if r == nil || r.PaginatedPolicyList == nil {
-				return nil
-			}
-			return r.PaginatedPolicyList.Results
-		},
-		func(r *operations.WorkspacesPoliciesListResponse) (*operations.WorkspacesPoliciesListResponse, error) {
-			return r.Next()
-		},
-		maxPolicyListResults,
-	)
+	all, err := PaginateAllHTTP[components.Policy](exec, PaginationOptions{
+		PageSize:   policyListPageSize,
+		MaxResults: DefaultMaxResults,
+	})
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("listing policies in workspace %q: %w", workspace, formatV2APIError(err)))
 	}

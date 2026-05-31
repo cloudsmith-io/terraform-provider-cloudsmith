@@ -24,7 +24,7 @@ type providerConfig struct {
 	V2ApiClient *cloudsmithv2.Cloudsmith
 }
 
-func newProviderConfig(apiHost, apiHostV2, apiKey string, headers map[string]interface{}, userAgent string) (*providerConfig, diag.Diagnostics) {
+func newProviderConfig(apiHost, apiKey string, headers map[string]interface{}, userAgent string) (*providerConfig, diag.Diagnostics) {
 	if apiKey == "" {
 		return nil, diag.FromErr(errMissingCredentials)
 	}
@@ -65,8 +65,8 @@ func newProviderConfig(apiHost, apiHostV2, apiKey string, headers map[string]int
 	if apiKey != "" {
 		v2Options = append(v2Options, cloudsmithv2.WithSecurity(apiKey))
 	}
-	if apiHostV2 != "" {
-		v2Options = append(v2Options, cloudsmithv2.WithServerURL(apiHostV2))
+	if apiHost != "" {
+		v2Options = append(v2Options, cloudsmithv2.WithServerURL(apiHost))
 	}
 
 	return &providerConfig{

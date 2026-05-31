@@ -57,23 +57,18 @@ func TestAccPolicyListDataSource_filter(t *testing.T) {
 
 func TestPolicyListDataSource_ReturnsInitialListError(t *testing.T) {
 	t.Parallel()
-	v1Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/user/self/" {
-			w.WriteHeader(http.StatusNotFound)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/user/self/" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
-	}))
-	defer v1Server.Close()
-
-	v2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, `{"detail": "temporary failure"}`)
 	}))
-	defer v2Server.Close()
+	defer server.Close()
 
-	pc, diags := newProviderConfig(v1Server.URL, v2Server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
 	if diags.HasError() {
 		t.Fatalf("unexpected provider config diagnostics: %v", diags)
 	}
@@ -105,17 +100,13 @@ func TestPolicyListDataSource_PaginatesAcrossAllPages(t *testing.T) {
 		pagesVisited []int
 	)
 
-	v1Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/user/self/" {
-			w.WriteHeader(http.StatusNotFound)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/user/self/" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
-	}))
-	defer v1Server.Close()
 
-	v2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pageStr := r.URL.Query().Get("page")
 		page, err := strconv.Atoi(pageStr)
 		if err != nil || page < 1 || page > totalPages {
@@ -128,6 +119,10 @@ func TestPolicyListDataSource_PaginatesAcrossAllPages(t *testing.T) {
 		mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Pagination-Count", strconv.Itoa(totalPages))
+		w.Header().Set("X-Pagination-Page", strconv.Itoa(page))
+		w.Header().Set("X-Pagination-PageTotal", strconv.Itoa(totalPages))
+		w.Header().Set("X-Pagination-PageSize", "1")
 		fmt.Fprintf(w, `{
 			"results": [{
 				"created_at": "2025-01-01T00:00:00Z",
@@ -141,9 +136,9 @@ func TestPolicyListDataSource_PaginatesAcrossAllPages(t *testing.T) {
 			"pagetotal": %d
 		}`, page, page, totalPages)
 	}))
-	defer v2Server.Close()
+	defer server.Close()
 
-	pc, diags := newProviderConfig(v1Server.URL, v2Server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
 	if diags.HasError() {
 		t.Fatalf("unexpected provider config diagnostics: %v", diags)
 	}

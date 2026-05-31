@@ -27,12 +27,6 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_HOST", "https://api.cloudsmith.io/v1"),
 			},
-			"api_host_v2": {
-				Type:        schema.TypeString,
-				Description: "The v2 API host to connect to (mostly useful for testing).",
-				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_HOST_V2", nil),
-			},
 			"headers": {
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
@@ -94,12 +88,11 @@ func Provider() *schema.Provider {
 		}
 
 		apiHost := requiredString(d, "api_host")
-		apiHostV2 := requiredString(d, "api_host_v2")
 		apiKey := requiredString(d, "api_key")
 		userAgent := fmt.Sprintf("(%s %s) Terraform/%s", runtime.GOOS, runtime.GOARCH, terraformVersion)
 		headers := d.Get("headers").(map[string]interface{})
 
-		return newProviderConfig(apiHost, apiHostV2, apiKey, headers, userAgent)
+		return newProviderConfig(apiHost, apiKey, headers, userAgent)
 	}
 
 	return p

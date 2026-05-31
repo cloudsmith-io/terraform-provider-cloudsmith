@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	DefaultPageSize int64 = 100
+	DefaultPageSize   int64 = 100
+	DefaultMaxResults int64 = 100 * DefaultPageSize
 
 	paginationCountHeader     = "X-Pagination-Count"
 	paginationPageHeader      = "X-Pagination-Page"
@@ -100,41 +101,6 @@ func parsePageTotal(resp *http.Response) (int64, error) {
 		return 0, err
 	}
 	return total, nil
-}
-
-// PaginateAllV2 walks a v2-SDK list-response chain by repeatedly calling
-// next(currentResp). Iteration stops when next returns (nil, nil), which is
-// the v2 SDK's convention for "no more pages" — the generated Next closure
-// inspects the synthesised pagetotal field and short-circuits without an
-// HTTP call when the chain is exhausted. extract pulls the typed result
-// slice from each response. If maxResults > 0 and the running total exceeds
-// it, the helper returns an error rather than silently truncating.
-//
-// Why callbacks rather than an interface: each v2 list operation returns a
-// distinct concrete response type (e.g. WorkspacesPoliciesListResponse), and
-// Go generics can't express the "self-returning Next" relationship. Two
-// small lambdas at the call site are simpler than wrapping each response
-// type in an adapter.
-func PaginateAllV2[Resp any, T any](
-	first *Resp,
-	extract func(*Resp) []T,
-	next func(*Resp) (*Resp, error),
-	maxResults int64,
-) ([]T, error) {
-	var all []T
-	cur := first
-	for cur != nil {
-		all = append(all, extract(cur)...)
-		if maxResults > 0 && int64(len(all)) > maxResults {
-			return nil, fmt.Errorf("result set exceeded the maximum supported size (%d)", maxResults)
-		}
-		nextResp, err := next(cur)
-		if err != nil {
-			return nil, err
-		}
-		cur = nextResp
-	}
-	return all, nil
 }
 
 func parseRequiredPaginationHeader(resp *http.Response, name string) (int64, error) {

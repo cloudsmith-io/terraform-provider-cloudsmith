@@ -33,4 +33,3 @@ resource "cloudsmith_entitlement" "my_entitlement" {
 
 * `api_key` - (Required) The API key for authenticating with the Cloudsmith API.
 * `api_host` - (Optional) The API host to connect to (used to connect to a non-production Cloudsmith instance, mostly useful for testing).
-* `api_host_v2` - (Optional) The v2 API host to connect to (used to connect to a non-production Cloudsmith instance, mostly useful for testing).
