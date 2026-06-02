@@ -29,7 +29,7 @@ func importPolicy(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*
 func resourcePolicyCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	workspace := requiredString(d, "workspace")
 	pc := m.(*providerConfig)
-	body := components.PolicyInput1{
+	body := components.PolicyRequest{
 		Name:        requiredString(d, "name"),
 		Rego:        requiredString(d, "rego"),
 		Description: optionalnullable.From(optionalString(d, "description")),
@@ -81,7 +81,7 @@ func resourcePolicyUpdate(ctx context.Context, d *schema.ResourceData, m interfa
 			d.Id(),
 		)
 	}
-	body := components.PolicyInput1{
+	body := components.PolicyRequest{
 		Name:        requiredString(d, "name"),
 		Rego:        requiredString(d, "rego"),
 		Description: optionalnullable.From(optionalString(d, "description")),

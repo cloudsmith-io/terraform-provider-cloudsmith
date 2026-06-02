@@ -22,8 +22,8 @@ github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.57 h1:RjtiUM87bz+IHLEEho8gfnsCwdzrGRE38kIuskNiuVE=
 github.com/cloudsmith-io/cloudsmith-api-go v0.0.57/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
-github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260531221025-afcd3c082eee h1:UCiifYgA3HZQZCSKtjgxEKcaXtg1V42jPYzfET/PuVI=
-github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260531221025-afcd3c082eee/go.mod h1:+GPw4/BwYHeXTg5p4ORCLxBkv0r12s2yvJ0mN9L4h4s=
+github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523 h1:zpwbcGnLwreE18qP6lYD5z9s36BZF/4va1Rc3tApgyQ=
+github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523/go.mod h1:yjFP2n2rHMRsL44JdJUqh+iEWqHKrbttEmDyIGllVDY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

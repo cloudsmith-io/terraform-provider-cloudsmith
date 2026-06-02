@@ -136,33 +136,33 @@ func resourcePolicyActionDelete(ctx context.Context, d *schema.ResourceData, m i
 	return nil
 }
 
-func buildPolicyActionInput(d *schema.ResourceData) (components.PolicyActionInput, error) {
+func buildPolicyActionInput(d *schema.ResourceData) (components.PolicyActionRequest, error) {
 	precedence := optionalInt64(d, "precedence")
 	if block, ok := firstBlock(d, actionSetPackageState); ok {
-		return components.CreatePolicyActionInputSetPackageState(
-			components.SetPackageStatePolicyActionTypedInput{
+		return components.CreatePolicyActionRequestSetPackageState(
+			components.SetPackageStatePolicyActionTypedRequest{
 				Precedence:   precedence,
 				PackageState: components.PackageStateEnum(block["package_state"].(string)),
 			},
 		), nil
 	}
 	if block, ok := firstBlock(d, actionAddPackageTags); ok {
-		return components.CreatePolicyActionInputAddPackageTags(
-			components.AddPackageTagsPolicyActionTypedInput{
+		return components.CreatePolicyActionRequestAddPackageTags(
+			components.AddPackageTagsPolicyActionTypedRequest{
 				Precedence: precedence,
 				Tags:       blockStringSet(block["tags"]),
 			},
 		), nil
 	}
 	if block, ok := firstBlock(d, actionRemovePackageTags); ok {
-		return components.CreatePolicyActionInputRemovePackageTags(
-			components.RemovePackageTagsPolicyActionTypedInput{
+		return components.CreatePolicyActionRequestRemovePackageTags(
+			components.RemovePackageTagsPolicyActionTypedRequest{
 				Precedence: precedence,
 				Tags:       blockStringSet(block["tags"]),
 			},
 		), nil
 	}
-	return components.PolicyActionInput{}, fmt.Errorf("no action type block set; expected one of %v", actionTypeBlocks)
+	return components.PolicyActionRequest{}, fmt.Errorf("no action type block set; expected one of %v", actionTypeBlocks)
 }
 
 type actionMeta struct {
