@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	DefaultPageSize int64 = 100
+	DefaultPageSize   int64 = 100
+	DefaultMaxResults int64 = 100 * DefaultPageSize
 
 	paginationCountHeader     = "X-Pagination-Count"
 	paginationPageHeader      = "X-Pagination-Page"

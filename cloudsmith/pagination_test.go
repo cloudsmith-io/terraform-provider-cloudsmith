@@ -314,3 +314,6 @@ func TestPaginateAllHTTP_ExecErrorPropagates(t *testing.T) {
 		t.Fatalf("expected sentinel error, got %v", err)
 	}
 }
+
+// v2Resp models a v2-SDK list response: a typed payload plus a Next closure
+// that returns either the next response or (nil, nil) when exhausted.

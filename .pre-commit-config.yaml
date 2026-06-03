@@ -6,11 +6,13 @@ repos:
         name: Format Go code
       - id: go-vet
         name: Verify Go code
-      - id: golangci-lint
+
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.12.2
+    hooks:
+      - id: golangci-lint-full
         name: Run golangci-lint
-        args:
-          - --exclude
-          - "Error return value of .(d.Set). is not checked"
+        language_version: '1.26'
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.83.5

@@ -11,6 +11,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	v2apierrors "github.com/cloudsmith-io/cloudsmith-go-v2/models/apierrors"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -129,6 +130,40 @@ func formatAPIErrorBody(body []byte) error {
 	return fmt.Errorf("API error: %s", string(body))
 }
 
+// formatV2APIError surfaces API-provided detail/fields from a v2-SDK error.
+// Order of preference:
+//  1. SDK's typed apierrors.ErrorDetail (populated when the response body
+//     decodes into the typed model).
+//  2. apierrors.APIError raw body parsed permissively via formatAPIErrorBody.
+//     The v2 SDK's ErrorDetail.Fields is map[string][]string, so responses
+//     with non-matching field shapes (e.g. nested objects) don't decode
+//     into the typed model and surface as APIError; this branch keeps that
+//     case readable instead of dumping "Status N\n<json blob>".
+//  3. Original error, unchanged.
+func formatV2APIError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	var detail *v2apierrors.ErrorDetail
+	if errors.As(err, &detail) {
+		if len(detail.Fields) > 0 {
+			return fmt.Errorf("%s (fields: %v)", detail.Detail, detail.Fields)
+		}
+		return fmt.Errorf("%s", detail.Detail)
+	}
+
+	var apiErr *v2apierrors.APIError
+	if errors.As(err, &apiErr) {
+		if apiErr.Body == "" {
+			return err
+		}
+		return formatAPIErrorBody([]byte(apiErr.Body))
+	}
+
+	return err
+}
+
 func nullableInt64(d *schema.ResourceData, name string) cloudsmith.NullableInt64 {
 	i := optionalInt64(d, name)
 	return *cloudsmith.NewNullableInt64(i)
@@ -168,7 +203,7 @@ func optionalBool(d *schema.ResourceData, name string) *bool {
 func optionalInt64(d *schema.ResourceData, name string) *int64 {
 	var optionalValue *int64
 
-	if value, ok := d.GetOk(name); ok { //nolint:staticcheck
+	if value, ok := d.GetOkExists(name); ok { //nolint:staticcheck
 		optionalValue = cloudsmith.PtrInt64(int64(value.(int)))
 	}
 
@@ -194,6 +229,20 @@ func requiredBool(d *schema.ResourceData, name string) bool {
 // requiredString retrieves a string from Terraform state
 func requiredString(d *schema.ResourceData, name string) string {
 	return d.Get(name).(string)
+}
+
+func boolOrFalse(v *bool) bool {
+	if v == nil {
+		return false
+	}
+	return *v
+}
+
+func int64OrZero(v *int64) int64 {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 // stringSlicesAreEqual compares two string slices and returns true if they are equal.

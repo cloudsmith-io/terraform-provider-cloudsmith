@@ -2,6 +2,7 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudsmith-io/cloudsmith-go-v2/models/operations"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 var (
@@ -21,7 +24,29 @@ var (
 	testAccProvider  *schema.Provider
 
 	testAccRepositoryNameSequence atomic.Uint64
+	testAccPolicyNameSequence     atomic.Uint64
 )
+
+func testAccUniquePolicyName(base string) string {
+	return fmt.Sprintf("%s %d-%d", base, time.Now().UnixMilli(), testAccPolicyNameSequence.Add(1))
+}
+
+func testAccRetry(timeout, interval time.Duration, check resource.TestCheckFunc) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		deadline := time.Now().Add(timeout)
+		var lastErr error
+		for {
+			lastErr = check(s)
+			if lastErr == nil {
+				return nil
+			}
+			if time.Now().After(deadline) {
+				return lastErr
+			}
+			time.Sleep(interval)
+		}
+	}
+}
 
 const testAccRepositoryNameMaxLength = 50
 
@@ -140,6 +165,42 @@ func TestAccProvider_UserSelfValidation(t *testing.T) {
 				},
 			})
 		})
+	}
+}
+
+func TestProviderConfig_V2UsesAPIKeyAndHost(t *testing.T) {
+	var v2Path, v2APIKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/user/self/" {
+			if r.Header.Get("X-Api-Key") != "valid-token" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
+			return
+		}
+		v2Path = r.URL.Path
+		v2APIKey = r.Header.Get("X-Api-Key")
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	_, _ = pc.V2ApiClient.Metadata.MetadataPackagesList(
+		context.Background(),
+		operations.MetadataPackagesListRequest{PackageSlugPerm: "test-pkg"},
+	)
+
+	if v2Path == "" {
+		t.Fatal("expected v2 request to use configured api_host")
+	}
+	if v2APIKey != "valid-token" {
+		t.Fatalf("expected v2 request to use configured api_key, got %q", v2APIKey)
 	}
 }
 
