@@ -292,13 +292,10 @@ func resourceService() *schema.Resource {
 				Sensitive:   true,
 			},
 			"name": {
-				Type:        schema.TypeString,
-				Description: "A descriptive name for the service.",
-				Required:    true,
-				ValidateFunc: validation.All(
-					validation.StringIsNotEmpty,
-					validation.StringLenBetween(1, 40),
-				),
+				Type:         schema.TypeString,
+				Description:  "A descriptive name for the service.",
+				Required:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"organization": {
 				Type:         schema.TypeString,
