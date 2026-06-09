@@ -64,6 +64,8 @@ resource "cloudsmith_repository" "my_repository" {
   * `us-oregon` - Oregon, United States
   * `us-ohio` - Ohio, United States
   * `ie-dublin` - Dublin, Ireland
+  * `jp-tokyo` - Tokyo, Japan
+  * `gb-london` - London, United Kingdom
 * `strict_npm_validation` - (Optional) If set to `true`, npm packages will be validated strictly to ensure the package matches specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at your own risk!
 * `tag_pre_releases_as_latest` - (Default `false`) If `true`, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools
 * `use_debian_labels` - (Optional) If set to `true`, a 'Label' field will be present in Debian-based repositories. It will contain a string that identifies the entitlement token used to authenticate the repository, in the form of 'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.
