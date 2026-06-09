@@ -20,8 +20,8 @@ github.com/apparentlymart/go-textseg/v13 v13.0.0/go.mod h1:ZK2fH7c4NqDTLtiYLvIkE
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-github.com/cloudsmith-io/cloudsmith-api-go v0.0.57 h1:RjtiUM87bz+IHLEEho8gfnsCwdzrGRE38kIuskNiuVE=
-github.com/cloudsmith-io/cloudsmith-api-go v0.0.57/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.58 h1:yJedPmSt2je3CtwxEQhb6ho9HdDcFq7Xue2JD2ImY7E=
+github.com/cloudsmith-io/cloudsmith-api-go v0.0.58/go.mod h1:xHTDgU8TyMXiWUZdn2OQR7AaZdz9M5SrNenyQU44zGQ=
 github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523 h1:zpwbcGnLwreE18qP6lYD5z9s36BZF/4va1Rc3tApgyQ=
 github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523/go.mod h1:yjFP2n2rHMRsL44JdJUqh+iEWqHKrbttEmDyIGllVDY=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
