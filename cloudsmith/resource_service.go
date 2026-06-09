@@ -296,8 +296,7 @@ func resourceService() *schema.Resource {
 				Description: "A descriptive name for the service.",
 				Required:    true,
 				ValidateFunc: validation.All(
-					validation.StringIsNotEmpty,
-					validation.StringLenBetween(1, 40),
+					validation.StringIsNotEmpty
 				),
 			},
 			"organization": {
