@@ -27,7 +27,7 @@ func importRepository(ctx context.Context, d *schema.ResourceData, m interface{}
 func resourceRepositoryStorageRegionUpdate(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
-	req := pc.APIClient.ReposApi.ReposTransferRegion(pc.Auth, d.Get("namespace").(string), d.Get("name").(string))
+	req := pc.APIClient.ReposApi.ReposTransferRegion(pc.Auth, d.Get("namespace").(string), d.Id())
 	req = req.Data(cloudsmith.RepositoryTransferRegionRequest{
 		StorageRegion: optionalString(d, "storage_region"),
 	})
