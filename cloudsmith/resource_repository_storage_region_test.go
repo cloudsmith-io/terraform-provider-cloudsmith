@@ -26,12 +26,14 @@ func TestResourceRepositoryStorageRegionUpdate_UsesResourceID(t *testing.T) {
 
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			t.Fatalf("failed to read request body: %v", err)
+			http.Error(w, "failed to read request body", http.StatusInternalServerError)
+			return
 		}
 		requestBody = string(body)
 
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-	}))
+		_, _ = w.Write([]byte(`{}`))
 	defer server.Close()
 
 	config := cloudsmithapi.NewConfiguration()
