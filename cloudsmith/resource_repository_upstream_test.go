@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -17,6 +18,117 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
+
+type testUpstream struct {
+	isActive          bool
+	disableReason     string
+	disableReasonText string
+}
+
+func (u testUpstream) GetAuthMode() string          { return "" }
+func (u testUpstream) GetAuthSecret() string        { return "" }
+func (u testUpstream) GetAuthUsername() string      { return "" }
+func (u testUpstream) GetExtraHeader1() string      { return "" }
+func (u testUpstream) GetExtraHeader2() string      { return "" }
+func (u testUpstream) GetExtraValue1() string       { return "" }
+func (u testUpstream) GetExtraValue2() string       { return "" }
+func (u testUpstream) GetDisableReason() string     { return u.disableReason }
+func (u testUpstream) GetDisableReasonText() string { return u.disableReasonText }
+func (u testUpstream) GetCreatedAt() time.Time      { return time.Time{} }
+func (u testUpstream) GetIsActive() bool            { return u.isActive }
+func (u testUpstream) GetMode() string              { return "" }
+func (u testUpstream) GetName() string              { return "" }
+func (u testUpstream) GetPriority() int64           { return 0 }
+func (u testUpstream) GetSlugPerm() string          { return "" }
+func (u testUpstream) GetUpdatedAt() time.Time      { return time.Time{} }
+func (u testUpstream) GetUpstreamUrl() string       { return "" }
+func (u testUpstream) GetVerifySsl() bool           { return false }
+
+func TestActionableUpstreamDisableReason(t *testing.T) {
+	tests := []struct {
+		name              string
+		disableReasonText string
+		disableReason     string
+		want              string
+	}{
+		{
+			name: "empty text and reason",
+		},
+		{
+			name:              "n/a text and reason",
+			disableReasonText: "N/A",
+			disableReason:     "N/A",
+		},
+		{
+			name:              "prefers text over reason",
+			disableReasonText: "Manually disabled",
+			disableReason:     "manual",
+			want:              "Manually disabled",
+		},
+		{
+			name:          "uses reason when text is empty",
+			disableReason: "invalid_url",
+			want:          "invalid_url",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := actionableUpstreamDisableReason(tt.disableReasonText, tt.disableReason)
+			if got != tt.want {
+				t.Fatalf("actionableUpstreamDisableReason(%q, %q) = %q, want %q", tt.disableReasonText, tt.disableReason, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckUpstreamActivation(t *testing.T) {
+	tests := []struct {
+		name           string
+		upstream       Upstream
+		wantErr        error
+		wantErrMessage string
+	}{
+		{
+			name:     "active",
+			upstream: testUpstream{isActive: true},
+		},
+		{
+			name:     "inactive without disable reason keeps waiting",
+			upstream: testUpstream{},
+			wantErr:  errKeepWaiting,
+		},
+		{
+			name:           "inactive with disable reason fails fast",
+			upstream:       testUpstream{disableReasonText: "Manually disabled", disableReason: "manual"},
+			wantErr:        upstreamActivationDisabledError{},
+			wantErrMessage: "upstream (test-upstream) was disabled during activation: Manually disabled. Check the upstream status in the Cloudsmith UI.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkUpstreamActivation(tt.upstream, "test-upstream")
+			if tt.wantErr == nil {
+				if err != nil {
+					t.Fatalf("checkUpstreamActivation() error = %v, want nil", err)
+				}
+				return
+			}
+
+			if !errors.Is(err, tt.wantErr) {
+				var disabledErr upstreamActivationDisabledError
+				if !errors.As(err, &disabledErr) {
+					t.Fatalf("checkUpstreamActivation() error = %v, want %T", err, tt.wantErr)
+				}
+			}
+
+			if tt.wantErrMessage != "" && err.Error() != tt.wantErrMessage {
+				t.Fatalf("checkUpstreamActivation() error = %q, want %q", err.Error(), tt.wantErrMessage)
+			}
+		})
+	}
+}
 
 func TestAccRepositoryUpstreamAlpine_basic(t *testing.T) {
 	t.Parallel()
