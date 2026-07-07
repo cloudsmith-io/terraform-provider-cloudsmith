@@ -2,6 +2,7 @@ package cloudsmith
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -105,6 +106,8 @@ type Upstream interface {
 	GetExtraHeader2() string
 	GetExtraValue1() string
 	GetExtraValue2() string
+	GetDisableReason() string
+	GetDisableReasonText() string
 	GetCreatedAt() time.Time
 	GetIsActive() bool
 	GetMode() string
@@ -129,6 +132,47 @@ func importUpstream(_ context.Context, d *schema.ResourceData, _ interface{}) ([
 	_ = d.Set(UpstreamType, idParts[2])
 	d.SetId(idParts[3])
 	return []*schema.ResourceData{d}, nil
+}
+
+type upstreamActivationDisabledError struct {
+	slug   string
+	reason string
+}
+
+func (e upstreamActivationDisabledError) Error() string {
+	return fmt.Sprintf(
+		"upstream (%s) was disabled during activation: %s. Check the upstream status in the Cloudsmith UI.",
+		e.slug,
+		e.reason,
+	)
+}
+
+func actionableUpstreamDisableReason(disableReasonText, disableReason string) string {
+	if reason := normalizeUpstreamDisableReason(disableReasonText); reason != "" {
+		return reason
+	}
+	return normalizeUpstreamDisableReason(disableReason)
+}
+
+func normalizeUpstreamDisableReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" || strings.EqualFold(reason, "N/A") {
+		return ""
+	}
+	return reason
+}
+
+func checkUpstreamActivation(upstream Upstream, slug string) error {
+	if upstream.GetIsActive() {
+		return nil
+	}
+	if reason := actionableUpstreamDisableReason(upstream.GetDisableReasonText(), upstream.GetDisableReason()); reason != "" {
+		return upstreamActivationDisabledError{
+			slug:   slug,
+			reason: reason,
+		}
+	}
+	return errKeepWaiting
 }
 
 // readCertificateContent reads and validates certificate content
@@ -612,12 +656,13 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 				}
 				return err
 			}
-			if !upstream.GetIsActive() {
-				return errKeepWaiting
-			}
-			return nil
+			return checkUpstreamActivation(upstream, d.Id())
 		}
 		if err := waiter(activeChecker, 5*time.Minute, 10*time.Second); err != nil {
+			var disabledErr upstreamActivationDisabledError
+			if errors.As(err, &disabledErr) {
+				return disabledErr
+			}
 			return fmt.Errorf("error waiting for upstream (%s) to become active: %w", d.Id(), err)
 		}
 	}
