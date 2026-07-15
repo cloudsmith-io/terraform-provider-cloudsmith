@@ -916,7 +916,7 @@ resource "cloudsmith_repository_upstream" "gradle_distributions" {
 	    extra_value_1   = "custom-value"
 	    extra_value_2   = "*"
 	    is_active       = true
-	    mode            = "Proxy Only"
+	    mode            = "Cache Only"
 		name            = cloudsmith_repository.test.name
 	    namespace       = cloudsmith_repository.test.namespace
 	    priority        = 12345
@@ -968,6 +968,7 @@ resource "cloudsmith_repository_upstream" "gradle_distributions" {
 					resource.TestCheckResourceAttrSet(genericUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(genericUpstreamResourceName, UpstreamDistribution),
 					resource.TestCheckResourceAttr(genericUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(genericUpstreamResourceName, Mode, "Cache Only"),
 					resource.TestCheckResourceAttr(genericUpstreamResourceName, "upstream_prefix", "distributions"),
 				),
 			},
@@ -1134,7 +1135,7 @@ resource "cloudsmith_repository_upstream" "helm" {
 	    extra_value_1  = "cross-origin"
 	    extra_value_2  = "*"
 	    is_active      = true
-	    mode           = "Cache and Proxy"
+	    mode           = "Cache Only"
 		name           = cloudsmith_repository.test.name
 	    namespace      = cloudsmith_repository.test.namespace
 	    priority       = 12345
@@ -1184,6 +1185,7 @@ resource "cloudsmith_repository_upstream" "helm" {
 					resource.TestCheckResourceAttrSet(helmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(helmUpstreamResourceName, UpstreamDistribution),
 					resource.TestCheckResourceAttr(helmUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(helmUpstreamResourceName, Mode, "Cache Only"),
 				),
 			},
 			{
@@ -1336,6 +1338,7 @@ resource "cloudsmith_repository_upstream" "hex" {
 	    extra_header_2 = "Access-Control-Allow-Origin"
 	    extra_value_1  = "custom-value"
 	    extra_value_2  = "*"
+	    mode           = "Cache Only"
 	    namespace      = cloudsmith_repository.test.namespace
 	    repository     = cloudsmith_repository.test.slug
 		name           = cloudsmith_repository.test.name
@@ -1377,6 +1380,7 @@ resource "cloudsmith_repository_upstream" "hex" {
 					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue1, "custom-value"),
 					resource.TestCheckResourceAttr(hexUpstreamResourceName, ExtraValue2, "*"),
 					resource.TestCheckResourceAttr(hexUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(hexUpstreamResourceName, Mode, "Cache Only"),
 				),
 			},
 			{
@@ -1542,7 +1546,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	    extra_value_1  = "cross-origin"
 	    extra_value_2  = "*"
 	    is_active      = true
-	    mode           = "Cache and Proxy"
+	    mode           = "Cache Only"
 		name           = cloudsmith_repository.test.name
 	    namespace      = cloudsmith_repository.test.namespace
 	    priority       = 12345
@@ -1592,6 +1596,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, Mode, "Cache Only"),
 				),
 			},
 			{
@@ -1648,7 +1653,7 @@ resource "cloudsmith_repository_upstream" "nuget" {
 	    extra_value_1  = "cross-origin"
 	    extra_value_2  = "*"
 	    is_active      = true
-	    mode           = "Cache and Proxy"
+	    mode           = "Cache Only"
 		name           = cloudsmith_repository.test.name
 	    namespace      = cloudsmith_repository.test.namespace
 	    priority       = 12345
@@ -1698,6 +1703,7 @@ resource "cloudsmith_repository_upstream" "nuget" {
 					resource.TestCheckResourceAttrSet(nugetUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(nugetUpstreamResourceName, UpstreamDistribution),
 					resource.TestCheckResourceAttr(nugetUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(nugetUpstreamResourceName, Mode, "Cache Only"),
 				),
 			},
 			{
