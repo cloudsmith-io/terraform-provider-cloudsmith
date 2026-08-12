@@ -45,7 +45,7 @@ default allow := true
 
 * `slug_perm` - The unique permanent slug of the policy.
 * `version` - The version of the Rego code.
-* `read_only` - Whether the policy is read-only. Read-only policies cannot be updated through this provider; use `terraform state rm` or `lifecycle { ignore_changes = [...] }`.
+* `read_only` - Whether the policy is read-only. Read-only policies still accept updates to their editable fields; the API rejects (422) any change to the policy's template shape.
 * `created_at`, `updated_at` - RFC 3339 timestamps.
 
 ## Import
