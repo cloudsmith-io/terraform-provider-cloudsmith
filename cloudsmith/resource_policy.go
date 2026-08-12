@@ -73,14 +73,6 @@ func resourcePolicyRead(ctx context.Context, d *schema.ResourceData, m interface
 
 func resourcePolicyUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	workspace := requiredString(d, "workspace")
-	if requiredBool(d, "read_only") {
-		return diag.Errorf(
-			"policy %q is read-only and cannot be updated through this provider. "+
-				"To stop managing it with Terraform, use `terraform state rm`. "+
-				"To accept server-side drift, add a `lifecycle { ignore_changes = [...] }` block.",
-			d.Id(),
-		)
-	}
 	body := components.PolicyRequest{
 		Name:        requiredString(d, "name"),
 		Rego:        requiredString(d, "rego"),
@@ -215,7 +207,7 @@ func resourcePolicy() *schema.Resource {
 			},
 			"read_only": {
 				Type:        schema.TypeBool,
-				Description: "Whether the policy is read-only. Read-only policies cannot be updated through this provider.",
+				Description: "Whether the policy is read-only. Read-only policies still accept updates to their editable fields; the API rejects (422) any change to the policy's template shape.",
 				Computed:    true,
 			},
 			"created_at": {
