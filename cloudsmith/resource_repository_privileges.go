@@ -287,18 +287,83 @@ func retrieveRepositoryPrivilegePages(pc *providerConfig, organization, reposito
 	}
 }
 
+func authenticatedAccountAdminPrivilege(pc *providerConfig, organization, slug string, privileges []cloudsmith.RepositoryPrivilegeDict) (cloudsmith.RepositoryPrivilegeDict, error) {
+	for _, privilege := range privileges {
+		if privilege.HasService() && privilege.GetService() == slug {
+			privilege.SetPrivilege("Admin")
+			return privilege, nil
+		}
+		if privilege.HasUser() && privilege.GetUser() == slug {
+			privilege.SetPrivilege("Admin")
+			return privilege, nil
+		}
+	}
+
+	// Team-based access is allowed by Create/Update, so the authenticated
+	// account might not already have a direct grant. Resolve its account kind
+	// and create the one explicit grant needed to keep teardown authorized.
+	serviceReq := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, organization, slug)
+	_, serviceResp, serviceErr := pc.APIClient.OrgsApi.OrgsServicesReadExecute(serviceReq)
+	if serviceErr == nil {
+		privilege := cloudsmith.RepositoryPrivilegeDict{}
+		privilege.SetPrivilege("Admin")
+		privilege.SetService(slug)
+		return privilege, nil
+	}
+	if !is404(serviceResp) {
+		return cloudsmith.RepositoryPrivilegeDict{}, fmt.Errorf("error determining whether authenticated account is a service: %w", serviceErr)
+	}
+
+	memberReq := pc.APIClient.OrgsApi.OrgsMembersRead(pc.Auth, organization, slug)
+	_, memberResp, memberErr := pc.APIClient.OrgsApi.OrgsMembersReadExecute(memberReq)
+	if memberErr == nil {
+		privilege := cloudsmith.RepositoryPrivilegeDict{}
+		privilege.SetPrivilege("Admin")
+		privilege.SetUser(slug)
+		return privilege, nil
+	}
+	if is404(memberResp) {
+		return cloudsmith.RepositoryPrivilegeDict{}, fmt.Errorf("authenticated account slug '%s' is neither a service nor an organization member", slug)
+	}
+
+	return cloudsmith.RepositoryPrivilegeDict{}, fmt.Errorf("error determining whether authenticated account is an organization member: %w", memberErr)
+}
+
 func resourceRepositoryPrivilegesDelete(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
 	organization := requiredString(d, "organization")
 	repository := requiredString(d, "repository")
+	userReq := pc.APIClient.UserApi.UserSelf(pc.Auth)
+	userSelf, _, err := pc.APIClient.UserApi.UserSelfExecute(userReq)
+	if err != nil {
+		return fmt.Errorf("error retrieving authenticated account while deleting repository privileges: %w", err)
+	}
+
+	currentSlug := userSelf.GetSlug()
+	privileges, notFound, err := retrieveRepositoryPrivilegePages(pc, organization, repository)
+	if err != nil {
+		return fmt.Errorf("error retrieving repository privileges before deletion: %w", err)
+	}
+	if notFound {
+		return nil
+	}
+
+	// A repository privileges resource replaces the complete privilege set. On
+	// deletion, remove every managed grant except the authenticated account's.
+	// Keeping that account as Admin prevents Terraform from revoking its own
+	// authority before a dependent repository resource is deleted.
+	remainingPrivilege, err := authenticatedAccountAdminPrivilege(pc, organization, currentSlug, privileges)
+	if err != nil {
+		return fmt.Errorf("repository_privileges (%s.%s): cannot preserve authenticated account access: %w", organization, repository, err)
+	}
 
 	req := pc.APIClient.ReposApi.ReposPrivilegesUpdate(pc.Auth, organization, repository)
 	req = req.Data(cloudsmith.RepositoryPrivilegeInputRequest{
-		Privileges: []cloudsmith.RepositoryPrivilegeDict{},
+		Privileges: []cloudsmith.RepositoryPrivilegeDict{remainingPrivilege},
 	})
 
-	_, err := pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
+	_, err = pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
 	if err != nil {
 		return formatAPIError(err)
 	}

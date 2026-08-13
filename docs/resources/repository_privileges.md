@@ -2,6 +2,8 @@
 
 The repository privileges resource allows the management of privileges for a given Cloudsmith repository. Using this resource it is possible to assign users, teams, or service accounts to a repository, and define the appropriate permission level for each.
 
+When this resource is destroyed, the provider removes its managed grants but retains an explicit Admin grant for the authenticated user or service account. If access was team-based, the provider creates that direct grant during deletion. This prevents Terraform from revoking its own authority before a dependent repository is deleted. Destruction fails safely if the authenticated account type cannot be resolved.
+
 Note that while users can be added to repositories in this manner, since Terraform does not (and cannot currently) manage those user accounts, you may encounter issues if the users change or are deleted outside of Terraform.
 
 > [!WARNING] Important: When a repository is first created in Cloudsmith, the creating account (user or service account that owns the API key) is automatically granted an implicit Admin privilege.
