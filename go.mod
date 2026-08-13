@@ -3,7 +3,7 @@ module github.com/cloudsmith-io/terraform-provider-cloudsmith
 go 1.26
 
 require (
-	github.com/cloudsmith-io/cloudsmith-api-go v0.0.58
+	github.com/cloudsmith-io/cloudsmith-api-go v0.0.59
 	github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1
@@ -60,6 +60,6 @@ require (
 	golang.org/x/tools v0.44.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
