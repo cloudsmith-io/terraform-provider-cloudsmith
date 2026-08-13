@@ -28,6 +28,10 @@ import (
 // API before building the config, mirroring authenticatedAccountAdminPrivilege
 // in resource_repository_privileges.go.
 func TestAccRepositoryDelete_afterPrivilegesRevoked(t *testing.T) {
+	if os.Getenv(resource.EnvTfAcc) == "" {
+		t.Skipf("Acceptance tests skipped unless env '%s' set", resource.EnvTfAcc)
+	}
+	testAccPreCheck(t)
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-del")
