@@ -54,6 +54,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_team_members":              dataSourceTeamMembers(),
 			"cloudsmith_service_list":              dataSourceServiceList(),
 			"cloudsmith_service_details":           dataSourceServiceDetails(),
+			"cloudsmith_usage_limits":              dataSourceUsageLimits(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
 			"cloudsmith_entitlement":               resourceEntitlement(),
@@ -76,6 +77,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_saml_auth":                 resourceSAMLAuth(),
 			"cloudsmith_repository_retention_rule": resourceRepoRetentionRule(),
 			"cloudsmith_entitlement_control":       resourceEntitlementControl(),
+			"cloudsmith_usage_limits":              resourceUsageLimits(),
 		},
 	}
 
