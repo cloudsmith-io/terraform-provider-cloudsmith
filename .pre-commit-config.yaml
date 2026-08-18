@@ -46,3 +46,4 @@ repos:
     rev: v1.7.4
     hooks:
       - id: betterleaks
+        name: Detect secret leaks
