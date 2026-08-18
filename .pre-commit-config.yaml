@@ -6,14 +6,12 @@ repos:
         name: Format Go code
       - id: go-vet
         name: Verify Go code
-
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.12.2
     hooks:
       - id: golangci-lint-full
         name: Run golangci-lint
         language_version: '1.26'
-
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.83.5
     hooks:
@@ -23,14 +21,12 @@ repos:
         name: Validate Terraform code
       - id: terraform_tflint
         name: Lint Terraform code
-
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.37.0
     hooks:
       - id: markdownlint
         name: Lint Markdown files
         args: [--config=.markdownlint.yaml]
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -46,3 +42,8 @@ repos:
         name: Check for merge conflicts
       - id: detect-private-key
         name: Detect private keys
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.7.4
+    hooks:
+      - id: betterleaks
+        name: Detect secret leaks
