@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"time"
 
-	cloudsmith_api "github.com/cloudsmith-io/cloudsmith-api-go"
+	cloudsmithapi "github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -28,7 +28,7 @@ type Checksums struct {
 	SHA512 string
 }
 
-func (c Checksums) CompareWithPkg(pkg *cloudsmith_api.Package) error {
+func (c Checksums) CompareWithPkg(pkg *cloudsmithapi.PackageDetail) error {
 	var errs []error
 
 	if c.MD5 != pkg.GetChecksumMd5() {
@@ -52,8 +52,7 @@ func (c Checksums) CompareWithPkg(pkg *cloudsmith_api.Package) error {
 }
 
 func checksumMismatchError(localChecksum string, remoteChecksum string, checksumType string) string {
-	formatString := fmt.Sprintf("Checksum mismatch (%s): expected=%s, got=%s", localChecksum, remoteChecksum, checksumType)
-	return formatString
+	return fmt.Sprintf("Checksum mismatch (%s): expected=%s, got=%s", checksumType, localChecksum, remoteChecksum)
 }
 
 func dataSourcePackageRead(d *schema.ResourceData, m interface{}) error {
