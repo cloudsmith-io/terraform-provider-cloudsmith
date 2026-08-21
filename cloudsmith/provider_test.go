@@ -186,7 +186,7 @@ func TestProviderConfig_V2UsesAPIKeyAndHost(t *testing.T) {
 	}))
 	defer server.Close()
 
-	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	pc, diags := newProviderConfig(context.Background(), server.URL, staticToken("valid-token"), map[string]interface{}{}, "test-agent")
 	if diags.HasError() {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}

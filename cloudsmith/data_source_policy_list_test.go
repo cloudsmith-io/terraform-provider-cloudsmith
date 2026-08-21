@@ -68,7 +68,7 @@ func TestPolicyListDataSource_ReturnsInitialListError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	pc, diags := newProviderConfig(context.Background(), server.URL, staticToken("valid-token"), map[string]interface{}{}, "test-agent")
 	if diags.HasError() {
 		t.Fatalf("unexpected provider config diagnostics: %v", diags)
 	}
@@ -138,7 +138,7 @@ func TestPolicyListDataSource_PaginatesAcrossAllPages(t *testing.T) {
 	}))
 	defer server.Close()
 
-	pc, diags := newProviderConfig(server.URL, "valid-token", map[string]interface{}{}, "test-agent")
+	pc, diags := newProviderConfig(context.Background(), server.URL, staticToken("valid-token"), map[string]interface{}{}, "test-agent")
 	if diags.HasError() {
 		t.Fatalf("unexpected provider config diagnostics: %v", diags)
 	}
