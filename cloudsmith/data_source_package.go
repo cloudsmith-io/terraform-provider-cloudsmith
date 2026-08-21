@@ -146,7 +146,11 @@ func downloadPackage(downloadUrl string, downloadDir string, pc *providerConfig,
 		return "", err
 	}
 
-	req.Header.Add("Authorization", fmt.Sprintf("Token %s", pc.GetAPIKey()))
+	apiKey, err := pc.GetAPIKey()
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Authorization", fmt.Sprintf("Token %s", apiKey))
 
 	client := pc.APIClient.GetConfig().HTTPClient
 	if bustCache {
