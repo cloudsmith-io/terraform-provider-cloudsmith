@@ -12,7 +12,7 @@ import (
 // TestAccDataSourceTeamMembers_basic validates that team members are listed with expected fields.
 func TestAccDataSourceTeamMembers_basic(t *testing.T) {
 	t.Parallel()
-	teamName := acctest.RandomWithPrefix("terraform-acc-test-team-members")
+	teamName := acctest.RandomWithPrefix("tfacc-team-members")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
