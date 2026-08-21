@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	cloudsmithv2 "github.com/cloudsmith-io/cloudsmith-go-v2"
@@ -39,7 +40,7 @@ func newProviderConfig(ctx context.Context, apiHost string, tokens tokenSource, 
 		return nil, diag.FromErr(errMissingCredentials)
 	}
 
-	credHost, err := credentialHost(apiHost)
+	credEndpoint, err := credentialEndpointFor(apiHost)
 	if err != nil {
 		return nil, diag.FromErr(err)
 	}
@@ -48,9 +49,9 @@ func newProviderConfig(ctx context.Context, apiHost string, tokens tokenSource, 
 		Transport: logging.NewSubsystemLoggingHTTPTransport("Cloudsmith", &headerTransport{
 			headers: headers,
 			rt: &apiKeyTransport{
-				tokens:  tokens,
-				apiHost: credHost,
-				rt:      http.DefaultTransport,
+				tokens:      tokens,
+				apiEndpoint: credEndpoint,
+				rt:          http.DefaultTransport,
 			},
 		}),
 	}
@@ -126,25 +127,36 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 type apiKeyTransport struct {
-	tokens  tokenSource
-	apiHost string
-	rt      http.RoundTripper
+	tokens      tokenSource
+	apiEndpoint credentialEndpoint
+	rt          http.RoundTripper
 }
 
-// credentialHost is the only host apiKeyTransport will send the Cloudsmith
-// credential to. An empty api_host yields an empty host, which disables the
-// restriction and keeps callers that pass no api_host working. A non-empty
-// api_host that is not absolute is rejected here rather than left to fail later
-// as an opaque "unsupported protocol scheme" from the round tripper.
-func credentialHost(apiHost string) (string, error) {
+type credentialEndpoint struct {
+	scheme string
+	host   string
+}
+
+// credentialEndpointFor returns the only scheme and host apiKeyTransport will
+// send the Cloudsmith credential to. An empty api_host yields an empty endpoint,
+// which disables the restriction and keeps callers that pass no api_host
+// working. A non-empty api_host that is not absolute is rejected here rather
+// than left to fail later as an opaque "unsupported protocol scheme" from the
+// round tripper.
+func credentialEndpointFor(apiHost string) (credentialEndpoint, error) {
 	if apiHost == "" {
-		return "", nil
+		return credentialEndpoint{}, nil
 	}
 	parsed, err := url.Parse(apiHost)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return "", errInvalidAPIHost
+		return credentialEndpoint{}, errInvalidAPIHost
 	}
-	return parsed.Host, nil
+	return credentialEndpoint{scheme: parsed.Scheme, host: parsed.Host}, nil
+}
+
+func (e credentialEndpoint) allows(u *url.URL) bool {
+	return e.host == "" ||
+		(strings.EqualFold(u.Scheme, e.scheme) && strings.EqualFold(u.Host, e.host))
 }
 
 func (t *apiKeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -152,7 +164,7 @@ func (t *apiKeyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// and then redirect to third-party object storage. RoundTrip runs once per
 	// redirect hop, so without this check the credential would be re-stamped
 	// onto the storage host too and land in its access logs.
-	if t.apiHost != "" && req.URL.Host != t.apiHost {
+	if !t.apiEndpoint.allows(req.URL) {
 		// The generated SDK sets X-Api-Key above this transport, and Go copies
 		// caller-set headers across redirect hops. Only Authorization and a few
 		// others are stripped on a cross-host redirect, so drop the credential
