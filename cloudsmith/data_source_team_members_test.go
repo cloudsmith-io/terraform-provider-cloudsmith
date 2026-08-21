@@ -5,21 +5,23 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 // TestAccDataSourceTeamMembers_basic validates that team members are listed with expected fields.
 func TestAccDataSourceTeamMembers_basic(t *testing.T) {
 	t.Parallel()
+	teamName := acctest.RandomWithPrefix("terraform-acc-test-team-members")
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceTeamMembersConfig(),
+				Config: testAccDataSourceTeamMembersConfig(teamName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.cloudsmith_team_members.test", "team_name", "terraform-acc-test-team-members"),
+					resource.TestCheckResourceAttr("data.cloudsmith_team_members.test", "team_name", teamName),
 					resource.TestCheckResourceAttrSet("data.cloudsmith_team_members.test", "members.0.user"),
 					resource.TestCheckResourceAttrSet("data.cloudsmith_team_members.test", "members.0.role"),
 				),
@@ -28,10 +30,10 @@ func TestAccDataSourceTeamMembers_basic(t *testing.T) {
 	})
 }
 
-func testAccDataSourceTeamMembersConfig() string {
+func testAccDataSourceTeamMembersConfig(teamName string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_team" "example" {
-  name         = "terraform-acc-test-team-members"
+  name         = %q
   organization = "%s"
   description  = "Acceptance test team members"
   visibility   = "Visible"
@@ -42,5 +44,5 @@ data "cloudsmith_team_members" "test" {
   team_name    = cloudsmith_team.example.name
   depends_on   = [cloudsmith_team.example]
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, teamName, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 }
