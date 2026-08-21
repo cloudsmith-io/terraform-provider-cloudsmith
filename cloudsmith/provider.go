@@ -4,6 +4,7 @@ package cloudsmith
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -15,11 +16,34 @@ func Provider() *schema.Provider {
 	p := &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"api_key": {
-				Type:        schema.TypeString,
-				Description: "The API key for authenticating with the Cloudsmith API.",
-				Required:    true,
-				DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_API_KEY", nil),
-				Sensitive:   true,
+				Type:          schema.TypeString,
+				Description:   "The API key for authenticating with the Cloudsmith API. Conflicts with oidc. When oidc is unset and CLOUDSMITH_USE_OIDC is not set, the provider reads CLOUDSMITH_API_KEY.",
+				Optional:      true,
+				Sensitive:     true,
+				ConflictsWith: []string{"oidc"},
+			},
+			"oidc": {
+				Type:          schema.TypeList,
+				Description:   "OIDC login using an HCP Terraform workload identity token. The identity token comes from the workspace environment (TFC_WORKLOAD_IDENTITY_TOKEN_CLOUDSMITH or TFC_WORKLOAD_IDENTITY_TOKEN), not this block. Conflicts with api_key. Ignores leftover CLOUDSMITH_API_KEY. You can enable the same path with CLOUDSMITH_USE_OIDC=true and no block.",
+				Optional:      true,
+				MaxItems:      1,
+				ConflictsWith: []string{"api_key"},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"organization": {
+							Type:        schema.TypeString,
+							Description: "Cloudsmith organization slug. Defaults to CLOUDSMITH_ORG when unset.",
+							Optional:    true,
+							DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_ORG", nil),
+						},
+						"service_slug": {
+							Type:        schema.TypeString,
+							Description: "OIDC service account slug. Defaults to CLOUDSMITH_SERVICE_SLUG when unset.",
+							Optional:    true,
+							DefaultFunc: schema.EnvDefaultFunc("CLOUDSMITH_SERVICE_SLUG", nil),
+						},
+					},
+				},
 			},
 			"api_host": {
 				Type:        schema.TypeString,
@@ -81,7 +105,7 @@ func Provider() *schema.Provider {
 		},
 	}
 
-	p.ConfigureContextFunc = func(_ context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		terraformVersion := p.TerraformVersion
 		if terraformVersion == "" {
 			// Terraform 0.12 introduced this field to the protocol
@@ -90,11 +114,19 @@ func Provider() *schema.Provider {
 		}
 
 		apiHost := requiredString(d, "api_host")
-		apiKey := requiredString(d, "api_key")
 		userAgent := fmt.Sprintf("(%s %s) Terraform/%s", runtime.GOOS, runtime.GOARCH, terraformVersion)
 		headers := d.Get("headers").(map[string]interface{})
 
-		return newProviderConfig(apiHost, apiKey, headers, userAgent)
+		cred, err := parseCredential(authSpecFromResourceData(d), os.Getenv)
+		if err != nil {
+			return nil, diag.FromErr(err)
+		}
+		tokens, err := tokenSourceFromCredential(cred, apiHost, headers, userAgent, os.Getenv, nil)
+		if err != nil {
+			return nil, diag.FromErr(err)
+		}
+
+		return newProviderConfig(ctx, apiHost, tokens, headers, userAgent)
 	}
 
 	return p

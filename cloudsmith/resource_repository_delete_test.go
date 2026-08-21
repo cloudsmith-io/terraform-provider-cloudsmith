@@ -2,6 +2,7 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -68,8 +69,9 @@ func testAccAPIClient(t *testing.T) *providerConfig {
 	}
 
 	pc, diags := newProviderConfig(
+		context.Background(),
 		apiHost,
-		os.Getenv("CLOUDSMITH_API_KEY"),
+		staticToken(os.Getenv("CLOUDSMITH_API_KEY")),
 		nil,
 		"terraform-provider-cloudsmith-acctest",
 	)

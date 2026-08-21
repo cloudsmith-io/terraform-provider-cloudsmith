@@ -143,7 +143,11 @@ func uploadPackage(pc *providerConfig, repository string, republish bool) error 
 		return err
 	}
 
-	request.SetBasicAuth("token", pc.GetAPIKey())
+	apiKey, err := pc.GetAPIKey()
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth("token", apiKey)
 	for k, v := range initResponse.GetUploadHeaders() {
 		request.Header.Set(k, v.(string))
 	}
