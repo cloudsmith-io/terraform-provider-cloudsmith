@@ -17,7 +17,7 @@ func dataSourceTeamMembersRead(d *schema.ResourceData, m interface{}) error {
 	teamName := requiredString(d, "team_name")
 
 	var teamMembers *cloudsmith.OrganizationTeamMembers
-	err := waiter(func() error {
+	readTeamMembers := func() error {
 		req := pc.APIClient.OrgsApi.OrgsTeamsMembersList(pc.Auth, organization, teamName)
 		members, resp, err := pc.APIClient.OrgsApi.OrgsTeamsMembersListExecute(req)
 		if err != nil {
@@ -28,7 +28,18 @@ func dataSourceTeamMembersRead(d *schema.ResourceData, m interface{}) error {
 		}
 		teamMembers = members
 		return nil
-	}, defaultCreationTimeout, defaultCreationInterval)
+	}
+
+	// Most reads are immediately consistent and should not incur waiter's initial delay.
+	err := readTeamMembers()
+	if err == errKeepWaiting {
+		err = waiter(readTeamMembers, defaultCreationTimeout, defaultCreationInterval)
+		if err == errTimedOut {
+			// Preserve the data-source behavior for an organization or team that does not exist.
+			d.SetId("")
+			return nil
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("error retrieving team members for %s/%s: %w", organization, teamName, err)
 	}
