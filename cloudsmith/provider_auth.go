@@ -234,17 +234,16 @@ func exchangeOIDC(ctx context.Context, apiHost string, headers map[string]interf
 		return "", err
 	}
 
-	cfg := cloudsmith.NewConfiguration()
-	cfg.Debug = false
-	cfg.HTTPClient = &http.Client{
+	cfg := newCloudsmithAPIConfiguration(openIDBase, userAgent, &http.Client{
 		Timeout: oidcHTTPTimeout,
 		Transport: &headerTransport{
 			headers: headers,
 			rt:      http.DefaultTransport,
 		},
-	}
-	cfg.Servers = cloudsmith.ServerConfigurations{{URL: openIDBase}}
-	cfg.UserAgent = userAgent
+	})
+	// The exchange request body contains the workload identity assertion, so it
+	// must not pass through HTTP body logging or generated-client debug output.
+	cfg.Debug = false
 
 	client := cloudsmith.NewAPIClient(cfg)
 	out, _, err := client.OpenidApi.OpenidCreate(ctx, id.organization).

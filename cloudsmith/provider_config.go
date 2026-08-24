@@ -56,15 +56,8 @@ func newProviderConfig(ctx context.Context, apiHost string, tokens tokenSource, 
 		}),
 	}
 
-	config := cloudsmith.NewConfiguration()
+	config := newCloudsmithAPIConfiguration(apiHost, userAgent, httpClient)
 	config.Debug = logging.IsDebugOrHigher()
-	config.HTTPClient = httpClient
-
-	config.Servers = cloudsmith.ServerConfigurations{
-		{URL: apiHost},
-	}
-	config.UserAgent = userAgent
-
 	apiClient := cloudsmith.NewAPIClient(config)
 
 	auth := context.WithValue(
@@ -100,6 +93,14 @@ func newProviderConfig(ctx context.Context, apiHost string, tokens tokenSource, 
 		V2ApiClient: cloudsmithv2.New(v2Options...),
 		tokens:      tokens,
 	}, nil
+}
+
+func newCloudsmithAPIConfiguration(apiHost, userAgent string, httpClient *http.Client) *cloudsmith.Configuration {
+	config := cloudsmith.NewConfiguration()
+	config.HTTPClient = httpClient
+	config.Servers = cloudsmith.ServerConfigurations{{URL: apiHost}}
+	config.UserAgent = userAgent
+	return config
 }
 
 // GetAPIKey returns the current credential. A token-source failure is returned
