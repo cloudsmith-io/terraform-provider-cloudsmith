@@ -2,6 +2,7 @@
 package cloudsmith
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -143,6 +144,51 @@ func TestRepositoryUpstreamTrustLevelValidation(t *testing.T) {
 	warnings, errors := validate("unknown", TrustLevel)
 	if len(warnings) != 0 || len(errors) == 0 {
 		t.Fatalf("expected an invalid trust level to return an error, got warnings %v and errors %v", warnings, errors)
+	}
+}
+
+func TestValidateUpstreamTrustLevel(t *testing.T) {
+	trusted := "Trusted"
+
+	for _, upstreamType := range []string{Maven, Npm, Python} {
+		if err := validateUpstreamTrustLevel(upstreamType, &trusted); err != nil {
+			t.Fatalf("validateUpstreamTrustLevel(%q) returned unexpected error: %v", upstreamType, err)
+		}
+	}
+
+	if err := validateUpstreamTrustLevel(Docker, nil); err != nil {
+		t.Fatalf("validateUpstreamTrustLevel() returned an error for an omitted trust level: %v", err)
+	}
+
+	err := validateUpstreamTrustLevel(Docker, &trusted)
+	if err == nil {
+		t.Fatal("validateUpstreamTrustLevel() returned nil for an unsupported upstream type")
+	}
+
+	want := "trust_level is only supported for maven, npm, and python upstreams"
+	if err.Error() != want {
+		t.Fatalf("validateUpstreamTrustLevel() error = %q, want %q", err, want)
+	}
+}
+
+func TestRepositoryUpstreamRejectsTrustLevelForUnsupportedType(t *testing.T) {
+	config := terraform.NewResourceConfigRaw(map[string]interface{}{
+		Name:         "Docker Hub",
+		Namespace:    "example",
+		Repository:   "example",
+		TrustLevel:   "Untrusted",
+		UpstreamType: Docker,
+		UpstreamUrl:  "https://registry-1.docker.io",
+	})
+
+	_, err := resourceRepositoryUpstream().Diff(context.Background(), nil, config, nil)
+	if err == nil {
+		t.Fatal("expected planning to reject trust_level for a Docker upstream")
+	}
+
+	want := "trust_level is only supported for maven, npm, and python upstreams"
+	if err.Error() != want {
+		t.Fatalf("Diff() error = %q, want %q", err, want)
 	}
 }
 

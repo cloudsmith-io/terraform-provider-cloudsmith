@@ -245,6 +245,9 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var resp *http.Response
@@ -878,6 +881,9 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var err error
@@ -1406,6 +1412,28 @@ func validateUpstreamUrl(v interface{}, k string) (warnings []string, errors []e
 	return
 }
 
+func validateUpstreamTrustLevel(upstreamType string, trustLevel *string) error {
+	if trustLevel == nil || upstreamType == Maven || upstreamType == Npm || upstreamType == Python {
+		return nil
+	}
+
+	return fmt.Errorf("%s is only supported for maven, npm, and python upstreams", TrustLevel)
+}
+
+func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.NewValueKnown(UpstreamType) || !d.NewValueKnown(TrustLevel) {
+		return nil
+	}
+
+	value, ok := d.GetOk(TrustLevel)
+	if !ok {
+		return nil
+	}
+
+	trustLevel := value.(string)
+	return validateUpstreamTrustLevel(d.Get(UpstreamType).(string), &trustLevel)
+}
+
 func resourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepositoryUpstreamCreate,
@@ -1416,6 +1444,7 @@ func resourceRepositoryUpstream() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: importUpstream,
 		},
+		CustomizeDiff: customizeDiffRepositoryUpstream,
 
 		Schema: map[string]*schema.Schema{
 			AuthMode: {
