@@ -29,6 +29,7 @@ const (
 	Hex         = "hex"
 	HuggingFace = "huggingface"
 	Maven       = "maven"
+	Nix         = "nix"
 	Npm         = "npm"
 	NuGet       = "nuget"
 	Python      = "python"
@@ -94,6 +95,7 @@ var (
 		Hex,
 		HuggingFace,
 		Maven,
+		Nix,
 		Npm,
 		NuGet,
 		Python,
@@ -524,6 +526,24 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenCreateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixCreateExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.NpmUpstreamRequest{
@@ -742,6 +762,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixReadExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
@@ -1131,6 +1154,24 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamMavenUpdateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamNixUpdateExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.NpmUpstreamRequest{
@@ -1321,6 +1362,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamMavenDeleteExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamNixDeleteExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamNpmDeleteExecute(req)
