@@ -2161,6 +2161,112 @@ resource "cloudsmith_repository_upstream" "packagist" {
 	})
 }
 
+func TestAccRepositoryUpstreamNix_basic(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-nix")
+	namespace := testAccNamespace()
+
+	const nixUpstreamResourceName = "cloudsmith_repository_upstream.nix_channels"
+
+	testAccRepositoryNixUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "nix_channels" {
+	name          = cloudsmith_repository.test.name
+	namespace     = cloudsmith_repository.test.namespace
+	repository    = cloudsmith_repository.test.slug
+	upstream_type = "nix"
+	upstream_url  = "https://channels.nixos.org/nixos-25.05"
+}
+`, repositoryName, namespace)
+
+	testAccRepositoryNixUpstreamConfigUpdate := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "nix_channels" {
+	extra_header_1 = "X-Custom-Header"
+	extra_header_2 = "Access-Control-Allow-Origin"
+	extra_value_1  = "custom-value"
+	extra_value_2  = "*"
+	is_active      = true
+	mode           = "Cache and Proxy"
+	name           = cloudsmith_repository.test.name
+	namespace      = cloudsmith_repository.test.namespace
+	priority       = 12345
+	repository     = cloudsmith_repository.test.slug
+	upstream_type  = "nix"
+	upstream_url   = "https://channels.nixos.org/nixos-25.05"
+	verify_ssl     = false
+}
+`, repositoryName, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(nixUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryNixUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryNixUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: nixUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[nixUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -2225,6 +2331,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Maven:
 			req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+		case Nix:
+			req := pc.APIClient.ReposApi.ReposUpstreamNixRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixReadExecute(req)
 		case Npm:
 			req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
