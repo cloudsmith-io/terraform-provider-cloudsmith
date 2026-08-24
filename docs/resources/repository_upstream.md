@@ -217,6 +217,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
     repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
     upstream_type = "maven"
     upstream_url  = "https://repo1.maven.org/maven2"
+    trust_level   = "Untrusted"
 }
 ```
 
@@ -229,6 +230,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
     repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
     upstream_type = "npm"
     upstream_url  = "https://registry.npmjs.org"
+    trust_level   = "Untrusted"
 }
 ```
 
@@ -253,6 +255,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
     repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
     upstream_type = "python"
     upstream_url  = "https://pypi.org"
+    trust_level   = "Untrusted"
 }
 ```
 
@@ -319,6 +322,7 @@ The following arguments are supported:
 |       `namespace`       |    Y     |    string    |                                                           N/A                                                           |                                                                                                    The Organization to which the upstream belongs.                                                                                                    |
 |       `priority`        |    N     |    number    |                                                           N/A                                                           |                                                                      Upstream sources are selected for resolving requests by sequential order (1..n), followed by creation date.                                                                      |
 |      `repository`       |    Y     |    string    |                                                           N/A                                                           |                                                                                                     The Repository to which the upstream belongs.                                                                                                     |
+|      `trust_level`      |    N     |    string    |                                           `"Trusted"`<br>`"Untrusted"`                                            | Controls whether this upstream can serve packages whose names also exist in a trusted source. Supported for Maven, npm, and Python upstreams. Defaults to `"Trusted"`. |
 | `upstream_distribution` |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"deb"` to declare the [distribution](https://wiki.debian.org/DebianRepository/Format#Overview) to fetch from the upstream.                                    |
 |   `upstream_prefix`     |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"generic"` to declare a unique prefix to distinguish this upstream source. Requests including this prefix are routed to this upstream. Defaults to `upstream` if not provided.                                   |
 |     `upstream_type`     |    Y     |    string    | `"alpine"`<br>`"cargo"`<br>`"composer"`<br>`"conda"`<br>`"cran"`<br>`"dart"`<br>`"deb"`<br>`"docker"`<br>`"generic"`<br>`"go"`<br>`"helm"`<br>`"hex"`<br>`"huggingface"`<br>`"maven"`<br>`"npm"`<br>`"nuget"`<br>`"python"`<br>`"rpm"`<br>`"ruby"`<br>`"swift"` | The type of Upstream. |

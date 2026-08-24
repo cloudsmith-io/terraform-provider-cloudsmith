@@ -130,6 +130,22 @@ func TestCheckUpstreamActivation(t *testing.T) {
 	}
 }
 
+func TestRepositoryUpstreamTrustLevelValidation(t *testing.T) {
+	validate := resourceRepositoryUpstream().Schema[TrustLevel].ValidateFunc
+
+	for _, trustLevel := range upstreamTrustLevels {
+		warnings, errors := validate(trustLevel, TrustLevel)
+		if len(warnings) != 0 || len(errors) != 0 {
+			t.Fatalf("expected %q to be a valid trust level, got warnings %v and errors %v", trustLevel, warnings, errors)
+		}
+	}
+
+	warnings, errors := validate("unknown", TrustLevel)
+	if len(warnings) != 0 || len(errors) == 0 {
+		t.Fatalf("expected an invalid trust level to return an error, got warnings %v and errors %v", warnings, errors)
+	}
+}
+
 func TestAccRepositoryUpstreamAlpine_basic(t *testing.T) {
 	t.Parallel()
 
@@ -1418,6 +1434,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "maven"
     upstream_url  = "https://repo1.maven.org/maven2"
+	trust_level   = "Trusted"
 }
 `, repositoryName, namespace)
 
@@ -1440,6 +1457,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "maven"
 	    upstream_url   = "https://repo1.maven.org/maven2"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1469,6 +1487,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(mavenUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1482,6 +1501,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(mavenUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, IsActive, "true"),
 				),
 			},
@@ -1525,6 +1545,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "npm"
     upstream_url  = "https://registry.npmjs.org"
+	trust_level   = "Trusted"
     is_active      = true
 
 }
@@ -1549,6 +1570,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "npm"
 	    upstream_url   = "https://registry.npmjs.org"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1578,6 +1600,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1591,6 +1614,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, IsActive, "true"),
 				),
 			},
@@ -1740,6 +1764,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "python"
     upstream_url  = "https://pypi.org"
+	trust_level   = "Trusted"
 }
 `, repositoryName, namespace)
 
@@ -1765,6 +1790,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "python"
 	    upstream_url   = "https://pypi.org"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1794,6 +1820,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(pythonUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1807,6 +1834,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(pythonUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, IsActive, "false"),
 				),
 			},
