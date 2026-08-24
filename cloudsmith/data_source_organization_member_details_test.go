@@ -1,4 +1,4 @@
-//nolint:testpakcage
+//nolint:testpackage
 
 package cloudsmith
 

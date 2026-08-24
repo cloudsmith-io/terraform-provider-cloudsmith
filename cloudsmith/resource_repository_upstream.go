@@ -54,6 +54,7 @@ const (
 	IncludeSources       = "include_sources"
 	Mode                 = "mode"
 	Priority             = "priority"
+	TrustLevel           = "trust_level"
 	UpstreamDistribution = "upstream_distribution"
 	UpstreamPrefix       = "upstream_prefix"
 	UpstreamType         = "upstream_type"
@@ -74,6 +75,10 @@ var (
 		"Proxy Only",
 		"Cache and Proxy",
 		"Cache Only",
+	}
+	upstreamTrustLevels = []string{
+		"Trusted",
+		"Untrusted",
 	}
 	upstreamTypes = []string{
 		Alpine,
@@ -237,8 +242,12 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	mode := optionalString(d, Mode)
 	name := requiredString(d, Name)
 	priority := optionalInt64(d, Priority)
+	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var resp *http.Response
@@ -515,6 +524,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -551,6 +561,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -587,6 +598,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -820,6 +832,9 @@ func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error
 	_ = d.Set(UpdatedAt, timeToString(upstream.GetUpdatedAt()))
 	_ = d.Set(UpstreamUrl, upstream.GetUpstreamUrl())
 	_ = d.Set(VerifySsl, upstream.GetVerifySsl())
+	if trustedUpstream, ok := upstream.(interface{ GetTrustLevel() string }); ok {
+		_ = d.Set(TrustLevel, trustedUpstream.GetTrustLevel())
+	}
 
 	switch u := upstream.(type) {
 	case *cloudsmith.DebUpstream:
@@ -863,8 +878,12 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	mode := optionalString(d, Mode)
 	name := requiredString(d, Name)
 	priority := optionalInt64(d, Priority)
+	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var err error
@@ -1136,6 +1155,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -1172,6 +1192,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -1208,6 +1229,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -1390,6 +1412,28 @@ func validateUpstreamUrl(v interface{}, k string) (warnings []string, errors []e
 	return
 }
 
+func validateUpstreamTrustLevel(upstreamType string, trustLevel *string) error {
+	if trustLevel == nil || upstreamType == Maven || upstreamType == Npm || upstreamType == Python {
+		return nil
+	}
+
+	return fmt.Errorf("%s is only supported for maven, npm, and python upstreams", TrustLevel)
+}
+
+func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.NewValueKnown(UpstreamType) || !d.NewValueKnown(TrustLevel) {
+		return nil
+	}
+
+	value, ok := d.GetOk(TrustLevel)
+	if !ok {
+		return nil
+	}
+
+	trustLevel := value.(string)
+	return validateUpstreamTrustLevel(d.Get(UpstreamType).(string), &trustLevel)
+}
+
 func resourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepositoryUpstreamCreate,
@@ -1400,6 +1444,7 @@ func resourceRepositoryUpstream() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: importUpstream,
 		},
+		CustomizeDiff: customizeDiffRepositoryUpstream,
 
 		Schema: map[string]*schema.Schema{
 			AuthMode: {
@@ -1527,6 +1572,13 @@ func resourceRepositoryUpstream() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.IntBetween(1, 32767),
+			},
+			TrustLevel: {
+				Type:         schema.TypeString,
+				Description:  "The trust level for this upstream. Supported for Maven, npm, and Python upstreams.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(upstreamTrustLevels, false),
 			},
 			Repository: {
 				Type:         schema.TypeString,
