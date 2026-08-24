@@ -220,6 +220,18 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 }
 ```
 
+### Nix
+
+```hcl
+resource "cloudsmith_repository_upstream" "nix_channels" {
+    name          = "Nix Channels"
+    namespace     = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    repository    = "${resource.cloudsmith_repository.my_repository.slug_perm}"
+    upstream_type = "nix"
+    upstream_url  = "https://channels.nixos.org/nixos-25.05"
+}
+```
+
 ### NPM
 
 ```hcl
@@ -321,7 +333,7 @@ The following arguments are supported:
 |      `repository`       |    Y     |    string    |                                                           N/A                                                           |                                                                                                     The Repository to which the upstream belongs.                                                                                                     |
 | `upstream_distribution` |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"deb"` to declare the [distribution](https://wiki.debian.org/DebianRepository/Format#Overview) to fetch from the upstream.                                    |
 |   `upstream_prefix`     |    N     |    string    |                                                           N/A                                                           |                                    Used only in conjunction with an `upstream_type` of `"generic"` to declare a unique prefix to distinguish this upstream source. Requests including this prefix are routed to this upstream. Defaults to `upstream` if not provided.                                   |
-|     `upstream_type`     |    Y     |    string    | `"alpine"`<br>`"cargo"`<br>`"composer"`<br>`"conda"`<br>`"cran"`<br>`"dart"`<br>`"deb"`<br>`"docker"`<br>`"generic"`<br>`"go"`<br>`"helm"`<br>`"hex"`<br>`"huggingface"`<br>`"maven"`<br>`"npm"`<br>`"nuget"`<br>`"python"`<br>`"rpm"`<br>`"ruby"`<br>`"swift"` | The type of Upstream. |
+|     `upstream_type`     |    Y     |    string    | `"alpine"`<br>`"cargo"`<br>`"composer"`<br>`"conda"`<br>`"cran"`<br>`"dart"`<br>`"deb"`<br>`"docker"`<br>`"generic"`<br>`"go"`<br>`"helm"`<br>`"hex"`<br>`"huggingface"`<br>`"maven"`<br>`"nix"`<br>`"npm"`<br>`"nuget"`<br>`"python"`<br>`"rpm"`<br>`"ruby"`<br>`"swift"` | The type of Upstream. |
 |     `upstream_url`      |    Y     |    string    |                                                           N/A                                                           |                                                    The URL for this upstream source. This must be a fully qualified URL including any path elements required to reach the root of the repository. The URL cannot end with a trailing slash.                                                     |
 |      `verify_ssl`       |    N     |     bool     |                                                           N/A                                                           | If enabled, SSL certificates are verified when requests are made to this upstream. It's recommended to leave this enabled for all public sources to help mitigate Man-In-The-Middle (MITM) attacks. Please note this only applies to HTTPS upstreams. |
 
