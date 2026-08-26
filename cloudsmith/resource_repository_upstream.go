@@ -29,6 +29,7 @@ const (
 	Hex         = "hex"
 	HuggingFace = "huggingface"
 	Maven       = "maven"
+	Nix         = "nix"
 	Npm         = "npm"
 	NuGet       = "nuget"
 	Python      = "python"
@@ -53,6 +54,7 @@ const (
 	IncludeSources       = "include_sources"
 	Mode                 = "mode"
 	Priority             = "priority"
+	TrustLevel           = "trust_level"
 	UpstreamDistribution = "upstream_distribution"
 	UpstreamPrefix       = "upstream_prefix"
 	UpstreamType         = "upstream_type"
@@ -74,6 +76,10 @@ var (
 		"Cache and Proxy",
 		"Cache Only",
 	}
+	upstreamTrustLevels = []string{
+		"Trusted",
+		"Untrusted",
+	}
 	upstreamTypes = []string{
 		Alpine,
 		Cargo,
@@ -89,6 +95,7 @@ var (
 		Hex,
 		HuggingFace,
 		Maven,
+		Nix,
 		Npm,
 		NuGet,
 		Python,
@@ -235,8 +242,12 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 	mode := optionalString(d, Mode)
 	name := requiredString(d, Name)
 	priority := optionalInt64(d, Priority)
+	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var resp *http.Response
@@ -513,10 +524,29 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenCreateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixCreateExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.NpmUpstreamRequest{
@@ -531,6 +561,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -567,6 +598,7 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -733,6 +765,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixReadExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
@@ -797,6 +832,9 @@ func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error
 	_ = d.Set(UpdatedAt, timeToString(upstream.GetUpdatedAt()))
 	_ = d.Set(UpstreamUrl, upstream.GetUpstreamUrl())
 	_ = d.Set(VerifySsl, upstream.GetVerifySsl())
+	if trustedUpstream, ok := upstream.(interface{ GetTrustLevel() string }); ok {
+		_ = d.Set(TrustLevel, trustedUpstream.GetTrustLevel())
+	}
 
 	switch u := upstream.(type) {
 	case *cloudsmith.DebUpstream:
@@ -840,8 +878,12 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 	mode := optionalString(d, Mode)
 	name := requiredString(d, Name)
 	priority := optionalInt64(d, Priority)
+	trustLevel := optionalString(d, TrustLevel)
 	upstreamUrl := requiredString(d, UpstreamUrl)
 	verifySsl := optionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
 
 	var upstream Upstream
 	var err error
@@ -1113,10 +1155,29 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamMavenUpdateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamNixUpdateExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.NpmUpstreamRequest{
@@ -1131,6 +1192,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -1167,6 +1229,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			Mode:         mode,
 			Name:         name,
 			Priority:     priority,
+			TrustLevel:   trustLevel,
 			UpstreamUrl:  upstreamUrl,
 			VerifySsl:    verifySsl,
 		})
@@ -1305,6 +1368,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Maven:
 		req := pc.APIClient.ReposApi.ReposUpstreamMavenDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamMavenDeleteExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamNixDeleteExecute(req)
 	case Npm:
 		req := pc.APIClient.ReposApi.ReposUpstreamNpmDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamNpmDeleteExecute(req)
@@ -1346,6 +1412,28 @@ func validateUpstreamUrl(v interface{}, k string) (warnings []string, errors []e
 	return
 }
 
+func validateUpstreamTrustLevel(upstreamType string, trustLevel *string) error {
+	if trustLevel == nil || upstreamType == Maven || upstreamType == Npm || upstreamType == Python {
+		return nil
+	}
+
+	return fmt.Errorf("%s is only supported for maven, npm, and python upstreams", TrustLevel)
+}
+
+func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.NewValueKnown(UpstreamType) || !d.NewValueKnown(TrustLevel) {
+		return nil
+	}
+
+	value, ok := d.GetOk(TrustLevel)
+	if !ok {
+		return nil
+	}
+
+	trustLevel := value.(string)
+	return validateUpstreamTrustLevel(d.Get(UpstreamType).(string), &trustLevel)
+}
+
 func resourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceRepositoryUpstreamCreate,
@@ -1356,6 +1444,7 @@ func resourceRepositoryUpstream() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: importUpstream,
 		},
+		CustomizeDiff: customizeDiffRepositoryUpstream,
 
 		Schema: map[string]*schema.Schema{
 			AuthMode: {
@@ -1483,6 +1572,13 @@ func resourceRepositoryUpstream() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.IntBetween(1, 32767),
+			},
+			TrustLevel: {
+				Type:         schema.TypeString,
+				Description:  "The trust level for this upstream. Supported for Maven, npm, and Python upstreams.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(upstreamTrustLevels, false),
 			},
 			Repository: {
 				Type:         schema.TypeString,

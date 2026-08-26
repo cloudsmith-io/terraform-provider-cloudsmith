@@ -2,6 +2,7 @@
 package cloudsmith
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -127,6 +128,67 @@ func TestCheckUpstreamActivation(t *testing.T) {
 				t.Fatalf("checkUpstreamActivation() error = %q, want %q", err.Error(), tt.wantErrMessage)
 			}
 		})
+	}
+}
+
+func TestRepositoryUpstreamTrustLevelValidation(t *testing.T) {
+	validate := resourceRepositoryUpstream().Schema[TrustLevel].ValidateFunc
+
+	for _, trustLevel := range upstreamTrustLevels {
+		warnings, errors := validate(trustLevel, TrustLevel)
+		if len(warnings) != 0 || len(errors) != 0 {
+			t.Fatalf("expected %q to be a valid trust level, got warnings %v and errors %v", trustLevel, warnings, errors)
+		}
+	}
+
+	warnings, errors := validate("unknown", TrustLevel)
+	if len(warnings) != 0 || len(errors) == 0 {
+		t.Fatalf("expected an invalid trust level to return an error, got warnings %v and errors %v", warnings, errors)
+	}
+}
+
+func TestValidateUpstreamTrustLevel(t *testing.T) {
+	trusted := "Trusted"
+
+	for _, upstreamType := range []string{Maven, Npm, Python} {
+		if err := validateUpstreamTrustLevel(upstreamType, &trusted); err != nil {
+			t.Fatalf("validateUpstreamTrustLevel(%q) returned unexpected error: %v", upstreamType, err)
+		}
+	}
+
+	if err := validateUpstreamTrustLevel(Docker, nil); err != nil {
+		t.Fatalf("validateUpstreamTrustLevel() returned an error for an omitted trust level: %v", err)
+	}
+
+	err := validateUpstreamTrustLevel(Docker, &trusted)
+	if err == nil {
+		t.Fatal("validateUpstreamTrustLevel() returned nil for an unsupported upstream type")
+	}
+
+	want := "trust_level is only supported for maven, npm, and python upstreams"
+	if err.Error() != want {
+		t.Fatalf("validateUpstreamTrustLevel() error = %q, want %q", err, want)
+	}
+}
+
+func TestRepositoryUpstreamRejectsTrustLevelForUnsupportedType(t *testing.T) {
+	config := terraform.NewResourceConfigRaw(map[string]interface{}{
+		Name:         "Docker Hub",
+		Namespace:    "example",
+		Repository:   "example",
+		TrustLevel:   "Untrusted",
+		UpstreamType: Docker,
+		UpstreamUrl:  "https://registry-1.docker.io",
+	})
+
+	_, err := resourceRepositoryUpstream().Diff(context.Background(), nil, config, nil)
+	if err == nil {
+		t.Fatal("expected planning to reject trust_level for a Docker upstream")
+	}
+
+	want := "trust_level is only supported for maven, npm, and python upstreams"
+	if err.Error() != want {
+		t.Fatalf("Diff() error = %q, want %q", err, want)
 	}
 }
 
@@ -1418,6 +1480,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "maven"
     upstream_url  = "https://repo1.maven.org/maven2"
+	trust_level   = "Trusted"
 }
 `, repositoryName, namespace)
 
@@ -1440,6 +1503,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "maven"
 	    upstream_url   = "https://repo1.maven.org/maven2"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1469,6 +1533,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(mavenUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1482,6 +1547,7 @@ resource "cloudsmith_repository_upstream" "maven_central" {
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(mavenUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(mavenUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(mavenUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(mavenUpstreamResourceName, IsActive, "true"),
 				),
 			},
@@ -1525,6 +1591,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "npm"
     upstream_url  = "https://registry.npmjs.org"
+	trust_level   = "Trusted"
     is_active      = true
 
 }
@@ -1549,6 +1616,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "npm"
 	    upstream_url   = "https://registry.npmjs.org"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1578,6 +1646,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1591,6 +1660,7 @@ resource "cloudsmith_repository_upstream" "npmjs" {
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(npmUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(npmUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(npmUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(npmUpstreamResourceName, IsActive, "true"),
 				),
 			},
@@ -1740,6 +1810,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 	name          = cloudsmith_repository.test.name
     upstream_type = "python"
     upstream_url  = "https://pypi.org"
+	trust_level   = "Trusted"
 }
 `, repositoryName, namespace)
 
@@ -1765,6 +1836,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 	    repository     = cloudsmith_repository.test.slug
 	    upstream_type  = "python"
 	    upstream_url   = "https://pypi.org"
+	    trust_level    = "Untrusted"
 	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
@@ -1794,6 +1866,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, SlugPerm),
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(pythonUpstreamResourceName, TrustLevel, "Trusted"),
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, VerifySsl, "true"),
 				),
 			},
@@ -1807,6 +1880,7 @@ resource "cloudsmith_repository_upstream" "pypi" {
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, IncludeSources),
 					resource.TestCheckResourceAttrSet(pythonUpstreamResourceName, UpdatedAt),
 					resource.TestCheckNoResourceAttr(pythonUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(pythonUpstreamResourceName, TrustLevel, "Untrusted"),
 					resource.TestCheckResourceAttr(pythonUpstreamResourceName, IsActive, "false"),
 				),
 			},
@@ -2161,6 +2235,112 @@ resource "cloudsmith_repository_upstream" "packagist" {
 	})
 }
 
+func TestAccRepositoryUpstreamNix_basic(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-upstream-nix")
+	namespace := testAccNamespace()
+
+	const nixUpstreamResourceName = "cloudsmith_repository_upstream.nix_channels"
+
+	testAccRepositoryNixUpstreamConfigBasic := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "nix_channels" {
+	name          = cloudsmith_repository.test.name
+	namespace     = cloudsmith_repository.test.namespace
+	repository    = cloudsmith_repository.test.slug
+	upstream_type = "nix"
+	upstream_url  = "https://channels.nixos.org/nixos-25.05"
+}
+`, repositoryName, namespace)
+
+	testAccRepositoryNixUpstreamConfigUpdate := fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "nix_channels" {
+	extra_header_1 = "X-Custom-Header"
+	extra_header_2 = "Access-Control-Allow-Origin"
+	extra_value_1  = "custom-value"
+	extra_value_2  = "*"
+	is_active      = true
+	mode           = "Cache and Proxy"
+	name           = cloudsmith_repository.test.name
+	namespace      = cloudsmith_repository.test.namespace
+	priority       = 12345
+	repository     = cloudsmith_repository.test.slug
+	upstream_type  = "nix"
+	upstream_url   = "https://channels.nixos.org/nixos-25.05"
+	verify_ssl     = false
+}
+`, repositoryName, namespace)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(nixUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryNixUpstreamConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, AuthMode, "None"),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, AuthUsername, ""),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersions),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraHeader2, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraValue1, ""),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, ExtraValue2, ""),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, Mode, "Proxy Only"),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, Priority),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, SlugPerm),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, VerifySsl, "true"),
+				),
+			},
+			{
+				Config: testAccRepositoryNixUpstreamConfigUpdate,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, Component),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, CreatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersion),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, DistroVersions),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, IncludeSources),
+					resource.TestCheckResourceAttrSet(nixUpstreamResourceName, UpdatedAt),
+					resource.TestCheckNoResourceAttr(nixUpstreamResourceName, UpstreamDistribution),
+					resource.TestCheckResourceAttr(nixUpstreamResourceName, IsActive, "true"),
+				),
+			},
+			{
+				ResourceName: nixUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[nixUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -2225,6 +2405,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Maven:
 			req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+		case Nix:
+			req := pc.APIClient.ReposApi.ReposUpstreamNixRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixReadExecute(req)
 		case Npm:
 			req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
