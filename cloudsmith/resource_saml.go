@@ -131,6 +131,44 @@ func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+func samlReadEnabled(pc *providerConfig, organization string) (bool, error) {
+	readStatus := func() (*cloudsmith.OrganizationGroupSyncStatus, *http.Response, error) {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
+		return pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
+	}
+
+	status, resp, err := readStatus()
+	if err == nil {
+		return status.GetSamlGroupSyncStatus(), nil
+	}
+	if !is404(resp) {
+		return false, fmt.Errorf(
+			"error reading SAML group sync status for organization (%s): %w", organization, formatAPIError(err),
+		)
+	}
+
+	var enabled bool
+	checkerFunc := func() error {
+		status, resp, err := readStatus()
+		if err != nil {
+			if is404(resp) {
+				return errKeepWaiting
+			}
+			return formatAPIError(err)
+		}
+		enabled = status.GetSamlGroupSyncStatus()
+		return nil
+	}
+
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return false, fmt.Errorf(
+			"error waiting for SAML group sync status for organization (%s): %w", organization, err,
+		)
+	}
+
+	return enabled, nil
+}
+
 func samlRead(d *schema.ResourceData, m interface{}) error {
 	pc := m.(*providerConfig)
 
@@ -159,18 +197,11 @@ func samlRead(d *schema.ResourceData, m interface{}) error {
 			d.Set("team", item.Team)
 			d.Set("slug_perm", item.SlugPerm)
 
-			statusReq := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
-			status, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(statusReq)
+			enabled, err := samlReadEnabled(pc, organization)
 			if err != nil {
-				if is404(resp) {
-					d.SetId("")
-					return nil
-				}
-				return fmt.Errorf(
-					"error reading SAML group sync status for organization (%s): %w", organization, formatAPIError(err),
-				)
+				return err
 			}
-			d.Set("enabled", status.GetSamlGroupSyncStatus())
+			d.Set("enabled", enabled)
 
 			// namespace is not returned from the saml group endpoint so we rely on the input value
 			d.Set("organization", organization)
