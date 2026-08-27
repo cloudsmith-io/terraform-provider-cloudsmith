@@ -65,7 +65,49 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("error waiting for SAML group sync (%s) to be created: %w", d.Id(), err)
 	}
 
+	if err := samlSetEnabled(d, m); err != nil {
+		return err
+	}
+
 	return samlRead(d, m)
+}
+
+func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+	organization := requiredString(d, "organization")
+	enabled := requiredBool(d, "enabled")
+
+	if enabled {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnable(pc.Auth, organization)
+		_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnableExecute(req)
+		if err != nil {
+			return err
+		}
+	} else {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisable(pc.Auth, organization)
+		_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisableExecute(req)
+		if err != nil {
+			return err
+		}
+	}
+
+	checkerFunc := func() error {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
+		status, _, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
+		if err != nil {
+			return err
+		}
+		if status.GetSamlGroupSyncStatus() != enabled {
+			return errKeepWaiting
+		}
+		return nil
+	}
+
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for SAML group sync (%s) to become enabled=%t: %w", organization, enabled, err)
+	}
+
+	return nil
 }
 
 func samlRead(d *schema.ResourceData, m interface{}) error {
@@ -95,6 +137,17 @@ func samlRead(d *schema.ResourceData, m interface{}) error {
 			d.Set("role", item.Role)
 			d.Set("team", item.Team)
 			d.Set("slug_perm", item.SlugPerm)
+
+			statusReq := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
+			status, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(statusReq)
+			if err != nil {
+				if is404(resp) {
+					d.SetId("")
+					return nil
+				}
+				return err
+			}
+			d.Set("enabled", status.GetSamlGroupSyncStatus())
 
 			// namespace is not returned from the saml group endpoint so we rely on the input value
 			d.Set("organization", organization)
@@ -138,6 +191,15 @@ func samlDelete(d *schema.ResourceData, m interface{}) error {
 
 // This is a workaround for not having a proper update endpoint for SAML group sync, we are recreating the entry based on new+old values
 func samlUpdate(d *schema.ResourceData, m interface{}) error {
+	if !d.HasChanges("idp_key", "idp_value", "role", "team") {
+		if d.HasChange("enabled") {
+			if err := samlSetEnabled(d, m); err != nil {
+				return err
+			}
+		}
+		return samlRead(d, m)
+	}
+
 	if err := samlDelete(d, m); err != nil {
 		return err
 	}
@@ -172,6 +234,12 @@ func resourceSAML() *schema.Resource {
 				Optional:     true,
 				Default:      "Member",
 				ValidateFunc: validation.StringInSlice([]string{"Member", "Manager"}, false),
+			},
+			"enabled": {
+				Type:        schema.TypeBool,
+				Description: "Whether SAML Group Sync is enabled for the organization.",
+				Optional:    true,
+				Default:     true,
 			},
 			"team": {
 				Type:     schema.TypeString,

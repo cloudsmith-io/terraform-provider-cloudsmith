@@ -3,6 +3,7 @@ resource "cloudsmith_saml" "owners_mapping" {
   idp_key      = "administrators"
   idp_value    = "administrators"
   role         = "Manager"
+  enabled      = true
   team         = "owners"
 }
 
@@ -11,5 +12,6 @@ resource "cloudsmith_saml" "developers_mapping" {
   idp_key      = "interns"
   idp_value    = "interns"
   role         = "Member"
+  enabled      = true
   team         = resource.cloudsmith_team.interns.slug
 }

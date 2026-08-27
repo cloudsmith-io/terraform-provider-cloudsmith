@@ -26,6 +26,7 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Member"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
 				),
 			},
@@ -37,6 +38,7 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
 				),
 			},
@@ -48,6 +50,19 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
+				),
+			},
+			{
+				Config: testAccSamlConfigBasicUpdateEnabled,
+				Check: resource.ComposeTestCheckFunc(
+					testAccSamlCheckExists("cloudsmith_saml.test"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "organization", os.Getenv("CLOUDSMITH_NAMESPACE")),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key-updated"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value-updated"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
 				),
 			},
@@ -121,6 +136,7 @@ resource "cloudsmith_saml" "test" {
 	idp_key 	= "test-idp-key"
 	idp_value 	= "test-idp-value"
 	role 		= "Member"
+	enabled 	= true
 	team 		= cloudsmith_team.test.slug
 }`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -135,6 +151,7 @@ resource "cloudsmith_saml" "test" {
 	idp_key 	= "test-idp-key"
 	idp_value 	= "test-idp-value"
 	role 		= "Manager"
+	enabled 	= true
 	team 		= cloudsmith_team.test.slug
 }`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -149,5 +166,21 @@ resource "cloudsmith_saml" "test" {
 	idp_key 	= "test-idp-key-updated"
 	idp_value 	= "test-idp-value-updated"
 	role 		= "Manager"
+	enabled 	= false
+	team 		= cloudsmith_team.test.slug
+}`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccSamlConfigBasicUpdateEnabled = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	organization = "%s"
+	name      = "test-team"
+}
+
+resource "cloudsmith_saml" "test" {
+	organization = "%s"
+	idp_key 	= "test-idp-key-updated"
+	idp_value 	= "test-idp-value-updated"
+	role 		= "Manager"
+	enabled 	= true
 	team 		= cloudsmith_team.test.slug
 }`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
