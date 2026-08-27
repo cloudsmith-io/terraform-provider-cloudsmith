@@ -126,15 +126,40 @@ func resourceUsageLimitsUpdate(ctx context.Context, d *schema.ResourceData, m in
 func updateUsageLimits(d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	pc := m.(*providerConfig)
 	organization := requiredString(d, usageLimitsOrganization)
+	allowOpenSourceOverage := d.Get(usageLimitsAllowOpenSourceOverage).(bool)
+	bandwidthOverageLimit := int64(d.Get(usageLimitsBandwidthOverageLimit).(int))
+	storageOverageLimit := int64(d.Get(usageLimitsStorageOverageLimit).(int))
 
 	request := cloudsmithapi.NewOrganizationUsageUpdateRequestPatch()
-	request.SetAllowOpenSourceOverage(d.Get(usageLimitsAllowOpenSourceOverage).(bool))
-	request.SetBandwidthOverageLimit(int64(d.Get(usageLimitsBandwidthOverageLimit).(int)))
-	request.SetStorageOverageLimit(int64(d.Get(usageLimitsStorageOverageLimit).(int)))
+	request.SetAllowOpenSourceOverage(allowOpenSourceOverage)
+	request.SetBandwidthOverageLimit(bandwidthOverageLimit)
+	request.SetStorageOverageLimit(storageOverageLimit)
 
 	_, _, err := pc.APIClient.OrgsApi.OrgsUpdateUsageLimits(pc.Auth, organization).Data(*request).Execute()
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error updating usage limits for organization %q: %w", organization, formatAPIError(err)))
+	}
+
+	checker := func() error {
+		limits, _, err := pc.APIClient.OrgsApi.OrgsRetrieveUsageLimits(pc.Auth, organization).Execute()
+		if err != nil {
+			return formatAPIError(err)
+		}
+		if limits.GetAllowOpenSourceOverage() != allowOpenSourceOverage ||
+			limits.GetBandwidthOverageLimit() != bandwidthOverageLimit ||
+			limits.GetStorageOverageLimit() != storageOverageLimit {
+			return errKeepWaiting
+		}
+		return nil
+	}
+
+	if err := checker(); err != nil {
+		if err != errKeepWaiting {
+			return diag.FromErr(fmt.Errorf("error reading updated usage limits for organization %q: %w", organization, err))
+		}
+		if err := waiter(checker, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+			return diag.FromErr(fmt.Errorf("error waiting for usage limits for organization %q to update: %w", organization, err))
+		}
 	}
 
 	return nil

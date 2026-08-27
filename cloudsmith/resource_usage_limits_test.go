@@ -19,6 +19,7 @@ func TestResourceUsageLimitsCreate(t *testing.T) {
 	t.Parallel()
 
 	var patchBody map[string]interface{}
+	getRequests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/orgs/example-org/usage-limits/" {
 			http.Error(w, "unexpected path", http.StatusNotFound)
@@ -33,6 +34,11 @@ func TestResourceUsageLimitsCreate(t *testing.T) {
 			}
 			fmt.Fprint(w, `{"allow_open_source_overage":true,"bandwidth_overage_limit":100,"storage_overage_limit":50}`)
 		case http.MethodGet:
+			getRequests++
+			if getRequests == 1 {
+				fmt.Fprint(w, `{"allow_open_source_overage":false,"bandwidth_overage_limit":0,"storage_overage_limit":0,"bandwidth_maximum":200,"storage_maximum":150}`)
+				return
+			}
 			fmt.Fprint(w, `{"allow_open_source_overage":true,"bandwidth_overage_limit":100,"storage_overage_limit":50,"bandwidth_maximum":200,"storage_maximum":150}`)
 		default:
 			http.Error(w, "unexpected method", http.StatusMethodNotAllowed)
@@ -60,6 +66,9 @@ func TestResourceUsageLimitsCreate(t *testing.T) {
 		if got := patchBody[name]; got != want {
 			t.Errorf("unexpected PATCH field %s: got %v, want %v", name, got, want)
 		}
+	}
+	if getRequests < 2 {
+		t.Fatalf("expected usage limits to be read until updated values were visible, got %d request", getRequests)
 	}
 	assertUsageLimitsState(t, d)
 }
