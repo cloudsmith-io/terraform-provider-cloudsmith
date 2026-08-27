@@ -76,6 +76,13 @@ func TestAccService_basic(t *testing.T) {
 				),
 			},
 			{
+				Config: testAccServiceConfigBasicRemoveAllTeams,
+				Check: resource.ComposeTestCheckFunc(
+					testAccServiceCheckExists("cloudsmith_service.test"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "team.#", "0"),
+				),
+			},
+			{
 				Config: testAccServiceConfigNoAPIKey,
 				Check: resource.ComposeTestCheckFunc(
 					testAccServiceCheckExists("cloudsmith_service.test"),
@@ -320,5 +327,23 @@ resource "cloudsmith_service" "test" {
 		role = "Manager"
 		slug = cloudsmith_team.test2.slug
 	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicRemoveAllTeams = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	name         = "TF Test Team Svc"
+	organization = "%s"
+}
+
+resource "cloudsmith_team" "test2" {
+	name         = "TF Test Team Svc 2"
+	organization = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service cs"
+	organization = "%s"
+	role         = "Manager"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))

@@ -28,7 +28,7 @@ var (
 func expandTeams(d *schema.ResourceData) []cloudsmith.ServiceTeams {
 	set := d.Get("team").(*schema.Set)
 
-	teams := lo.Map(set.List(), func(x interface{}, index int) cloudsmith.ServiceTeams {
+	return lo.Map(set.List(), func(x interface{}, index int) cloudsmith.ServiceTeams {
 		m := x.(map[string]interface{})
 		t := cloudsmith.ServiceTeams{}
 		role := m["role"].(string)
@@ -39,12 +39,6 @@ func expandTeams(d *schema.ResourceData) []cloudsmith.ServiceTeams {
 
 		return t
 	})
-
-	if len(teams) == 0 {
-		return nil
-	}
-
-	return teams
 }
 
 // flattenTeams takes a slice of cloudsmith.ServiceTeams as returned by the
