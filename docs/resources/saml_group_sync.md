@@ -26,7 +26,7 @@ resource "cloudsmith_saml" "my_saml" {
 * `idp_key` - (Required) The attribute key from your provider
 * `idp_value` - (Required) The attribute value from your provider
 * `role` - (Optional) (Default to Member) The role assigned for the team (Member or Manager)
-* `enabled` - (Optional) (Default to true) Whether SAML Group Sync is enabled for the organization. This setting is shared by all SAML Group Sync mappings in the organization.
+* `enabled` - (Optional) Whether SAML Group Sync is enabled for the organization. This setting is shared by all SAML Group Sync mappings in the organization, so it is only managed when explicitly set; if omitted the current organization setting is left untouched.
 * `team` - (Required) The team associated with the configuration (The team must exist prior to creating SAML Group sync config)
 
 ## Attribute Reference

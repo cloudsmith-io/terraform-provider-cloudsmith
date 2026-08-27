@@ -65,11 +65,25 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("error waiting for SAML group sync (%s) to be created: %w", d.Id(), err)
 	}
 
-	if err := samlSetEnabled(d, m); err != nil {
-		return err
+	if samlEnabledConfigured(d) {
+		if err := samlSetEnabled(d, m); err != nil {
+			return err
+		}
 	}
 
 	return samlRead(d, m)
+}
+
+// samlEnabledConfigured reports whether `enabled` is explicitly set in the
+// configuration. It's an organization-wide setting shared by all SAML Group
+// Sync mappings, so we only manage it when the user opts in.
+func samlEnabledConfigured(d *schema.ResourceData) bool {
+	rawConfig := d.GetRawConfig()
+	if rawConfig.IsNull() || !rawConfig.IsKnown() {
+		return false
+	}
+
+	return !rawConfig.GetAttr("enabled").IsNull()
 }
 
 func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
@@ -81,21 +95,28 @@ func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
 		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnable(pc.Auth, organization)
 		_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnableExecute(req)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"error enabling SAML group sync for organization (%s): %w", organization, formatAPIError(err),
+			)
 		}
 	} else {
 		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisable(pc.Auth, organization)
 		_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisableExecute(req)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"error disabling SAML group sync for organization (%s): %w", organization, formatAPIError(err),
+			)
 		}
 	}
 
 	checkerFunc := func() error {
 		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
-		status, _, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
+		status, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
 		if err != nil {
-			return err
+			if is404(resp) {
+				return errKeepWaiting
+			}
+			return formatAPIError(err)
 		}
 		if status.GetSamlGroupSyncStatus() != enabled {
 			return errKeepWaiting
@@ -192,7 +213,7 @@ func samlDelete(d *schema.ResourceData, m interface{}) error {
 // This is a workaround for not having a proper update endpoint for SAML group sync, we are recreating the entry based on new+old values
 func samlUpdate(d *schema.ResourceData, m interface{}) error {
 	if !d.HasChanges("idp_key", "idp_value", "role", "team") {
-		if d.HasChange("enabled") {
+		if d.HasChange("enabled") && samlEnabledConfigured(d) {
 			if err := samlSetEnabled(d, m); err != nil {
 				return err
 			}
@@ -239,7 +260,7 @@ func resourceSAML() *schema.Resource {
 				Type:        schema.TypeBool,
 				Description: "Whether SAML Group Sync is enabled for the organization.",
 				Optional:    true,
-				Default:     true,
+				Computed:    true,
 			},
 			"team": {
 				Type:     schema.TypeString,
