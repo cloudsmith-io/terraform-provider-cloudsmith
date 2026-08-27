@@ -20,6 +20,11 @@ func importRepoRetentionRule(d *schema.ResourceData, meta interface{}) ([]*schem
 	return []*schema.ResourceData{d}, nil
 }
 
+// func resourceRepoRetentionRuleCreate(d *schema.ResourceData, meta interface{}) error {
+// 	pc := meta.(*providerConfig)
+// 	org := requiredString(d, "organization")
+// }
+
 func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) error {
 	pc := meta.(*providerConfig)
 
