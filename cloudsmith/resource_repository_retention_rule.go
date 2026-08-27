@@ -20,6 +20,89 @@ func importRepoRetentionRule(d *schema.ResourceData, meta interface{}) ([]*schem
 	return []*schema.ResourceData{d}, nil
 }
 
+func resourceRepoRetentionRuleCreate(d *schema.ResourceData, meta interface{}) error {
+	pc := meta.(*providerConfig)
+
+	namespace := requiredString(d, "namespace")
+	repo := requiredString(d, "repository")
+
+	// check if rule is already enabled
+	rule, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+	if err != nil {
+		return fmt.Errorf("cannot create resource: %w", err)
+	}
+	if rule.RetentionEnabled != nil && *rule.RetentionEnabled {
+		return fmt.Errorf("%s", "cannot create resource as retention rule already enabled on repository.")
+	}
+
+	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+
+	// For integer fields with defaults, we need to always send the value to handle
+	// the case where users explicitly set them to 0 (which would otherwise be
+	// indistinguishable from "not set" using GetOk)
+	retentionCountLimit := int64(d.Get("retention_count_limit").(int))
+	retentionDaysLimit := int64(d.Get("retention_days_limit").(int))
+
+	updateData := cloudsmith.RepositoryRetentionRulesRequestPatch{
+		RetentionEnabled:            optionalBool(d, "retention_enabled"),
+		RetentionGroupByName:        optionalBool(d, "retention_group_by_name"),
+		RetentionGroupByFormat:      optionalBool(d, "retention_group_by_format"),
+		RetentionGroupByPackageType: optionalBool(d, "retention_group_by_package_type"),
+		RetentionPackageQueryString: nullableString(d, "retention_package_query_string"),
+		RetentionCountLimit:         &retentionCountLimit,
+		RetentionDaysLimit:          &retentionDaysLimit,
+	}
+
+	// For retention_size_limit, we need to always send the value to handle
+	// the case where users explicitly set it to 0 (which would otherwise be
+	// indistinguishable from "not set" using GetOk)
+	retentionSizeLimit := int64(d.Get("retention_size_limit").(int))
+	updateData.RetentionSizeLimit = &retentionSizeLimit
+
+	req = req.Data(updateData)
+
+	// Execute the request
+	_, _, err = req.Execute()
+	if err != nil {
+		return fmt.Errorf("error updating repository retention rule: %w", formatAPIError(err))
+	}
+
+	d.SetId(fmt.Sprintf("%s.%s", namespace, repo))
+
+	// Wait for the API to reflect the updated retention rule values. The
+	// Cloudsmith API is eventually consistent, so a read immediately after a
+	// write may return stale values. We poll until the count limit and query
+	// string match what was submitted.
+	checkerFunc := func() error {
+		resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		if err != nil {
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if httpResp != nil && httpResp.StatusCode == 404 {
+				return errKeepWaiting
+			}
+			// For all other errors, return the original error so the caller sees the real cause.
+			return err
+		}
+		if resp.GetRetentionCountLimit() != retentionCountLimit {
+			return errKeepWaiting
+		}
+		wantQuery := d.Get("retention_package_query_string").(string)
+		gotQuery := ""
+		if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+			gotQuery = *resp.RetentionPackageQueryString.Get()
+		}
+		if gotQuery != wantQuery {
+			return errKeepWaiting
+		}
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for repository retention rule %s/%s to be updated: %w", namespace, repo, err)
+	}
+
+	return resourceRepoRetentionRuleRead(d, meta)
+}
+
 func resourceRepoRetentionRuleUpdate(d *schema.ResourceData, meta interface{}) error {
 	pc := meta.(*providerConfig)
 
@@ -149,7 +232,7 @@ func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) e
 
 func resourceRepoRetentionRule() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceRepoRetentionRuleUpdate,
+		Create: resourceRepoRetentionRuleCreate,
 		Read:   resourceRepoRetentionRuleRead,
 		Update: resourceRepoRetentionRuleUpdate,
 		Delete: resourceRepoRetentionRuleDelete,
