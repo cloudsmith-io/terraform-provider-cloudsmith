@@ -166,7 +166,9 @@ func samlRead(d *schema.ResourceData, m interface{}) error {
 					d.SetId("")
 					return nil
 				}
-				return err
+				return fmt.Errorf(
+					"error reading SAML group sync status for organization (%s): %w", organization, formatAPIError(err),
+				)
 			}
 			d.Set("enabled", status.GetSamlGroupSyncStatus())
 
