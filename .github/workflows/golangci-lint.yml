@@ -4,8 +4,11 @@ on:
     tags:
       - v*
     branches:
-      - "*"
+      - "master"
   pull_request:
+    branches:
+      - master
+
 permissions:
   contents: read
 jobs:
