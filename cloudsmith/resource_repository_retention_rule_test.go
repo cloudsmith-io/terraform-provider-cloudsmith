@@ -4,6 +4,7 @@ package cloudsmith
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -71,6 +72,24 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 	})
 }
 
+func TestAccRepositoryRetentionRule_duplicates(t *testing.T) {
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-repo-retention-rule-duplicate")
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryRetentionRuleDuplicationSetup(repositoryName),
+			},
+			{
+				Config:      testAccRepositoryRetentionRuleDuplicationFailureCase(repositoryName),
+				ExpectError: regexp.MustCompile(`already enabled`),
+			},
+		},
+		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test-retention"),
+	})
+}
+
 func testAccRepositoryRetentionRuleConfigRepository(repositoryName string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test-retention" {
@@ -119,6 +138,61 @@ resource "cloudsmith_repository_retention_rule" "test" {
 	retention_group_by_format = false
 	retention_group_by_package_type = false
 	retention_size_limit = 0
+	retention_package_query_string = "name:test"
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
+
+func testAccRepositoryRetentionRuleDuplicationSetup(repositoryName string) string {
+	return fmt.Sprintf(`resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_retention_rule" "test_a" {
+	namespace = cloudsmith_repository.test-retention.namespace
+	repository = cloudsmith_repository.test-retention.name
+	retention_enabled = false
+	retention_count_limit = 100
+	retention_days_limit = 20
+	retention_group_by_name = false
+	retention_group_by_format = false
+	retention_group_by_package_type = false
+	retention_size_limit = 10
+	retention_package_query_string = "name:test"
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
+
+func testAccRepositoryRetentionRuleDuplicationFailureCase(repositoryName string) string {
+	return fmt.Sprintf(`resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_retention_rule" "test_a" {
+	namespace = cloudsmith_repository.test-retention.namespace
+	repository = cloudsmith_repository.test-retention.name
+	retention_enabled = false
+	retention_count_limit = 100
+	retention_days_limit = 20
+	retention_group_by_name = false
+	retention_group_by_format = false
+	retention_group_by_package_type = false
+	retention_size_limit = 10
+	retention_package_query_string = "name:test"
+}
+
+resource "cloudsmith_repository_retention_rule" "test_b" {
+	namespace = cloudsmith_repository.test-retention.namespace
+	repository = cloudsmith_repository.test-retention.name
+	retention_enabled = false
+	retention_count_limit = 50
+	retention_days_limit = 12
+	retention_group_by_name = false
+	retention_group_by_format = false
+	retention_group_by_package_type = false
+	retention_size_limit = 49
 	retention_package_query_string = "name:test"
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
