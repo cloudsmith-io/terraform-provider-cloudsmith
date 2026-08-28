@@ -59,6 +59,10 @@ func TestAccRepositoryRetentionRule_basic(t *testing.T) {
 				),
 			},
 			{
+				Config:      testAccRepositoryRetentionRuleDuplicate(repositoryName),
+				ExpectError: regexp.MustCompile("retention rule already enabled"),
+			},
+			{
 				Config: testAccRepositoryRetentionRuleConfigZero(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
