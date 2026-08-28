@@ -3,7 +3,9 @@ package cloudsmith
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -11,6 +13,19 @@ import (
 
 func TestAccSaml_basic(t *testing.T) {
 	t.Parallel()
+
+	var initialEnabled bool
+	var initialEnabledCaptured bool
+	var mappingID string
+
+	t.Cleanup(func() {
+		if !initialEnabledCaptured {
+			return
+		}
+		if err := testAccSamlRestoreEnabled(initialEnabled); err != nil {
+			t.Errorf("error restoring initial SAML Group Sync status: %v", err)
+		}
+	})
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -26,7 +41,16 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Member"),
-					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", testAccSamlTeamName),
+					func(s *terraform.State) error {
+						enabled, err := strconv.ParseBool(s.RootModule().Resources["cloudsmith_saml.test"].Primary.Attributes["enabled"])
+						if err != nil {
+							return fmt.Errorf("invalid SAML Group Sync status in state: %w", err)
+						}
+						initialEnabled = enabled
+						initialEnabledCaptured = true
+						return nil
+					},
 				),
 			},
 			{
@@ -37,7 +61,15 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
-					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", testAccSamlTeamName),
+					func(s *terraform.State) error {
+						got := s.RootModule().Resources["cloudsmith_saml.test"].Primary.Attributes["enabled"]
+						want := strconv.FormatBool(initialEnabled)
+						if got != want {
+							return fmt.Errorf("omitting enabled changed SAML Group Sync status: got %q, want %q", got, want)
+						}
+						return nil
+					},
 				),
 			},
 			{
@@ -48,11 +80,50 @@ func TestAccSaml_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value-updated"),
 					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
-					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", "test-team"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", testAccSamlTeamName),
+					func(s *terraform.State) error {
+						mappingID = s.RootModule().Resources["cloudsmith_saml.test"].Primary.ID
+						return nil
+					},
+				),
+			},
+			{
+				Config: testAccSamlConfigBasicUpdateEnabled,
+				Check: resource.ComposeTestCheckFunc(
+					testAccSamlCheckExists("cloudsmith_saml.test"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "organization", os.Getenv("CLOUDSMITH_NAMESPACE")),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_key", "test-idp-key-updated"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "idp_value", "test-idp-value-updated"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "role", "Manager"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_saml.test", "team", testAccSamlTeamName),
+					func(s *terraform.State) error {
+						got := s.RootModule().Resources["cloudsmith_saml.test"].Primary.ID
+						if got != mappingID {
+							return fmt.Errorf("SAML mapping was recreated during enabled-only update: got ID %q, want %q", got, mappingID)
+						}
+						return nil
+					},
 				),
 			},
 		},
 	})
+}
+
+func testAccSamlRestoreEnabled(enabled bool) error {
+	pc := testAccProvider.Meta().(*providerConfig)
+	organization := os.Getenv("CLOUDSMITH_NAMESPACE")
+
+	if enabled {
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnable(pc.Auth, organization)
+		_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncEnableExecute(req)
+		return err
+	}
+
+	req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisable(pc.Auth, organization)
+	_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDisableExecute(req)
+	return err
 }
 
 func testAccSamlCheckDestroy(resourceName string) resource.TestCheckFunc {
@@ -110,10 +181,12 @@ func testAccSamlCheckExists(resourceName string) resource.TestCheckFunc {
 
 // create configs
 
+var testAccSamlTeamName = fmt.Sprintf("tf-acc-saml-%d", time.Now().UnixNano())
+
 var testAccSamlConfigBasic = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
 	organization = "%s"
-	name      = "test-team"
+	name      = "%s"
 }
 
 resource "cloudsmith_saml" "test" {
@@ -122,12 +195,12 @@ resource "cloudsmith_saml" "test" {
 	idp_value 	= "test-idp-value"
 	role 		= "Member"
 	team 		= cloudsmith_team.test.slug
-}`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+}`, os.Getenv("CLOUDSMITH_NAMESPACE"), testAccSamlTeamName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
 var testAccSamlConfigBasicUpdateRole = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
 	organization = "%s"
-	name      = "test-team"
+	name      = "%s"
 }
 
 resource "cloudsmith_saml" "test" {
@@ -136,12 +209,12 @@ resource "cloudsmith_saml" "test" {
 	idp_value 	= "test-idp-value"
 	role 		= "Manager"
 	team 		= cloudsmith_team.test.slug
-}`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+}`, os.Getenv("CLOUDSMITH_NAMESPACE"), testAccSamlTeamName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
 var testAccSamlConfigBasicUpdateIDP = fmt.Sprintf(`
 resource "cloudsmith_team" "test" {
 	organization = "%s"
-	name      = "test-team"
+	name      = "%s"
 }
 
 resource "cloudsmith_saml" "test" {
@@ -149,5 +222,21 @@ resource "cloudsmith_saml" "test" {
 	idp_key 	= "test-idp-key-updated"
 	idp_value 	= "test-idp-value-updated"
 	role 		= "Manager"
+	enabled 	= false
 	team 		= cloudsmith_team.test.slug
-}`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+}`, os.Getenv("CLOUDSMITH_NAMESPACE"), testAccSamlTeamName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccSamlConfigBasicUpdateEnabled = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	organization = "%s"
+	name      = "%s"
+}
+
+resource "cloudsmith_saml" "test" {
+	organization = "%s"
+	idp_key 	= "test-idp-key-updated"
+	idp_value 	= "test-idp-value-updated"
+	role 		= "Manager"
+	enabled 	= true
+	team 		= cloudsmith_team.test.slug
+}`, os.Getenv("CLOUDSMITH_NAMESPACE"), testAccSamlTeamName, os.Getenv("CLOUDSMITH_NAMESPACE"))
