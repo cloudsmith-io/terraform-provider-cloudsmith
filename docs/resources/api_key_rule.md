@@ -38,7 +38,7 @@ The following arguments are supported:
 
 * `organization` - (Required) Organization to which the rule belongs. Changing this value creates a new resource.
 * `rule_type` - (Required) The account types this rule applies to. One of: `Service Accounts`, `User Accounts`. Changing this value creates a new resource.
-* `max_age_hours` - (Optional) The maximum permitted age of an API key, in hours. API keys older than this lose access until refreshed. Omit to disable the age limit.
+* `max_age_hours` - (Optional) The maximum permitted age of an API key, in hours. Must be at least 24. API keys older than this lose access until refreshed. Omit to disable the age limit.
 * `is_enabled` - (Optional) Whether this rule is currently active and enforced.
 * `enforce_refresh` - (Optional) When enabled, API keys that violate this rule are replaced automatically.
 

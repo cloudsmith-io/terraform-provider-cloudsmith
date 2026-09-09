@@ -1,3 +1,5 @@
+// Copyright 2026 Cloudsmith Ltd
+
 package cloudsmith
 
 import (
@@ -21,6 +23,9 @@ const (
 )
 
 const ruleTypeAllAccounts = "All Accounts"
+
+// Matches the minimum the API enforces, so a bad value fails at plan time.
+const minAPIKeyRuleMaxAgeHours = 24
 
 var apiKeyRuleTypes = []string{"Service Accounts", "User Accounts"}
 
@@ -199,7 +204,8 @@ func resourceAPIKeyRule() *schema.Resource {
 				Type: schema.TypeInt,
 				Description: "The maximum permitted age of an API key, in hours. API keys older than " +
 					"this lose access until refreshed. Omit to disable the age limit.",
-				Optional: true,
+				Optional:     true,
+				ValidateFunc: validation.IntAtLeast(minAPIKeyRuleMaxAgeHours),
 			},
 			Organization: {
 				Type:         schema.TypeString,
