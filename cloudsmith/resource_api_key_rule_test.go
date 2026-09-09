@@ -54,6 +54,12 @@ func TestAccOrgAPIKeyRule_userAccounts(t *testing.T) {
 				),
 			},
 			{
+				Config: testOrgAPIKeyRuleUserNoMaxAge,
+				Check: resource.ComposeTestCheckFunc(
+					testOrgAPIKeyRuleCheckMaxAgeUnset("cloudsmith_api_key_rule.test_user"),
+				),
+			},
+			{
 				ResourceName:      "cloudsmith_api_key_rule.test_user",
 				ImportState:       true,
 				ImportStateIdFunc: testOrgAPIKeyRuleImportStateID("cloudsmith_api_key_rule.test_user"),
@@ -165,6 +171,33 @@ func testOrgAPIKeyRuleCheckExists(resourceName string) resource.TestCheckFunc {
 }
 
 //nolint:err113
+func testOrgAPIKeyRuleCheckMaxAgeUnset(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		pc := testAccProvider.Meta().(*providerConfig)
+
+		req := pc.APIClient.OrgsApi.OrgsApiKeyRulesRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		apiKeyRule, resp, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesReadExecute(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if apiKeyRule.MaxAgeHours.IsSet() && apiKeyRule.MaxAgeHours.Get() != nil {
+			return fmt.Errorf(
+				"expected max_age_hours to be unset, got: %d", *apiKeyRule.MaxAgeHours.Get(),
+			)
+		}
+
+		return nil
+	}
+}
+
+//nolint:err113
 func testOrgAPIKeyRuleImportStateID(resourceName string) resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -215,6 +248,15 @@ resource "cloudsmith_api_key_rule" "test_user" {
 	organization    = "%s"
 	rule_type       = "User Accounts"
 	max_age_hours   = 876024
+	is_enabled      = false
+	enforce_refresh = true
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testOrgAPIKeyRuleUserNoMaxAge = fmt.Sprintf(`
+resource "cloudsmith_api_key_rule" "test_user" {
+	organization    = "%s"
+	rule_type       = "User Accounts"
 	is_enabled      = false
 	enforce_refresh = true
 }

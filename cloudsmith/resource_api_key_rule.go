@@ -29,6 +29,15 @@ const minAPIKeyRuleMaxAgeHours = 24
 
 var apiKeyRuleTypes = []string{"Service Accounts", "User Accounts"}
 
+func apiKeyRuleMaxAgeHours(d *schema.ResourceData) cloudsmith.NullableInt64 {
+	var maxAge *int64
+	if hours := int64(d.Get(MaxAgeHours).(int)); hours > 0 {
+		maxAge = &hours
+	}
+
+	return *cloudsmith.NewNullableInt64(maxAge)
+}
+
 func importAPIKeyRule(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.Split(d.Id(), ".")
 	if len(idParts) != 2 {
@@ -51,7 +60,7 @@ func resourceAPIKeyRuleCreate(d *schema.ResourceData, m interface{}) error {
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequest{
 		EnforceRefresh: optionalBool(d, EnforceRefresh),
 		IsEnabled:      optionalBool(d, IsEnabled),
-		MaxAgeHours:    nullableInt64(d, MaxAgeHours),
+		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
 		RuleType:       requiredString(d, RuleType),
 	})
 
@@ -127,7 +136,7 @@ func resourceAPIKeyRuleUpdate(d *schema.ResourceData, m interface{}) error {
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequestPatch{
 		EnforceRefresh: optionalBool(d, EnforceRefresh),
 		IsEnabled:      optionalBool(d, IsEnabled),
-		MaxAgeHours:    nullableInt64(d, MaxAgeHours),
+		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
 	})
 
 	apiKeyRule, _, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesPartialUpdateExecute(req)

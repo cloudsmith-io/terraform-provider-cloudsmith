@@ -60,4 +60,4 @@ This resource can be imported using the organization slug and the rule's `slug_p
 terraform import cloudsmith_api_key_rule.user_keys my-organization.utp-abc123xyz456
 ```
 
-Rules created outside of Terraform, such as in the Cloudsmith UI, must be imported before Terraform can manage them. Without this, an apply fails because a rule already exists for that organization and account type.
+Rules created outside of Terraform, such as in the Cloudsmith web app, must be imported before Terraform can manage them. Without this, an apply fails because a rule already exists for that organization and account type.
