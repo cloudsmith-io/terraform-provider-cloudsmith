@@ -1,5 +1,7 @@
 # Repository Retention Rules Resource
 
+**Note: use of this resource is discouraged; prefer the `retention_rule` block on the [repository resource](repository.md).** Because this resource targets a repository by name, nothing prevents several instances of it from pointing at the same repository, and each apply will clobber the others' settings. The nested block is limited to one rule per repository, so that can't happen. Manage a repository's retention rule with one or the other, never both.
+
 The repository retention rules resource allows the management of retention rules for a given Cloudsmith repository. Using this resource, it is possible to define rules that control the retention of packages based on various criteria such as count, days, size, and grouping.
 
 Note that while retention rules can be managed in this manner, changes made outside of Terraform may not be reflected in the Terraform state.
