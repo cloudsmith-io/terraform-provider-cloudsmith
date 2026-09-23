@@ -104,7 +104,155 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+	if len(d.Get("retention_rule").([]interface{})) > 0 {
+		if err := resourceRepositoryRetentionRuleUpdate(d, m); err != nil {
+			return err
+		}
+	}
+
 	return resourceRepositoryRead(d, m)
+}
+
+// resourceRepositoryRetentionRuleUpdate applies the `retention_rule` block (if
+// any) to the repository. A repository has at most one retention rule, which
+// the API exposes as a set of repository settings managed via a partial update
+// (PATCH), so the block is limited to a single item and removing it disables
+// retention rather than deleting anything.
+func resourceRepositoryRetentionRuleUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+
+	namespace := requiredString(d, "namespace")
+	repo := d.Id()
+
+	rules := d.Get("retention_rule").([]interface{})
+	if len(rules) == 0 {
+		req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo).Data(
+			cloudsmith.RepositoryRetentionRulesRequestPatch{
+				RetentionEnabled: cloudsmith.PtrBool(false),
+			},
+		)
+		if _, httpResp, err := req.Execute(); err != nil {
+			if is404(httpResp) {
+				return nil
+			}
+			return fmt.Errorf("error disabling repository retention rule: %w", formatAPIError(err))
+		}
+		checkerFunc := func() error {
+			resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+			if err != nil {
+				if is404(httpResp) {
+					return errKeepWaiting
+				}
+				return err
+			}
+			if resp.GetRetentionEnabled() {
+				return errKeepWaiting
+			}
+			return nil
+		}
+		if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+ 			return fmt.Errorf("error waiting for repository retention rule %s/%s to be disabled: %w", namespace, repo, err)
+ 		}
+		return nil
+	}
+
+	rule, ok := rules[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid retention_rule block for repository %s/%s", namespace, repo)
+	}
+
+	// All values are sent unconditionally: the integer fields have defaults, so
+	// omitting them when a user explicitly sets them to 0 would be
+	// indistinguishable from "not set".
+	retentionCountLimit := int64(rule["retention_count_limit"].(int))
+	retentionDaysLimit := int64(rule["retention_days_limit"].(int))
+	retentionSizeLimit := int64(rule["retention_size_limit"].(int))
+	retentionQueryString := rule["retention_package_query_string"].(string)
+
+	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+	req = req.Data(cloudsmith.RepositoryRetentionRulesRequestPatch{
+		RetentionEnabled:            cloudsmith.PtrBool(rule["retention_enabled"].(bool)),
+		RetentionGroupByName:        cloudsmith.PtrBool(rule["retention_group_by_name"].(bool)),
+		RetentionGroupByFormat:      cloudsmith.PtrBool(rule["retention_group_by_format"].(bool)),
+		RetentionGroupByPackageType: cloudsmith.PtrBool(rule["retention_group_by_package_type"].(bool)),
+		RetentionPackageQueryString: *cloudsmith.NewNullableString(&retentionQueryString),
+		RetentionCountLimit:         &retentionCountLimit,
+		RetentionDaysLimit:          &retentionDaysLimit,
+		RetentionSizeLimit:          &retentionSizeLimit,
+	})
+
+	if _, _, err := req.Execute(); err != nil {
+		return fmt.Errorf("error updating repository retention rule: %w", formatAPIError(err))
+	}
+
+	// Wait for the API to reflect the updated retention rule values. The
+	// Cloudsmith API is eventually consistent, so a read immediately after a
+	// write may return stale values. We poll until the count limit and query
+	// string match what was submitted.
+	checkerFunc := func() error {
+		resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		if err != nil {
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if is404(httpResp) {
+				return errKeepWaiting
+			}
+			// For all other errors, return the original error so the caller sees the real cause.
+			return err
+		}
+		if resp.GetRetentionCountLimit() != retentionCountLimit {
+			return errKeepWaiting
+		}
+		gotQuery := ""
+		if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+			gotQuery = *resp.RetentionPackageQueryString.Get()
+		}
+		if gotQuery != retentionQueryString {
+			return errKeepWaiting
+		}
+		return nil
+	}
+	if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for repository retention rule %s/%s to be updated: %w", namespace, repo, err)
+	}
+
+	return nil
+}
+
+// resourceRepositoryRetentionRuleRead refreshes the `retention_rule` block from
+// the API. Retention settings always exist for a repository, so we only track
+// them when the user has opted in by declaring the block; otherwise every
+// repository without one would permanently show a diff.
+func resourceRepositoryRetentionRuleRead(d *schema.ResourceData, m interface{}) error {
+	if len(d.Get("retention_rule").([]interface{})) == 0 {
+		return nil
+	}
+
+	pc := m.(*providerConfig)
+
+	namespace := requiredString(d, "namespace")
+
+	resp, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, d.Id()).Execute()
+	if err != nil {
+		return fmt.Errorf("error reading repository retention rule: %w", formatAPIError(err))
+	}
+
+	retentionQueryString := ""
+	if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+		retentionQueryString = *resp.RetentionPackageQueryString.Get()
+	}
+
+	return d.Set("retention_rule", []interface{}{
+		map[string]interface{}{
+			"retention_count_limit":           int(resp.GetRetentionCountLimit()),
+			"retention_days_limit":            int(resp.GetRetentionDaysLimit()),
+			"retention_enabled":               resp.GetRetentionEnabled(),
+			"retention_group_by_format":       resp.GetRetentionGroupByFormat(),
+			"retention_group_by_name":         resp.GetRetentionGroupByName(),
+			"retention_group_by_package_type": resp.GetRetentionGroupByPackageType(),
+			"retention_size_limit":            int(resp.GetRetentionSizeLimit()),
+			"retention_package_query_string":  retentionQueryString,
+		},
+	})
 }
 
 func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
@@ -188,7 +336,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	// passed.
 	d.SetId(repository.GetSlugPerm())
 
-	return nil
+	return resourceRepositoryRetentionRuleRead(d, m)
 }
 
 func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
@@ -255,6 +403,12 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 
 	if err := waitForUpdate("repository", d.Id()); err != nil {
 		return err
+	}
+
+	if d.HasChange("retention_rule") {
+		if err := resourceRepositoryRetentionRuleUpdate(d, m); err != nil {
+			return err
+		}
 	}
 
 	return resourceRepositoryRead(d, m)
@@ -539,6 +693,75 @@ func resourceRepository() *schema.Resource {
 				Optional:     true,
 				Default:      "Private",
 				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
+			},
+			"retention_rule": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Description: "The retention rule for the repository. A repository has at most one retention " +
+					"rule, which controls how packages are retained based on count, age, size and grouping. " +
+					"Removing the block disables retention for the repository.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"retention_count_limit": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							Default:      100,
+							Description:  "The maximum number of packages to retain. Must be between 0 and 10000.",
+							ValidateFunc: validation.IntBetween(0, 10000),
+						},
+						"retention_days_limit": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  28,
+							Description: "The number of days of packages to retain. Must be between 0 and 180. " +
+								"Defaults to 28 days.",
+							ValidateFunc: validation.IntBetween(0, 180),
+						},
+						"retention_enabled": {
+							Type:     schema.TypeBool,
+							Required: true,
+							Description: "If true, the retention lifecycle rules will be activated for the " +
+								"repository and settings will be updated.",
+						},
+						"retention_group_by_format": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to packages by package formats rather " +
+								"than across all package formats.",
+						},
+						"retention_group_by_name": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to groups of packages by name rather " +
+								"than all packages.",
+						},
+						"retention_group_by_package_type": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to packages by package type rather than " +
+								"across all package types for one or more formats.",
+						},
+						"retention_size_limit": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  0,
+							Description: "The maximum total size (in bytes) of packages to retain. Must be " +
+								"between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+							ValidateFunc: validation.IntBetween(0, 21474836480),
+						},
+						"retention_package_query_string": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "",
+							Description: "A package search expression which, if provided, filters the packages " +
+								"to be deleted.",
+						},
+					},
+				},
 			},
 			"resync_own": {
 				Type: schema.TypeBool,

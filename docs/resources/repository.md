@@ -23,6 +23,27 @@ resource "cloudsmith_repository" "my_repository" {
 }
 ```
 
+Retention rules are configured as a nested block on the repository:
+
+```hcl
+resource "cloudsmith_repository" "my_repository" {
+    description = "A certifiably-awesome private package repository"
+    name        = "My Repository"
+    namespace   = "${data.cloudsmith_organization.my_organization.slug_perm}"
+    slug        = "my-repository"
+
+    retention_rule {
+        retention_enabled               = true
+        retention_count_limit           = 100
+        retention_days_limit            = 28
+        retention_group_by_name         = false
+        retention_group_by_format       = false
+        retention_group_by_package_type = false
+        retention_size_limit            = 200000
+    }
+}
+```
+
 ## Argument Reference
 
 * `broadcast_state` - (Optional) The broadcast state of the repository. Controls repository visibility and access level for broadcasts. Valid values include `Off`, `Private`, `Internal`, `Public`, and `Open-Source`. Defaults to `Off`.
@@ -49,6 +70,7 @@ resource "cloudsmith_repository" "my_repository" {
 * `replace_packages` - (Optional) This defines the minimum level of privilege required for a user to republish packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific republish setting. Please note that the user still requires the privilege to delete packages that will be replaced by the new package; otherwise the republish will fail. Valid values include `Admin` and `Write`.
 * `replace_packages_by_default` - (Optional) If set to `true`, uploaded packages will overwrite/replace any others with the same attributes (e.g. same version) by default. This only applies if the user has the required privilege for the republishing AND has the required privilege to delete existing packages that they don't own.
 * `repository_type` - (Optional) The repository type changes how it is accessed and billed. Private repositories can only be used on paid plans, but are visible only to you or authorised delegates. Public repositories are free to use on all plans and visible to all Cloudsmith users.
+* `retention_rule` - (Optional) A nested block configuring the repository's retention rule. A repository has at most one retention rule, so no more than one block may be declared. Removing the block disables retention for the repository. See [Retention Rule](#retention-rule) below.
 * `resync_own` - (Optional) If set to `true`, users can resync any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 * `resync_packages` - (Optional) This defines the minimum level of privilege required for a user to resync packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific resync setting. Valid values include `Admin` and `Write`.
 * `scan_own` - (Optional) If set to `true`, users can scan any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
@@ -78,6 +100,21 @@ resource "cloudsmith_repository" "my_repository" {
 * `user_entitlements_enabled` - (Optional) If set to `true`, users can use and manage their own user-specific entitlement token for the repository (if private). Otherwise, user-specific entitlements are disabled for all users.
 * `view_statistics` - (Optional) This defines the minimum level of privilege required for a user to view repository statistics, to include entitlement-based usage, if applicable. If a user does not have the permission, they won't be able to view any statistics, either via the UI, API or CLI. Valid values include `Admin`, `Write`, and `Read`.
 * `wait_for_deletion` - (Optional) If true, terraform will wait for a repository to be permanently deleted before finishing.
+
+### Retention Rule
+
+The `retention_rule` block supports the following arguments. Retention settings are applied to the repository with a partial update, and only take effect once `retention_enabled` is `true`.
+
+* `retention_enabled` - (Required) If true, the retention lifecycle rules will be activated for the repository and settings will be updated.
+* `retention_count_limit` - (Optional) The maximum number of packages to retain. Must be between `0` and `10000`. Defaults to `100`.
+* `retention_days_limit` - (Optional) The number of days of packages to retain. Must be between `0` and `180`. Defaults to `28`.
+* `retention_group_by_name` - (Optional) If true, retention will apply to groups of packages by name rather than all packages. Defaults to `false`.
+* `retention_group_by_format` - (Optional) If true, retention will apply to packages by package formats rather than across all package formats. Defaults to `false`.
+* `retention_group_by_package_type` - (Optional) If true, retention will apply to packages by package type rather than across all package types for one or more formats. Defaults to `false`.
+* `retention_size_limit` - (Optional) The maximum total size (in bytes) of packages to retain. Must be between `0` and `21474836480` (21.47 GB / 21474.83 MB). Defaults to `0`.
+* `retention_package_query_string` - (Optional) A package search expression which, if provided, filters the packages to be deleted. For example, `name:foo` will only delete packages called 'foo'.
+
+Retention settings always exist on a repository, so the block is only tracked when it is declared. If the block is omitted, retention settings are left as-is; if a previously declared block is removed, retention is disabled.
 
 ## Attribute Reference
 

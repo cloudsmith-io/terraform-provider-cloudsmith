@@ -204,3 +204,147 @@ resource "cloudsmith_repository" "test" {
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 }
+
+// TestAccRepositoryRetentionRule_subresource verifies the `retention_rule`
+// sub-resource: that it is applied on create, updated in place, that only one
+// rule can be declared per repository, and that removing the block disables
+// retention.
+func TestAccRepositoryRetentionRule_subresource(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := testAccUniqueRepositoryName("terraform-acc-repo-retention")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test-retention"),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryConfigRetentionRule(repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_count_limit", "100"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_days_limit", "28"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_package_query_string", "name:test"),
+				),
+			},
+			{
+				Config: testAccRepositoryConfigRetentionRuleUpdate(repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_count_limit", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_days_limit", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_size_limit", "0"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.0.retention_group_by_name", "true"),
+				),
+			},
+			{
+				Config:      testAccRepositoryConfigRetentionRuleDuplicate(repositoryName),
+				ExpectError: regexp.MustCompile(`No more than 1 "retention_rule" blocks are allowed`),
+			},
+			{
+				Config: testAccRepositoryConfigBasicRetention(repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccRepositoryCheckExists("cloudsmith_repository.test-retention"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test-retention", "retention_rule.#", "0"),
+					testAccRepositoryCheckRetentionDisabled("cloudsmith_repository.test-retention"),
+				),
+			},
+		},
+	})
+}
+
+//nolint:err113
+func testAccRepositoryCheckRetentionDisabled(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		pc := testAccProvider.Meta().(*providerConfig)
+
+		rule, _, err := pc.APIClient.ReposApi.RepoRetentionRead(
+			pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID,
+		).Execute()
+		if err != nil {
+			return fmt.Errorf("unable to read repository retention rule: %w", err)
+		}
+
+		if rule.GetRetentionEnabled() {
+			return fmt.Errorf("retention is still enabled for repository: %s", resourceState.Primary.ID)
+		}
+
+		return nil
+	}
+}
+
+func testAccRepositoryConfigBasicRetention(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
+
+func testAccRepositoryConfigRetentionRule(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+
+	retention_rule {
+		retention_enabled               = true
+		retention_count_limit           = 100
+		retention_days_limit            = 28
+		retention_group_by_name         = false
+		retention_group_by_format       = false
+		retention_group_by_package_type = false
+		retention_size_limit            = 0
+		retention_package_query_string  = "name:test"
+	}
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
+
+func testAccRepositoryConfigRetentionRuleUpdate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+
+	retention_rule {
+		retention_enabled               = true
+		retention_count_limit           = 0
+		retention_days_limit            = 0
+		retention_group_by_name         = true
+		retention_group_by_format       = false
+		retention_group_by_package_type = false
+		retention_size_limit            = 0
+		retention_package_query_string  = "name:test"
+	}
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
+
+func testAccRepositoryConfigRetentionRuleDuplicate(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test-retention" {
+	name      = "%s"
+	namespace = "%s"
+
+	retention_rule {
+		retention_enabled     = true
+		retention_count_limit = 100
+	}
+
+	retention_rule {
+		retention_enabled     = true
+		retention_count_limit = 50
+	}
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+}
