@@ -1,3 +1,6 @@
+# Copyright Cloudsmith 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_repository" "repositories" {
   for_each                  = var.repositories
   description               = "${title(each.key)} repository"

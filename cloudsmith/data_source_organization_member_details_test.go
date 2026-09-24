@@ -1,3 +1,6 @@
+// Copyright Cloudsmith 2026
+// SPDX-License-Identifier: MPL-2.0
+
 //nolint:testpackage
 
 package cloudsmith

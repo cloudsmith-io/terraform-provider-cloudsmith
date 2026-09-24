@@ -1,3 +1,6 @@
+# Copyright Cloudsmith 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_oidc" "org-oidc" {
   for_each         = var.repositories
   namespace        = data.cloudsmith_organization.cloudsmith-org.slug

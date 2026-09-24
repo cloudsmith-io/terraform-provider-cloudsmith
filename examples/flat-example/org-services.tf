@@ -1,3 +1,6 @@
+# Copyright Cloudsmith 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_service" "devops-service" {
   name         = "devops-service"
   organization = data.cloudsmith_organization.org-demo.slug

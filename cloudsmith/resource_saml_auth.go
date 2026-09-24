@@ -1,3 +1,6 @@
+// Copyright Cloudsmith 2026
+// SPDX-License-Identifier: MPL-2.0
+
 // Package cloudsmith provides Terraform provider functionality for managing Cloudsmith resources.
 package cloudsmith
 

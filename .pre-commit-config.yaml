@@ -1,3 +1,6 @@
+# Copyright Cloudsmith 2026
+# SPDX-License-Identifier: MPL-2.0
+
 repos:
   - repo: https://github.com/dnephin/pre-commit-golang
     rev: v0.5.1
