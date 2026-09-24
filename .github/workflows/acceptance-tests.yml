@@ -1,5 +1,4 @@
 name: Acceptance
-
 on:
   push:
     branches:
@@ -8,15 +7,19 @@ on:
     branches:
       - master
 
+concurrency:
+  group: acceptance-tests
+  cancel-in-progress: false
+  queue: max
+
 permissions:
   contents: read
-
 jobs:
-  compile:
-    name: Compile
+  generate:
+    name: Generate tests
     runs-on: ubuntu-latest
-    concurrency:
-      group: global
+    outputs:
+      tests: ${{ steps.list.outputs.tests }}
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -27,6 +30,15 @@ jobs:
       with:
         go-version-file: 'go.mod'
       id: go
+    - name: Create test batches
+      id: list
+      run: |
+        #!/usr/bin/env bash
+        tests=$(go test -list '^Test' -json ./... | \
+        jq -nc '[inputs | select((.Output // "")
+        | startswith("Test"))
+        | {pkg: .Package, test: (.Output | rtrimstr("\n"))}]')
+        echo tests="$tests" > "$GITHUB_OUTPUT"
     - name: Compile test binary
       id: compile
       run: go test -c -o cloudsmith.test ./cloudsmith
@@ -34,19 +46,28 @@ jobs:
       with:
         name: testbin
         path: cloudsmith.test
-  tests:
-    name: Run tests
-    runs-on: ubuntu-latest
+  test:
+    needs: generate
+    runs-on: ubuntu-slim
+    name: ${{ matrix.test }}
+    strategy:
+      fail-fast: false # don't cancel siblings when one flakes
+      max-parallel: 32
+      matrix:
+        include: ${{ fromJSON(needs.generate.outputs.tests) }}
     steps:
-    - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        name: testbin
-    - name: Install Terraform
-      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-      with:
-        terraform_wrapper: false
-    - run: chmod +x ./cloudsmith.test
-    - run: TF_ACC=1 TF_ACC_TERRAFORM_PATH=$(which terraform) ./cloudsmith.test -test.v
-      env:
-        CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
-        CLOUDSMITH_NAMESPACE: terraform-provider-testing
+     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+       with:
+         persist-credentials: false
+     - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+       with:
+         name: testbin
+     - name: Install Terraform
+       uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+       with:
+         terraform_wrapper: false
+     - run: chmod +x cloudsmith.test
+     - run: TF_ACC=1 TF_ACC_TERRAFORM_PATH=$(which terraform) ./cloudsmith.test -test.v -test.run '^${{ matrix.test }}$'
+       env:
+         CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
+         CLOUDSMITH_NAMESPACE: terraform-provider-testing
