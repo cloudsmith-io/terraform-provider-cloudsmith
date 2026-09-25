@@ -262,7 +262,7 @@ func Int64AtMost(maximum int64) schema.SchemaValidateDiagFunc {
 
 func resourceRepoRetentionRule() *schema.Resource {
 	return &schema.Resource{
-		Description: "**Note: use of this resource is discouraged; prefer the `retention_rule` block on the [repository resource](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/repository).** Because this resource targets a repository by name, nothing prevents several instances of it from pointing at the same repository, and each apply will clobber the others' settings. The nested block is limited to one rule per repository, so that can't happen. Manage a repository's retention rule with one or the other, never both.\n\n" +
+		Description: "!> This resource is deprecated and will be removed in future. Use the `retention_rule` block on the [repository resource](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/repository). Because this resource targets a repository by name, nothing prevents several instances of it from pointing at the same repository, and each apply will clobber the others' settings. The nested block is limited to one rule per repository, so that can't happen. Manage a repository's retention rule with one or the other, never both.\n\n" +
 			"The repository retention rules resource allows the management of retention rules for a given Cloudsmith repository. Using this resource, it is possible to define rules that control the retention of packages based on various criteria such as count, days, size, and grouping.\n\n" +
 			"Note that while retention rules can be managed in this manner, changes made outside of Terraform may not be reflected in the Terraform state.\n\n" +
 			"**Note: Retention rule settings are only applied once retention is enabled for the repository.**\n\n" +
@@ -272,6 +272,9 @@ func resourceRepoRetentionRule() *schema.Resource {
 		Read:   resourceRepoRetentionRuleRead,
 		Update: resourceRepoRetentionRuleUpdate,
 		Delete: resourceRepoRetentionRuleDelete,
+
+		DeprecationMessage: "This resource can have destructive effects if misconfigured. Please use cloudsmith_repository.retention_rule instead",
+
 		Importer: &schema.ResourceImporter{
 			State: importRepoRetentionRule,
 		},
