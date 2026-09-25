@@ -1,3 +1,6 @@
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_saml" "owners_mapping" {
   organization = data.cloudsmith_organization.org-demo.slug
   idp_key      = "administrators"
