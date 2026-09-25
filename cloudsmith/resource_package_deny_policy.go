@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -150,7 +153,7 @@ func packageDenyPolicy() *schema.Resource {
 			},
 			"enabled": {
 				Type:        schema.TypeBool,
-				Description: "Is the package deny policy enabled?.",
+				Description: "Whether the package deny policy is enabled.",
 				Optional:    true,
 				Default:     true,
 			},

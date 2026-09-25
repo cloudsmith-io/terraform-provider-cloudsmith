@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -287,6 +290,8 @@ func customizeDiffPolicyActionType(_ context.Context, d *schema.ResourceDiff, _ 
 
 func resourcePolicyAction() *schema.Resource {
 	return &schema.Resource{
+		Description: "Attaches an effect to a [`cloudsmith_policy`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy) (policy as code only). Each action is one of three typed shapes: `set_package_state`, `add_package_tags`, or `remove_package_tags`. Exactly one block must be set. Switching between them forces resource replacement, because the API exposes a separate typed resource per kind.",
+
 		CreateContext: resourcePolicyActionCreate,
 		ReadContext:   resourcePolicyActionRead,
 		UpdateContext: resourcePolicyActionUpdate,

@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -142,6 +145,9 @@ func resourceTeamDelete(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func resourceTeam() *schema.Resource {
 	return &schema.Resource{
+		Description: "The teams resource allows creation and management of teams within a Cloudsmith organization.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/accounts-and-teams/teams) for full team documentation.",
+
 		Create: resourceTeamCreate,
 		Read:   resourceTeamRead,
 		Update: resourceTeamUpdate,

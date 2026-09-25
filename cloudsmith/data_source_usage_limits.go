@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -11,6 +14,8 @@ import (
 
 func dataSourceUsageLimits() *schema.Resource {
 	return &schema.Resource{
+		Description: "The usage limits data source reads the current on-demand usage settings and plan-specific maximum values for a Cloudsmith organization without managing them.",
+
 		ReadContext: dataSourceUsageLimitsRead,
 
 		Schema: map[string]*schema.Schema{

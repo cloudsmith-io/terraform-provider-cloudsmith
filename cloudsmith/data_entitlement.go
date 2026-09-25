@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -93,6 +96,8 @@ func dataSourceEntitlementRead(d *schema.ResourceData, m interface{}) error {
 
 func dataSourceEntitlementList() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `entitlement_tokens` data source allows for retrieval of a list of entitlement tokens within a given repository.",
+
 		Read: dataSourceEntitlementRead,
 
 		Schema: map[string]*schema.Schema{
@@ -120,7 +125,7 @@ func dataSourceEntitlementList() *schema.Resource {
 			},
 			"active_token": {
 				Type:        schema.TypeBool,
-				Description: "If true, only include active tokens",
+				Description: "If true, only include active tokens.",
 				Optional:    true,
 				Default:     false,
 			},

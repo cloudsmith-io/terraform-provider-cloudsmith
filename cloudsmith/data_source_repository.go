@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -78,6 +81,8 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func dataSourceRepository() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `repository` data source retrieves information about a given repository.",
+
 		Read: dataSourceRepositoryRead,
 
 		Schema: map[string]*schema.Schema{

@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -27,27 +30,29 @@ func dataSourceUserSelfRead(d *schema.ResourceData, m interface{}) error {
 // that provides information about the currently authenticated user.
 func dataSourceUserSelf() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `cloudsmith_user_self` data source provides information about the currently authenticated user.",
+
 		Read: dataSourceUserSelfRead,
 
 		Schema: map[string]*schema.Schema{
 			"email": {
 				Type:        schema.TypeString,
-				Description: "The authenticated account's email address, or an empty string if none is provided (for example, a service account)",
+				Description: "The authenticated account's email address, or an empty string if none is provided (for example, a service account).",
 				Computed:    true,
 			},
 			"name": {
 				Type:        schema.TypeString,
-				Description: "The user's full name",
+				Description: "The user's full name.",
 				Computed:    true,
 			},
 			"slug": {
 				Type:        schema.TypeString,
-				Description: "The slug identifies the user in URIs",
+				Description: "The slug identifies the user in URIs.",
 				Computed:    true,
 			},
 			"slug_perm": {
 				Type:        schema.TypeString,
-				Description: "The slug_perm immutably identifies the user",
+				Description: "The slug_perm immutably identifies the user.",
 				Computed:    true,
 			},
 		},

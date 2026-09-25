@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -30,6 +33,8 @@ func dataSourceNamespace() *schema.Resource {
 		DeprecationMessage: "use cloudsmith_organization data source instead",
 
 		Read: dataSourceNamespaceRead,
+		Description: "!> **WARNING:** This data source is deprecated and will be removed in future. Use `cloudsmith_organization` instead.\n" +
+			"The `namespace` data source allows fetching of metadata about a given Cloudsmith namespace. The fetched data can be used to resolve permanent identifiers from a namespace's user-facing name. These identifiers can then be passed to other resources to allow more consistent identification as user-facing names can change.",
 
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -51,7 +56,7 @@ func dataSourceNamespace() *schema.Resource {
 			},
 			"type_name": {
 				Type:        schema.TypeString,
-				Description: "Is this a user or an organization namespace?",
+				Description: "Whether this is a user or an organization namespace.",
 				Computed:    true,
 			},
 		},

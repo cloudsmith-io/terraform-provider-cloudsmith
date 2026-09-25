@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -141,6 +144,10 @@ func entitlementControlDelete(d *schema.ResourceData, m interface{}) error {
 
 func resourceEntitlementControl() *schema.Resource {
 	return &schema.Resource{
+		Description: "The entitlement control resource allows enabling and disabling of existing Entitlement tokens for a given Cloudsmith repository. This provides a way to manage the active state of entitlement tokens without modifying their other properties.\n\n" +
+			"> ⚠️ **We highly recommend controlling the entitlement token with the [`cloudsmith_entitlement` resource](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/entitlement) and the `is_active` flag which controls the same setting. The purpose of this resource is to manage the \"Default\" entitlement token which is created by default for all repositories.**\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/software-distribution/entitlement-tokens) for full entitlement documentation.",
+
 		Create: entitlementControlCreate,
 		Read:   entitlementControlRead,
 		Update: entitlementControlUpdate,

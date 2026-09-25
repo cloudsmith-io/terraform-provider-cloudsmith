@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -179,6 +182,9 @@ func resourceRepositoryGeoIpRulesDelete(d *schema.ResourceData, m interface{}) e
 //nolint:funlen
 func resourceRepositoryGeoIpRules() *schema.Resource {
 	return &schema.Resource{
+		Description: "The repository geo/ip rules resource allows the management of geo/ip rules for a given Cloudsmith repository. Using this resource it is possible to allow and/or deny access to a repository using CIDR notation, two-character ISO 3166-1 country codes or a combination thereof.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/policy-management/geoip-rules) for full geo/ip rules documentation.",
+
 		Create: resourceRepositoryGeoIpRulesCreate,
 		Read:   resourceRepositoryGeoIpRulesRead,
 		Update: resourceRepositoryGeoIpRulesUpdate,

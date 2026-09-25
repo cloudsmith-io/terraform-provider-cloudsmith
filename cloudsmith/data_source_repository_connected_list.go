@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -11,6 +14,9 @@ import (
 
 func dataSourceRepositoryConnectedList() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `cloudsmith_repository_connected_list` data source returns all connected repositories configured for a given source repository.\n\n" +
+			"By default, each source repository has a soft limit of 5 connected repositories. Contact Cloudsmith support if you need this limit increased.",
+
 		Read: dataSourceRepositoryConnectedListRead,
 
 		Schema: map[string]*schema.Schema{

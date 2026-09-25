@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -136,6 +139,8 @@ func resourceManageTeamRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceManageTeam() *schema.Resource {
 	return &schema.Resource{
+		Description: "This resource is used to manage teams in Cloudsmith. It allows you to add, update, and remove team members.",
+
 		Create: resourceManageTeamReplace,
 		Read:   resourceManageTeamRead,
 		Update: resourceManageTeamUpdateRemove,

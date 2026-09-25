@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -384,6 +387,13 @@ func resourceRepositoryPrivilegesDelete(d *schema.ResourceData, m interface{}) e
 //nolint:funlen
 func resourceRepositoryPrivileges() *schema.Resource {
 	return &schema.Resource{
+		Description: "The repository privileges resource allows the management of privileges for a given Cloudsmith repository. Using this resource it is possible to assign users, teams, or service accounts to a repository, and define the appropriate permission level for each.\n\n" +
+			"When this resource is destroyed, the provider removes its managed grants but retains an explicit Admin grant for the authenticated user or service account. If access was team-based, the provider creates that direct grant during deletion. This prevents Terraform from revoking its own authority before a dependent repository is deleted. Destruction fails safely if the authenticated account type cannot be resolved.\n\n" +
+			"Note that while users can be added to repositories in this manner, since Terraform does not (and cannot currently) manage those user accounts, you may encounter issues if the users change or are deleted outside of Terraform.\n\n" +
+			"~> **Important:** When a repository is first created in Cloudsmith, the creating account (user or service account that owns the API key) is automatically granted an implicit Admin privilege.\n\n" +
+			"When you later manage privileges via this resource, you must explicitly include that account (using a `user` or `service` block with the appropriate `slug`). Otherwise, the provider will refuse to apply the change to prevent locking you out. You will still be able to apply changes if a `team` block is present. However, you must make sure that the account has sufficient permission within the team, or lockout can still occur.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories/repository-settings#repository-privileges) for full permissions documentation.",
+
 		Create: resourceRepositoryPrivilegesCreateUpdate,
 		Read:   resourceRepositoryPrivilegesRead,
 		Update: resourceRepositoryPrivilegesCreateUpdate,

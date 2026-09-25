@@ -1,3 +1,6 @@
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_package_deny_policy" "left_pad_policy" {
   name          = "Deny left-pad"
   description   = "Deny left-pad versions greater than 1.1.2"

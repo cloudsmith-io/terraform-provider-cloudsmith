@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -9,6 +12,8 @@ import (
 // dataSourceRepositoryPrivileges returns the data source schema and read function.
 func dataSourceRepositoryPrivileges() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `cloudsmith_repository_privileges` data source allows you to retrieve information about repository privileges, including service accounts, teams, and users, for a specific repository.",
+
 		Read: dataSourceRepositoryPrivilegesRead,
 
 		Schema: map[string]*schema.Schema{

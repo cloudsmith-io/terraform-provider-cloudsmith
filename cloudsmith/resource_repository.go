@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -151,8 +154,8 @@ func resourceRepositoryRetentionRuleUpdate(d *schema.ResourceData, m interface{}
 			return nil
 		}
 		if err := waiter(checkerFunc, defaultUpdateTimeout, defaultUpdateInterval); err != nil {
- 			return fmt.Errorf("error waiting for repository retention rule %s/%s to be disabled: %w", namespace, repo, err)
- 		}
+			return fmt.Errorf("error waiting for repository retention rule %s/%s to be disabled: %w", namespace, repo, err)
+		}
 		return nil
 	}
 
@@ -449,6 +452,9 @@ func validateNoSpaces(val interface{}, key string) (warns []string, errs []error
 //nolint:funlen
 func resourceRepository() *schema.Resource {
 	return &schema.Resource{
+		Description: "The repository resource allows creation and management of package repositories within a Cloudsmith namespace. Repositories store packages and are the main entities with which Cloudsmith users interact.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories) for full repository documentation.",
+
 		Create: resourceRepositoryCreate,
 		Read:   resourceRepositoryRead,
 		Update: resourceRepositoryUpdate,

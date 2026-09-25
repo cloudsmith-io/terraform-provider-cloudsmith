@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -281,6 +284,8 @@ func samlUpdate(d *schema.ResourceData, m interface{}) error {
 
 func resourceSAML() *schema.Resource {
 	return &schema.Resource{
+		Description: "The SAML resource allows the creation and management of SAML Group Sync configurations for a given Cloudsmith organization. SAML Group sync configuration allows for easy mapping of your current AD groups and assign these groups into Cloudsmith teams.",
+
 		Create: samlCreate,
 		Read:   samlRead,
 		Update: samlUpdate,

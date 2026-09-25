@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -51,6 +54,8 @@ func dataSourceTeamListRead(d *schema.ResourceData, m interface{}) error {
 
 func dataSourceTeamList() *schema.Resource {
 	return &schema.Resource{
+		Description: "Retrieve all teams within a Cloudsmith organization.",
+
 		Read: dataSourceTeamListRead,
 		Schema: map[string]*schema.Schema{
 			"organization": {

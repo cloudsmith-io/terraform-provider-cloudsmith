@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -145,6 +148,10 @@ func resourceRepositoryConnectedDelete(d *schema.ResourceData, m interface{}) er
 //nolint:funlen
 func resourceRepositoryConnected() *schema.Resource {
 	return &schema.Resource{
+		Description: "The repository connected resource allows the management of connections between two Cloudsmith repositories within the same organization. A connection links a source repository to a target repository so that requests to the source can be resolved against the target as well, according to a configurable lookup priority.\n\n" +
+			"By default, each source repository has a soft limit of 5 connected repositories. Contact Cloudsmith support if you need this limit increased.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com) for full Connected Repositories documentation.",
+
 		Create: resourceRepositoryConnectedCreate,
 		Read:   resourceRepositoryConnectedRead,
 		Update: resourceRepositoryConnectedUpdate,
@@ -157,21 +164,21 @@ func resourceRepositoryConnected() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			Namespace: {
 				Type:         schema.TypeString,
-				Description:  "Organization to which the source Repository belongs.",
+				Description:  "Organization to which the source repository belongs.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			Repository: {
 				Type:         schema.TypeString,
-				Description:  "Source Repository from which to add the connection.",
+				Description:  "Source repository from which to add the connection.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			TargetRepository: {
 				Type:         schema.TypeString,
-				Description:  "The slug of the target Repository to connect to.",
+				Description:  "The slug of the target repository to connect to.",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,

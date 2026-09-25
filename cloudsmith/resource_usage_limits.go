@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -21,6 +24,9 @@ const (
 
 func resourceUsageLimits() *schema.Resource {
 	return &schema.Resource{
+		Description: "The usage limits resource manages the on-demand package delivery and artifact data limits for a Cloudsmith organization, including whether on-demand open source usage is allowed.\n\n" +
+			"**Note: Cloudsmith does not provide an API operation to delete or reset usage limits. Destroying this resource removes it from Terraform state and leaves the organization's current settings unchanged.**",
+
 		CreateContext: resourceUsageLimitsCreate,
 		ReadContext:   resourceUsageLimitsRead,
 		UpdateContext: resourceUsageLimitsUpdate,
