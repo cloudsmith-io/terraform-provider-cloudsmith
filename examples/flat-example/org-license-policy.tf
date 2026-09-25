@@ -1,3 +1,6 @@
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_license_policy" "apache-python-policy" {
   name                    = "Example License Policy"
   description             = "Apache 2 License Policy for Python packages"
