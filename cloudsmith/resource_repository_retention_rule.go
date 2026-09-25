@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/go-cty/cty"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -233,6 +235,31 @@ func resourceRepoRetentionRuleDelete(d *schema.ResourceData, meta interface{}) e
 	return nil
 }
 
+const retentionMaxBytes int64 = 21474836480
+
+func Int64AtMost(maximum int64) schema.SchemaValidateDiagFunc {
+	return func(i interface{}, path cty.Path) diag.Diagnostics {
+		v, ok := i.(int)
+		if !ok {
+			return diag.Diagnostics{{
+				Severity:      diag.Error,
+				Summary:       "Invalid value type",
+				Detail:        fmt.Sprintf("expected an integer, got %T", i),
+				AttributePath: path,
+			}}
+		}
+		if int64(v) > maximum {
+			return diag.Diagnostics{{
+				Severity:      diag.Error,
+				Summary:       "Value too large",
+				Detail:        fmt.Sprintf("expected a value of at most %d, got %d", maximum, v),
+				AttributePath: path,
+			}}
+		}
+		return nil
+	}
+}
+
 func resourceRepoRetentionRule() *schema.Resource {
 	return &schema.Resource{
 		Description: "**Note: use of this resource is discouraged; prefer the `retention_rule` block on the [repository resource](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/repository).** Because this resource targets a repository by name, nothing prevents several instances of it from pointing at the same repository, and each apply will clobber the others' settings. The nested block is limited to one rule per repository, so that can't happen. Manage a repository's retention rule with one or the other, never both.\n\n" +
@@ -301,10 +328,10 @@ func resourceRepoRetentionRule() *schema.Resource {
 				Description: "If true, retention will apply to packages by package type rather than across all package types for one or more formats.",
 			},
 			"retention_size_limit": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Description:  "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
-				ValidateFunc: validation.IntBetween(0, 21474836480),
+				Type:             schema.TypeInt,
+				Optional:         true,
+				Description:      "The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+				ValidateDiagFunc: Int64AtMost(retentionMaxBytes),
 			},
 			"retention_package_query_string": {
 				Type:        schema.TypeString,
