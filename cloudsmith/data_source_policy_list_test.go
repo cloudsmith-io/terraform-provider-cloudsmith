@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudsmith-io/cloudsmith-go-v2/models/operations"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccPolicyListDataSource_basic(t *testing.T) {
@@ -24,14 +26,7 @@ func TestAccPolicyListDataSource_basic(t *testing.T) {
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccPolicyCheckDestroy("cloudsmith_policy.seed"),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccPolicyListDataSourceConfigBasic(seedName),
-				Check: testAccRetry(15*time.Second, 500*time.Millisecond,
-					resource.TestCheckResourceAttr("data.cloudsmith_policy_list.all", "policies.#", "1"),
-				),
-			},
-		},
+		Steps:        testAccPolicyListDataSourceSteps(t.Context(), seedName, testAccNamespace(), false, testAccProvider),
 	})
 }
 
@@ -44,15 +39,84 @@ func TestAccPolicyListDataSource_filter(t *testing.T) {
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccPolicyCheckDestroy("cloudsmith_policy.seed"),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccPolicyListDataSourceConfigFilter(seedName),
-				Check: testAccRetry(15*time.Second, 500*time.Millisecond,
-					resource.TestCheckResourceAttr("data.cloudsmith_policy_list.filtered", "policies.#", "1"),
-				),
+		Steps:        testAccPolicyListDataSourceSteps(t.Context(), seedName, testAccNamespace(), true, testAccProvider),
+	})
+}
+
+func testAccPolicyListDataSourceSteps(ctx context.Context, name, workspace string, filtered bool, provider *schema.Provider) []resource.TestStep {
+	address, sort := "data.cloudsmith_policy_list.all", ""
+	config := testAccPolicyListDataSourceConfigBasic(name, workspace)
+	checkSort := resource.TestCheckNoResourceAttr(address, "sort")
+	if filtered {
+		address, sort = "data.cloudsmith_policy_list.filtered", "-created_at"
+		config = testAccPolicyListDataSourceConfigFilter(name, workspace)
+		checkSort = resource.TestCheckResourceAttr(address, "sort", sort)
+	}
+	return []resource.TestStep{
+		{
+			Config: testAccPolicyListSeedConfig(name, workspace),
+			Check: func(s *terraform.State) error {
+				ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+				defer cancel()
+				// Check functions receive a fixed snapshot. Wait on the live query
+				// before Terraform ever reads the data source in the next step.
+				return testAccPolicyListSeedVisible(ctx, provider.Meta().(*providerConfig), s, workspace, name, sort, 500*time.Millisecond)
 			},
 		},
-	})
+		{
+			Config: config,
+			Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttrSet(address, "id"),
+				resource.TestCheckResourceAttr(address, "workspace", workspace),
+				resource.TestCheckResourceAttr(address, "query", fmt.Sprintf("name:%q", name)),
+				checkSort,
+				resource.TestCheckResourceAttr(address, "policies.#", "1"),
+				resource.TestCheckResourceAttr(address, "policies.0.name", name),
+				resource.TestCheckResourceAttrPair(address, "policies.0.slug_perm", "cloudsmith_policy.seed", "slug_perm"),
+			),
+		},
+	}
+}
+
+func testAccPolicyListSeedVisible(ctx context.Context, pc *providerConfig, s *terraform.State, workspace, name, sort string, interval time.Duration) error {
+	seed, ok := s.RootModule().Resources["cloudsmith_policy.seed"]
+	if !ok || seed.Primary == nil || seed.Primary.ID == "" {
+		return fmt.Errorf("owned policy seed missing from state")
+	}
+	if seed.Primary.Attributes["workspace"] != workspace || seed.Primary.Attributes["name"] != name {
+		return fmt.Errorf("unexpected owned policy seed: want %q/%q", workspace, name)
+	}
+	query := fmt.Sprintf("name:%q", name)
+	pageSize := int64(DefaultPageSize)
+	req := operations.WorkspacesPoliciesListRequest{
+		Workspace: workspace, Query: &query, Page: 1, PageSize: &pageSize,
+	}
+	if sort != "" {
+		req.Sort = &sort
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("waiting for owned policy %q in query %q: %w", seed.Primary.ID, query, err)
+		}
+		resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesList(ctx, req)
+		if err != nil {
+			return fmt.Errorf("querying owned policy %q visibility: %w", seed.Primary.ID, err)
+		}
+		if resp == nil || resp.PaginatedPolicyList == nil {
+			return fmt.Errorf("querying owned policy %q visibility: missing list response", seed.Primary.ID)
+		}
+		policies := resp.PaginatedPolicyList.Results
+		if len(policies) == 1 && policies[0].SlugPerm == seed.Primary.ID && policies[0].Name == name {
+			return nil
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return fmt.Errorf("waiting for owned policy %q in query %q: %w", seed.Primary.ID, query, ctx.Err())
+		case <-timer.C:
+		}
+	}
 }
 
 func TestPolicyListDataSource_ReturnsInitialListError(t *testing.T) {
@@ -170,41 +234,36 @@ func TestPolicyListDataSource_PaginatesAcrossAllPages(t *testing.T) {
 	}
 }
 
-func testAccPolicyListDataSourceConfigBasic(name string) string {
+func testAccPolicyListSeedConfig(name, workspace string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_policy" "seed" {
-    workspace = "%s"
-    name      = "%s"
+    workspace = %q
+    name      = %q
     rego      = <<-EOT
         package cloudsmith.policy
         default allow := true
     EOT
 }
+`, workspace, name)
+}
 
+func testAccPolicyListDataSourceConfigBasic(name, workspace string) string {
+	return testAccPolicyListSeedConfig(name, workspace) + fmt.Sprintf(`
 data "cloudsmith_policy_list" "all" {
-    workspace  = "%s"
-    query      = "name:\"%s\""
+    workspace  = %q
+    query      = %q
     depends_on = [cloudsmith_policy.seed]
 }
-`, testAccNamespace(), name, testAccNamespace(), name)
+`, workspace, fmt.Sprintf("name:%q", name))
 }
 
-func testAccPolicyListDataSourceConfigFilter(name string) string {
-	return fmt.Sprintf(`
-resource "cloudsmith_policy" "seed" {
-    workspace = "%s"
-    name      = "%s"
-    rego      = <<-EOT
-        package cloudsmith.policy
-        default allow := true
-    EOT
-}
-
+func testAccPolicyListDataSourceConfigFilter(name, workspace string) string {
+	return testAccPolicyListSeedConfig(name, workspace) + fmt.Sprintf(`
 data "cloudsmith_policy_list" "filtered" {
-    workspace  = "%s"
-    query      = "name:\"%s\""
+    workspace  = %q
+    query      = %q
     sort       = "-created_at"
     depends_on = [cloudsmith_policy.seed]
 }
-`, testAccNamespace(), name, testAccNamespace(), name)
+`, workspace, fmt.Sprintf("name:%q", name))
 }
