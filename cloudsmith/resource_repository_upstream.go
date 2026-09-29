@@ -805,6 +805,10 @@ func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error
 		return err
 	}
 
+	return setRepositoryUpstreamState(d, upstream)
+}
+
+func setRepositoryUpstreamState(d *schema.ResourceData, upstream Upstream) error {
 	_ = d.Set(AuthMode, upstream.GetAuthMode())
 
 	// The API no longer returns plaintext secrets for security reasons
@@ -1300,11 +1304,15 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 
 	d.SetId(upstream.GetSlugPerm())
 
+	// The state timestamp has only second precision. Even an unchanged GET
+	// with fractional seconds can look newer, so also require the PUT revision.
+	previousUpdatedAt := stringToTime(d.Get(UpdatedAt).(string))
+	updatedAt := upstream.GetUpdatedAt()
 	checkerFunc := func() error {
 		if upstream, _, err = getUpstream(d, m); err != nil {
 			return err
 		}
-		if !stringToTime(d.Get(UpdatedAt).(string)).Before(upstream.GetUpdatedAt()) {
+		if upstream.GetUpdatedAt().Before(updatedAt) || !previousUpdatedAt.Before(upstream.GetUpdatedAt()) {
 			return errKeepWaiting
 		}
 		return nil
@@ -1313,7 +1321,8 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 		return fmt.Errorf("error waiting for upstream (%s) to be updated: %w", d.Id(), err)
 	}
 
-	return resourceRepositoryUpstreamRead(d, m)
+	// Persist the GET that passed the waiter; another read may hit a stale replica.
+	return setRepositoryUpstreamState(d, upstream)
 }
 
 func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) error {
