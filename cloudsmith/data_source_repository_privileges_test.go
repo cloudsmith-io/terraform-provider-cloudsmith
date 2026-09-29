@@ -10,9 +10,11 @@ import (
 
 // TestAccDataSourceRepositoryPrivileges_basic tests the basic functionality of the data source.
 func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
+	callerKind, callerSlug := testAccRepositoryPrivilegesCaller(t)
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-read-privs")
+	callerBlock := testAccRepositoryPrivilegesCallerBlock(callerKind, callerSlug)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -20,16 +22,20 @@ func TestAccDataSourceRepositoryPrivileges_basic(t *testing.T) {
 		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName),
+				Config: testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName, callerBlock),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet("data.cloudsmith_repository_privileges.test_data", "service.#"),
+					testAccRepositoryPrivilegeForResource("data.cloudsmith_repository_privileges.test_data", "service", "cloudsmith_service.test", "Read"),
+					resource.TestCheckTypeSetElemNestedAttrs("data.cloudsmith_repository_privileges.test_data", callerKind+".*", map[string]string{
+						"slug":      callerSlug,
+						"privilege": "Admin",
+					}),
 				),
 			},
 		},
 	})
 }
 
-func testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName string) string {
+func testAccDataSourceRepositoryPrivilegesConfigBasic(repositoryName, callerBlock string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
@@ -42,8 +48,6 @@ resource "cloudsmith_service" "test" {
 	role         = "Member"
 }
 
-data "cloudsmith_user_self" "current" {}
-
 resource "cloudsmith_repository_privileges" "test" {
     organization = cloudsmith_repository.test.namespace
     repository   = cloudsmith_repository.test.slug
@@ -54,10 +58,7 @@ resource "cloudsmith_repository_privileges" "test" {
 	}
 
 	# Include the authenticated account explicitly to satisfy lockout safeguard.
-	user {
-		privilege = "Admin"
-		slug      = data.cloudsmith_user_self.current.slug
-	}
+%s
 }
 
 data "cloudsmith_repository_privileges" "test_data" {
@@ -65,5 +66,5 @@ data "cloudsmith_repository_privileges" "test_data" {
 	repository   = cloudsmith_repository_privileges.test.repository
 	depends_on = [cloudsmith_repository.test]
   }
-`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
 }
