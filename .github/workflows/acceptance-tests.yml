@@ -3,9 +3,19 @@ on:
   push:
     branches:
       - master
+    paths:
+      - go.mod
+      - go.sum
+      - '**.go'
+      - .github/workflows/acceptance-tests.yml
   pull_request:
     branches:
       - master
+    paths:
+      - go.mod
+      - go.sum
+      - '**.go'
+      - .github/workflows/acceptance-tests.yml
 
 concurrency:
   group: acceptance-tests
@@ -41,8 +51,8 @@ jobs:
         echo tests="$tests" > "$GITHUB_OUTPUT"
     - name: Compile test binary
       id: compile
-      run: go test -c -o cloudsmith.test ./cloudsmith
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.1.0 
+      run: CGO_ENABLED=0 go test -c -o cloudsmith.test ./cloudsmith
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.1.0
       with:
         name: testbin
         path: cloudsmith.test
