@@ -14,9 +14,15 @@ import (
 // creates a service account and a couple of teams, assigning and modifying
 // their permissions before tearing down and verifying deletion.
 func TestAccRepositoryPrivileges_basic(t *testing.T) {
+	callerKind, callerSlug := testAccRepositoryPrivilegesCaller(t)
 	t.Parallel()
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-privs")
+	callerBlock := testAccRepositoryPrivilegesCallerBlock(callerKind, callerSlug)
+	checkCaller := resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_repository_privileges.test", callerKind+".*", map[string]string{
+		"slug":      callerSlug,
+		"privilege": "Admin",
+	})
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -24,36 +30,34 @@ func TestAccRepositoryPrivileges_basic(t *testing.T) {
 		CheckDestroy: testAccRepositoryCheckDestroy("cloudsmith_repository.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRepositoryPrivilegesConfigBasic(repositoryName),
+				Config: testAccRepositoryPrivilegesConfigBasic(repositoryName, callerBlock),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Read"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "service", "cloudsmith_service.test", "Read"),
+					checkCaller,
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName),
+				Config: testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName, callerBlock),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "service", "cloudsmith_service.test", "Write"),
+					checkCaller,
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName),
+				Config: testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName, callerBlock),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
-					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "team.0.privilege", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "service", "cloudsmith_service.test", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "team", "cloudsmith_team.test_1", "Write"),
+					checkCaller,
 				),
 			},
 			{
-				Config: testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName),
+				Config: testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName, callerBlock),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("cloudsmith_repository_privileges.test", "service.0.privilege", "Write"),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_repository_privileges.test", "team.*", map[string]string{
-						"privilege": "Write",
-						"slug":      "tf-test-team-privs-2",
-					}),
-					resource.TestCheckTypeSetElemNestedAttrs("cloudsmith_repository_privileges.test", "team.*", map[string]string{
-						"privilege": "Read",
-						"slug":      "tf-test-team-privs-1",
-					}),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "service", "cloudsmith_service.test", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "team", "cloudsmith_team.test_2", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "team", "cloudsmith_team.test_1", "Read"),
+					checkCaller,
 				),
 			},
 			{
@@ -73,7 +77,7 @@ func TestAccRepositoryPrivileges_basic(t *testing.T) {
 	})
 }
 
-func testAccRepositoryPrivilegesConfigBasic(repositoryName string) string {
+func testAccRepositoryPrivilegesConfigBasic(repositoryName, callerBlock string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
@@ -85,8 +89,6 @@ resource "cloudsmith_service" "test" {
 	organization = cloudsmith_repository.test.namespace
 	role         = "Member"
 }
-
-data "cloudsmith_user_self" "current" {}
 
 resource "cloudsmith_repository_privileges" "test" {
     organization = cloudsmith_repository.test.namespace
@@ -98,15 +100,12 @@ resource "cloudsmith_repository_privileges" "test" {
 	}
 
 	# Include the authenticated account explicitly to satisfy lockout safeguard.
-	user {
-		privilege = "Admin"
-		slug      = data.cloudsmith_user_self.current.slug
-	}
+%s
 }
-`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
 }
 
-func testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName string) string {
+func testAccRepositoryPrivilegesConfigBasicUpdatePrivilege(repositoryName, callerBlock string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
@@ -119,8 +118,6 @@ resource "cloudsmith_service" "test" {
 	role         = "Member"
 }
 
-data "cloudsmith_user_self" "current" {}
-
 resource "cloudsmith_repository_privileges" "test" {
     organization = cloudsmith_repository.test.namespace
     repository   = cloudsmith_repository.test.slug
@@ -131,15 +128,12 @@ resource "cloudsmith_repository_privileges" "test" {
 	}
 
 	# Include the authenticated account explicitly to satisfy lockout safeguard.
-	user {
-		privilege = "Admin"
-		slug      = data.cloudsmith_user_self.current.slug
-	}
+%s
 }
-`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
 }
 
-func testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName string) string {
+func testAccRepositoryPrivilegesConfigBasicAddTeam(repositoryName, callerBlock string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
@@ -170,11 +164,13 @@ resource "cloudsmith_repository_privileges" "test" {
 		privilege = "Write"
 		slug      = cloudsmith_team.test_1.slug
 	}
+
+%s
 }
-`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
 }
 
-func testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName string) string {
+func testAccRepositoryPrivilegesConfigBasicAddAnotherTeam(repositoryName, callerBlock string) string {
 	return fmt.Sprintf(`
 resource "cloudsmith_repository" "test" {
 	name      = "%s"
@@ -215,6 +211,8 @@ resource "cloudsmith_repository_privileges" "test" {
 		privilege = "Read"
 		slug      = cloudsmith_team.test_1.slug
 	}
+
+%s
 }
-`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
 }
