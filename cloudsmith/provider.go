@@ -81,6 +81,7 @@ func Provider() *schema.Provider {
 			"cloudsmith_usage_limits":              dataSourceUsageLimits(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
+			"cloudsmith_api_key_rule":              resourceAPIKeyRule(),
 			"cloudsmith_entitlement":               resourceEntitlement(),
 			"cloudsmith_license_policy":            resourceLicensePolicy(),
 			"cloudsmith_repository":                resourceRepository(),

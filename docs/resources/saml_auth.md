@@ -40,6 +40,12 @@ The following arguments are supported:
 * `saml_metadata_url` - (Optional) URL to fetch SAML metadata from the identity provider. Exactly one of `saml_metadata_url` or `saml_metadata_inline` must be specified.
 * `saml_metadata_inline` - (Optional) Inline SAML metadata XML from the identity provider. Exactly one of `saml_metadata_url` or `saml_metadata_inline` must be specified.
 
+## State consistency
+
+After creating or updating the configuration, the provider waits up to 30 seconds for a matching API response and saves that confirmed snapshot. Subsequent refreshes read the remote configuration so that changes made outside Terraform remain visible.
+
+The SAML authentication API does not document an ordered configuration revision. A later response with different settings cannot reliably be distinguished from an external change, even if it comes from a stale replica. Such a response is not suppressed and may produce a transient difference in a subsequent plan.
+
 ## Import
 
 SAML authentication configuration can be imported using the organization slug:

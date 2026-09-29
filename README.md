@@ -157,6 +157,15 @@ You'll also need to set a few environment variables:
 
 *Note:* Acceptance tests create real resources, and may cost money to run.
 
+The policy-list acceptance fixtures create their own seed policy first, then poll
+the exact list query for that seed's identity (up to 30 seconds) before Terraform
+reads the data source. API errors fail immediately; a legitimate empty list in
+the production data source is not retried. The hermetic policy-list fixture tests
+exercise the same HCL through Terraform with a local mock API, including delayed
+visibility and owned-resource cleanup. They run without `TF_ACC` or Cloudsmith
+credentials; set `TF_ACC_TERRAFORM_PATH` to an installed Terraform executable to
+avoid the SDK downloading one.
+
 ```sh
 export TF_ACC=1
 export CLOUDSMITH_API_KEY=mykey

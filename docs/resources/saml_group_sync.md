@@ -2,6 +2,10 @@
 
 The SAML resource allows the creation and management of SAML Group Sync configurations for a given Cloudsmith organization. SAML Group sync configuration allows for easy mapping of your current AD groups and assign these groups into Cloudsmith teams.
 
+Changing the IdP attributes, role, or team recreates the mapping because the API has no update endpoint. The provider waits for the old mapping to disappear and the new permanent slug to appear across the paginated group-sync list. Changing only `enabled` does not recreate the mapping.
+
+Group-sync list responses can lag behind writes. A refresh confirms a missing mapping for up to one minute before removing it from Terraform state; a mapping deleted outside Terraform will then be planned for recreation. API errors are returned without treating them as deletion.
+
 ## Example Usage
 
 ```hcl
