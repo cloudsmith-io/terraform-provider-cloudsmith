@@ -32,7 +32,7 @@ func dataSourceUserSelf() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"email": {
 				Type:        schema.TypeString,
-				Description: "The user's email address",
+				Description: "The authenticated account's email address, or an empty string if none is provided (for example, a service account)",
 				Computed:    true,
 			},
 			"name": {
