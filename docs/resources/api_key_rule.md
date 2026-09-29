@@ -28,7 +28,7 @@ resource "cloudsmith_api_key_rule" "service_keys" {
   rule_type       = "Service Accounts"
   max_age_hours   = 8760
   is_enabled      = true
-  enforce_refresh = true
+  enforce_refresh = false
 }
 ```
 
@@ -40,7 +40,9 @@ The following arguments are supported:
 * `rule_type` - (Required) The account types this rule applies to. One of: `Service Accounts`, `User Accounts`. Changing this value creates a new resource.
 * `max_age_hours` - (Optional) The maximum permitted age of an API key, in hours. Must be at least 24. API keys older than this lose access until refreshed. Omit to disable the age limit.
 * `is_enabled` - (Optional) Whether this rule is currently active and enforced.
-* `enforce_refresh` - (Optional) When enabled, API keys that violate this rule are replaced automatically.
+* `enforce_refresh` - (Optional, Deprecated) Compatibility setting with no effect. Must be `false` or omitted and is not sent to the API. Setting it to `true` is rejected before a create or update request, including values resolved during apply, because Cloudsmith no longer supports automatic key replacement.
+
+API key rules manage the permitted key age and whether the rule is enabled. They do not rotate keys. To migrate an existing configuration, remove `enforce_refresh` or set it to `false`, and manage key rotation separately.
 
 ## Attribute Reference
 

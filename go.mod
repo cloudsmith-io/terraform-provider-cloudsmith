@@ -7,7 +7,7 @@ require (
 	github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1
-	github.com/samber/lo v1.36.0
+	github.com/samber/lo v1.53.0
 )
 
 require (
@@ -51,7 +51,6 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/zclconf/go-cty v1.18.1 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect

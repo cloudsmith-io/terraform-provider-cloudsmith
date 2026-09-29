@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -19,6 +20,19 @@ func TestAccOrgAPIKeyRule_userAccounts(t *testing.T) {
 		Providers:    testAccProviders,
 		CheckDestroy: testOrgAPIKeyRuleCheckDestroy("cloudsmith_api_key_rule.test_user"),
 		Steps: []resource.TestStep{
+			// Invalid configurations run before any owned rule needs cleanup.
+			{
+				Config:      testOrgAPIKeyRuleUserInvalidRuleType,
+				ExpectError: regexp.MustCompile(`expected rule_type to be one of`),
+			},
+			{
+				Config:      testOrgAPIKeyRuleUserBelowMinimumAge,
+				ExpectError: regexp.MustCompile(`expected max_age_hours to be at least`),
+			},
+			{
+				Config:      strings.Replace(testOrgAPIKeyRuleUserUpdate, "enforce_refresh = false", "enforce_refresh = true", 1),
+				ExpectError: regexp.MustCompile(`automatic API key refresh is no longer supported`),
+			},
 			{
 				Config: testOrgAPIKeyRuleUserBasic,
 				Check: resource.ComposeTestCheckFunc(
@@ -35,21 +49,13 @@ func TestAccOrgAPIKeyRule_userAccounts(t *testing.T) {
 				),
 			},
 			{
-				Config:      testOrgAPIKeyRuleUserInvalidRuleType,
-				ExpectError: regexp.MustCompile(`expected rule_type to be one of`),
-			},
-			{
-				Config:      testOrgAPIKeyRuleUserBelowMinimumAge,
-				ExpectError: regexp.MustCompile(`expected max_age_hours to be at least`),
-			},
-			{
 				Config: testOrgAPIKeyRuleUserUpdate,
 				Check: resource.ComposeTestCheckFunc(
 					testOrgAPIKeyRuleCheckExists("cloudsmith_api_key_rule.test_user"),
 					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_user", "rule_type", "User Accounts"),
 					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_user", "max_age_hours", "876024"),
 					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_user", "is_enabled", "false"),
-					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_user", "enforce_refresh", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_user", "enforce_refresh", "false"),
 					resource.TestCheckResourceAttrSet("cloudsmith_api_key_rule.test_user", "updated_at"),
 				),
 			},
@@ -80,6 +86,11 @@ func TestAccOrgAPIKeyRule_serviceAccounts(t *testing.T) {
 		Providers:    testAccProviders,
 		CheckDestroy: testOrgAPIKeyRuleCheckDestroy("cloudsmith_api_key_rule.test_service"),
 		Steps: []resource.TestStep{
+			// Reject unsupported refresh before creating a rule to clean up.
+			{
+				Config:      strings.Replace(testOrgAPIKeyRuleServiceUpdate, "enforce_refresh = false", "enforce_refresh = true", 1),
+				ExpectError: regexp.MustCompile(`automatic API key refresh is no longer supported`),
+			},
 			{
 				Config: testOrgAPIKeyRuleServiceBasic,
 				Check: resource.ComposeTestCheckFunc(
@@ -101,7 +112,8 @@ func TestAccOrgAPIKeyRule_serviceAccounts(t *testing.T) {
 					testOrgAPIKeyRuleCheckExists("cloudsmith_api_key_rule.test_service"),
 					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_service", "rule_type", "Service Accounts"),
 					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_service", "max_age_hours", "876024"),
-					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_service", "enforce_refresh", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_service", "is_enabled", "true"),
+					resource.TestCheckResourceAttr("cloudsmith_api_key_rule.test_service", "enforce_refresh", "false"),
 					resource.TestCheckResourceAttrSet("cloudsmith_api_key_rule.test_service", "updated_at"),
 				),
 			},
@@ -249,7 +261,7 @@ resource "cloudsmith_api_key_rule" "test_user" {
 	rule_type       = "User Accounts"
 	max_age_hours   = 876024
 	is_enabled      = false
-	enforce_refresh = true
+	enforce_refresh = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -258,7 +270,7 @@ resource "cloudsmith_api_key_rule" "test_user" {
 	organization    = "%s"
 	rule_type       = "User Accounts"
 	is_enabled      = false
-	enforce_refresh = true
+	enforce_refresh = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
 
@@ -278,6 +290,6 @@ resource "cloudsmith_api_key_rule" "test_service" {
 	rule_type       = "Service Accounts"
 	max_age_hours   = 876024
 	is_enabled      = true
-	enforce_refresh = true
+	enforce_refresh = false
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"))
