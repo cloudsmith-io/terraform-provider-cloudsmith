@@ -9,6 +9,7 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-go-v2/models/apierrors"
 	"github.com/cloudsmith-io/cloudsmith-go-v2/models/components"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
@@ -89,21 +90,47 @@ func resourcePolicyActionRead(ctx context.Context, d *schema.ResourceData, m int
 	workspace := requiredString(d, "workspace")
 	pc := m.(*providerConfig)
 	policySlug := requiredString(d, "policy_slug_perm")
-	resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsRetrieve(
-		ctx, d.Id(), policySlug, workspace,
-	)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			d.SetId("")
-			return nil
-		}
-		return diag.FromErr(fmt.Errorf("retrieving action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
+	previousUpdatedAt := stringToTime(d.Get("updated_at").(string))
+	ctx, cancel := context.WithTimeout(ctx, defaultUpdateTimeout)
+	defer cancel()
+	wait := retry.StateChangeConf{
+		Pending:      []string{"stale"},
+		Target:       []string{"current"},
+		Timeout:      defaultUpdateTimeout,
+		PollInterval: defaultUpdateInterval,
+		Refresh: func() (interface{}, string, error) {
+			resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsRetrieve(ctx, d.Id(), policySlug, workspace)
+			if err != nil && !apierrors.IsNotFound(err) {
+				return nil, "", err
+			}
+			var action *components.PolicyAction
+			if err == nil && resp != nil {
+				action = resp.PolicyAction
+			}
+			if action != nil {
+				meta, _, _, err := describePolicyAction(action)
+				if err != nil {
+					return nil, "", err
+				}
+				// Retry only a provably older replica, never a difference from configuration.
+				if meta.updatedAt.Before(previousUpdatedAt) {
+					return action, "stale", nil
+				}
+			}
+			// A typed nil is a completed read of a missing resource, not a pending read.
+			return action, "current", nil
+		},
 	}
-	if resp == nil || resp.PolicyAction == nil {
+	result, err := wait.WaitForStateContext(ctx)
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("retrieving action %q on policy %q in workspace %q at the last observed revision: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
+	}
+	action := result.(*components.PolicyAction)
+	if action == nil {
 		d.SetId("")
 		return nil
 	}
-	return diag.FromErr(setPolicyActionState(d, resp.PolicyAction))
+	return diag.FromErr(setPolicyActionState(d, action))
 }
 
 func resourcePolicyActionUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -114,13 +141,17 @@ func resourcePolicyActionUpdate(ctx context.Context, d *schema.ResourceData, m i
 	}
 	pc := m.(*providerConfig)
 	policySlug := requiredString(d, "policy_slug_perm")
-	_, err = pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsUpdate(
+	resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsUpdate(
 		ctx, d.Id(), policySlug, workspace, &body,
 	)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("updating action %q on policy %q in workspace %q: %w", d.Id(), policySlug, workspace, formatV2APIError(err)))
 	}
-	return resourcePolicyActionRead(ctx, d, m)
+	if resp == nil || resp.PolicyAction == nil {
+		return diag.Errorf("policy action update returned no body")
+	}
+	// The write response is authoritative; an immediate GET can hit an older replica.
+	return diag.FromErr(setPolicyActionState(d, resp.PolicyAction))
 }
 
 func resourcePolicyActionDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -214,7 +245,11 @@ func setPolicyActionState(d *schema.ResourceData, pa *components.PolicyAction) e
 
 	_ = d.Set("slug_perm", am.slugPerm)
 	_ = d.Set("created_at", timeToString(am.createdAt))
-	_ = d.Set("updated_at", timeToString(am.updatedAt))
+	updatedAt := ""
+	if !am.updatedAt.IsZero() {
+		updatedAt = am.updatedAt.Format(time.RFC3339Nano)
+	}
+	_ = d.Set("updated_at", updatedAt)
 	_ = d.Set("precedence", int64OrZero(am.precedence))
 
 	for _, k := range actionTypeBlocks {
