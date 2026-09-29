@@ -796,6 +796,25 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error {
 	upstream, resp, err := getUpstream(d, m)
 
+	previousUpdatedAt := stringToTime(d.Get(UpdatedAt).(string))
+	if err == nil && upstream.GetUpdatedAt().Before(previousUpdatedAt) {
+		// A refresh can hit a replica older than the snapshot already in state.
+		// Wait only for that revision, not for configuration values to match.
+		checker := func() error {
+			if upstream, resp, err = getUpstream(d, m); err != nil {
+				return err
+			}
+			if upstream.GetUpdatedAt().Before(previousUpdatedAt) {
+				return errKeepWaiting
+			}
+			return nil
+		}
+		err = waiter(checker, defaultUpdateTimeout, defaultUpdateInterval)
+		if err != nil && !is404(resp) {
+			return fmt.Errorf("error waiting for upstream (%s) to reach the last observed revision: %w", d.Id(), err)
+		}
+	}
+
 	if err != nil {
 		if is404(resp) {
 			d.SetId("")
@@ -833,7 +852,11 @@ func setRepositoryUpstreamState(d *schema.ResourceData, upstream Upstream) error
 	_ = d.Set(Name, upstream.GetName())
 	_ = d.Set(Priority, upstream.GetPriority())
 	_ = d.Set(SlugPerm, upstream.GetSlugPerm())
-	_ = d.Set(UpdatedAt, timeToString(upstream.GetUpdatedAt()))
+	updatedAt := ""
+	if timestamp := upstream.GetUpdatedAt(); !timestamp.IsZero() {
+		updatedAt = timestamp.Format(time.RFC3339Nano)
+	}
+	_ = d.Set(UpdatedAt, updatedAt)
 	_ = d.Set(UpstreamUrl, upstream.GetUpstreamUrl())
 	_ = d.Set(VerifySsl, upstream.GetVerifySsl())
 	if trustedUpstream, ok := upstream.(interface{ GetTrustLevel() string }); ok {
@@ -1304,7 +1327,7 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 
 	d.SetId(upstream.GetSlugPerm())
 
-	// The state timestamp has only second precision. Even an unchanged GET
+	// Older state timestamps have only second precision. Even an unchanged GET
 	// with fractional seconds can look newer, so also require the PUT revision.
 	previousUpdatedAt := stringToTime(d.Get(UpdatedAt).(string))
 	updatedAt := upstream.GetUpdatedAt()
