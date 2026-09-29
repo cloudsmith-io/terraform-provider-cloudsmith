@@ -4,6 +4,12 @@ The repository upstream resource allows the management of upstreams for a Clouds
 
 See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.
 
+## Read consistency
+
+After an update, the provider waits for a read that includes the revision returned by the update API. Refreshes that return a revision older than the one already observed in Terraform state are also retried, with a one-minute polling timeout. If that revision remains unavailable, the operation returns an error instead of replacing state with the older snapshot. Newer API changes are still recorded as drift.
+
+The computed `updated_at` timestamp retains fractional seconds when supplied by the API so updates within the same second can be distinguished.
+
 ## Example Usage
 
 Given the following hcl...

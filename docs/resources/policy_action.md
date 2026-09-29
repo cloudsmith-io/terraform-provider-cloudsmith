@@ -43,7 +43,9 @@ resource "cloudsmith_policy_action" "tag" {
 ## Attribute Reference
 
 * `slug_perm` - The unique permanent slug of the action.
-* `created_at`, `updated_at` - RFC 3339 timestamps.
+* `created_at`, `updated_at` - RFC 3339 timestamps. `updated_at` preserves fractional seconds to distinguish revisions within the same second.
+
+Updates record the API's write response. A subsequent refresh retries snapshots older than the last observed `updated_at` for up to one minute (or until cancellation), rather than overwriting state with an older replica. Equal or newer revisions are read normally, including changes made outside Terraform. A missing action is still removed from state, and API errors are reported.
 
 ## Import
 
