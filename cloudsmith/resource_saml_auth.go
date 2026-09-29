@@ -15,17 +15,47 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// waitForSAMLAuthState polls until the SAML auth state matches the expected values or times out.
-func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled bool, wantEnforced bool, wantInline string, wantURL string, timeoutSec int) error {
-	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
+func samlAuthRequestContext(ctx context.Context, pc *providerConfig) context.Context {
+	if pc.Auth != nil {
+		if keys := pc.Auth.Value(cloudsmith.ContextAPIKeys); keys != nil {
+			return context.WithValue(ctx, cloudsmith.ContextAPIKeys, keys)
+		}
+	}
+	return ctx
+}
+
+// waitForSAMLAuthState returns the observed snapshot that matches the expected values.
+func waitForSAMLAuthState(ctx context.Context, pc *providerConfig, organization string, wantEnabled bool, wantEnforced bool, wantInline string, wantURL string, timeout time.Duration) (*cloudsmith.OrganizationSAMLAuth, error) {
+	ctx, cancel := context.WithTimeout(samlAuthRequestContext(ctx, pc), timeout)
+	defer cancel()
 	wantInline = strings.TrimSpace(wantInline)
 	wantURL = strings.TrimSpace(wantURL)
+	waitError := func() error {
+		redactedInline := "empty"
+		if wantInline != "" {
+			sum := sha256.Sum256([]byte(wantInline))
+			redactedInline = fmt.Sprintf("len=%d sha256=%s", len(wantInline), hex.EncodeToString(sum[:8]))
+		}
+		return fmt.Errorf("waiting for SAML auth state (enabled=%v, enforced=%v, wantInline=%s, wantURL=%q): %w", wantEnabled, wantEnforced, redactedInline, wantURL, ctx.Err())
+	}
 	for {
-		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+		if ctx.Err() != nil {
+			return nil, waitError()
+		}
+		samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(ctx, organization).Execute()
 		if resp != nil && resp.Body != nil {
 			resp.Body.Close() // close immediately to avoid stacking defers in the loop
 		}
-		if err == nil && samlAuth.GetSamlAuthEnabled() == wantEnabled && samlAuth.GetSamlAuthEnforced() == wantEnforced {
+		if ctx.Err() != nil {
+			return nil, waitError()
+		}
+		if err != nil {
+			return nil, handleSAMLAuthError(err, "waiting for SAML authentication")
+		}
+		if samlAuth == nil {
+			return nil, fmt.Errorf("empty SAML authentication response while waiting for state")
+		}
+		if samlAuth.GetSamlAuthEnabled() == wantEnabled && samlAuth.GetSamlAuthEnforced() == wantEnforced {
 			inlineMetadata := strings.TrimSpace(samlAuth.GetSamlMetadataInline())
 			url, _ := samlAuth.GetSamlMetadataUrlOk()
 			urlValue := ""
@@ -43,18 +73,16 @@ func waitForSAMLAuthState(pc *providerConfig, organization string, wantEnabled b
 			}
 
 			if metadataMatch {
-				return nil
+				return samlAuth, nil
 			}
 		}
-		if time.Now().After(deadline) {
-			redactedInline := "empty"
-			if wantInline != "" {
-				sum := sha256.Sum256([]byte(wantInline))
-				redactedInline = fmt.Sprintf("len=%d sha256=%s", len(wantInline), hex.EncodeToString(sum[:8]))
-			}
-			return fmt.Errorf("timeout waiting for SAML auth state (enabled=%v, enforced=%v, wantInline=%s, wantURL=%q)", wantEnabled, wantEnforced, redactedInline, wantURL)
+		timer := time.NewTimer(time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, waitError()
+		case <-timer.C:
 		}
-		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -68,26 +96,35 @@ func samlAuthCreate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		return diag.FromErr(fmt.Errorf("error building SAML auth request: %w", err))
 	}
 
-	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	result, _, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(samlAuthRequestContext(ctx, pc), organization).Data(*samlAuth)
+	result, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		return diag.FromErr(handleSAMLAuthError(err, "creating SAML authentication"))
+	}
+	if result == nil {
+		return diag.Errorf("empty SAML authentication response while creating")
 	}
 
 	d.SetId(generateSAMLAuthID(organization, result))
 	// Wait for the backend to reflect enabled/metadata state
-	if err := waitForSAMLAuthState(
+	confirmed, err := waitForSAMLAuthState(
+		ctx,
 		pc,
 		organization,
 		d.Get("saml_auth_enabled").(bool),
 		d.Get("saml_auth_enforced").(bool),
 		d.Get("saml_metadata_inline").(string),
 		d.Get("saml_metadata_url").(string),
-		30,
-	); err != nil {
+		30*time.Second,
+	)
+	if err != nil {
 		return diag.FromErr(err)
 	}
-	return samlAuthRead(ctx, d, m)
+	// Do not replace the confirmed snapshot with another potentially stale GET.
+	return diag.FromErr(setSAMLAuthFields(d, organization, confirmed))
 }
 
 // samlAuthRead retrieves the current SAML authentication configuration
@@ -95,7 +132,10 @@ func samlAuthRead(ctx context.Context, d *schema.ResourceData, m interface{}) di
 	pc := m.(*providerConfig)
 	organization := d.Get("organization").(string)
 
-	samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+	samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(samlAuthRequestContext(ctx, pc), organization).Execute()
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			d.SetId("")
@@ -103,9 +143,6 @@ func samlAuthRead(ctx context.Context, d *schema.ResourceData, m interface{}) di
 		}
 		return diag.FromErr(handleSAMLAuthError(err, "reading SAML authentication"))
 	}
-
-	d.Set("organization", organization)
-	d.SetId(generateSAMLAuthID(organization, samlAuth))
 
 	if err := setSAMLAuthFields(d, organization, samlAuth); err != nil {
 		return diag.FromErr(err)
@@ -124,24 +161,32 @@ func samlAuthUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) 
 		return diag.FromErr(fmt.Errorf("error building SAML auth request: %w", err))
 	}
 
-	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	_, _, err = pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(samlAuthRequestContext(ctx, pc), organization).Data(*samlAuth)
+	result, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		return diag.FromErr(handleSAMLAuthError(err, "updating SAML authentication"))
 	}
+	if result == nil {
+		return diag.Errorf("empty SAML authentication response while updating")
+	}
 	// Wait for the backend to reflect enabled/metadata state
-	if err := waitForSAMLAuthState(
+	confirmed, err := waitForSAMLAuthState(
+		ctx,
 		pc,
 		organization,
 		d.Get("saml_auth_enabled").(bool),
 		d.Get("saml_auth_enforced").(bool),
 		d.Get("saml_metadata_inline").(string),
 		d.Get("saml_metadata_url").(string),
-		30,
-	); err != nil {
+		30*time.Second,
+	)
+	if err != nil {
 		return diag.FromErr(err)
 	}
-	return samlAuthRead(ctx, d, m)
+	return diag.FromErr(setSAMLAuthFields(d, organization, confirmed))
 }
 
 // samlAuthDelete disables SAML authentication for the organization
@@ -155,14 +200,20 @@ func samlAuthDelete(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	samlAuth.SetSamlMetadataInline("")
 	samlAuth.SetSamlMetadataUrl("")
 
-	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(pc.Auth, organization).Data(*samlAuth)
-	_, _, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	req := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdate(samlAuthRequestContext(ctx, pc), organization).Data(*samlAuth)
+	result, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationPartialUpdateExecute(req)
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		return diag.FromErr(handleSAMLAuthError(err, "deleting SAML authentication"))
 	}
+	if result == nil {
+		return diag.Errorf("empty SAML authentication response while deleting")
+	}
 
 	// Wait for the backend to reflect the disabled state
-	if err := waitForSAMLAuthState(pc, organization, false, false, "", "", 30); err != nil {
+	if _, err := waitForSAMLAuthState(ctx, pc, organization, false, false, "", "", 30*time.Second); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
@@ -174,16 +225,16 @@ func samlAuthImport(ctx context.Context, d *schema.ResourceData, m interface{}) 
 	pc := m.(*providerConfig)
 	organization := d.Id()
 
-	samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(pc.Auth, organization).Execute()
+	samlAuth, resp, err := pc.APIClient.OrgsApi.OrgsSamlAuthenticationRead(samlAuthRequestContext(ctx, pc), organization).Execute()
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 	if err != nil {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("SAML authentication not found for organization %s", organization)
 		}
 		return nil, handleSAMLAuthError(err, "importing SAML authentication")
 	}
-
-	d.Set("organization", organization)
-	d.SetId(generateSAMLAuthID(organization, samlAuth))
 
 	if err := setSAMLAuthFields(d, organization, samlAuth); err != nil {
 		return nil, err
@@ -212,8 +263,11 @@ func buildSAMLAuthPatch(d *schema.ResourceData) (*cloudsmith.OrganizationSAMLAut
 	return samlAuth, nil
 }
 
-// setSAMLAuthFields updates the resource data with values from the API response
+// setSAMLAuthFields updates the resource data and identity from the same API snapshot.
 func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cloudsmith.OrganizationSAMLAuth) error {
+	if samlAuth == nil {
+		return fmt.Errorf("empty SAML authentication response")
+	}
 	// Helper function to reduce repetition and standardize error handling
 	setField := func(key string, value interface{}) error {
 		if err := d.Set(key, value); err != nil {
@@ -260,6 +314,7 @@ func setSAMLAuthFields(d *schema.ResourceData, organization string, samlAuth *cl
 		}
 	}
 
+	d.SetId(generateSAMLAuthID(organization, samlAuth))
 	return nil
 }
 

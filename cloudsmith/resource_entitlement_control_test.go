@@ -2,18 +2,21 @@
 package cloudsmith
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 // TestAccEntitlementControl_basic spins up a repository and uses its default entitlement token,
-// creates an entitlement control with the token disabled, verifies it exists and checks
-// the enabled state is set correctly. Then it changes the enabled state to true,
+// creates an entitlement control with the token enabled, verifies it exists and checks
+// the enabled state is set correctly. Then it changes the enabled state to false,
 // and verifies it's been set correctly before tearing down the resources and
 // verifying deletion.
 func TestAccEntitlementControl_basic(t *testing.T) {
@@ -21,15 +24,68 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 
 	repositoryName := testAccUniqueRepositoryName("terraform-acc-test-ent-ctrl")
 
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccEntitlementControlCheckDestroy("cloudsmith_entitlement_control.test"),
+	tc := testAccEntitlementControlTestCase(t.Context(), repositoryName, testAccProvider)
+	tc.PreCheck = func() { testAccPreCheck(t) }
+	resource.Test(t, tc)
+}
+
+func testAccEntitlementControlTestCase(ctx context.Context, repositoryName string, provider *schema.Provider) resource.TestCase {
+	var namespace, repository string
+	var controlCreated bool
+	return resource.TestCase{
+		Providers: map[string]*schema.Provider{"cloudsmith": provider},
+		CheckDestroy: func(s *terraform.State) error {
+			if s == nil || s.RootModule() == nil {
+				return fmt.Errorf("entitlement fixture has no root state")
+			}
+			if _, ok := s.RootModule().Resources["cloudsmith_entitlement_control.test"]; !ok && !controlCreated && repository != "" {
+				// A failed repository-only readiness check has no control to destroy.
+				// Verify that Terraform still cleaned up the exact owned repository.
+				pc := provider.Meta().(*providerConfig)
+				cleanupCtx, cancel := context.WithTimeout(pc.Auth, time.Minute)
+				defer cancel()
+				_, resp, err := pc.APIClient.ReposApi.ReposRead(cleanupCtx, namespace, repository).Execute()
+				if resp != nil {
+					defer resp.Body.Close()
+				}
+				if is404(resp) {
+					return nil
+				}
+				if err != nil {
+					return fmt.Errorf("unable to verify entitlement fixture cleanup: %w", err)
+				}
+				return fmt.Errorf("entitlement fixture repository still exists: %s/%s", namespace, repository)
+			}
+			return testAccEntitlementControlCheckDestroy(provider, "cloudsmith_entitlement_control.test")(s)
+		},
 		Steps: []resource.TestStep{
+			{
+				Config: testAccEntitlementControlConfigRepository(repositoryName),
+				Check: func(s *terraform.State) error {
+					if s == nil || s.RootModule() == nil {
+						return fmt.Errorf("entitlement fixture has no root state")
+					}
+					rs, ok := s.RootModule().Resources["cloudsmith_repository.test"]
+					if !ok || rs == nil || rs.Primary == nil || rs.Primary.ID == "" {
+						return fmt.Errorf("entitlement fixture repository not created")
+					}
+					attrs := rs.Primary.Attributes
+					if attrs["namespace"] == "" || attrs["slug_perm"] != rs.Primary.ID || attrs["name"] != repositoryName {
+						return fmt.Errorf("entitlement fixture repository identity is incomplete")
+					}
+					namespace, repository = attrs["namespace"], attrs["slug_perm"]
+					waitCtx, cancel := context.WithTimeout(ctx, time.Minute)
+					defer cancel()
+					return testAccWaitForDefaultEntitlement(waitCtx, provider.Meta().(*providerConfig), namespace, repository, time.Second)
+				},
+			},
 			{
 				Config: testAccEntitlementControlConfigBasic(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
+					func(s *terraform.State) error {
+						controlCreated = true
+						return testAccEntitlementControlCheckExists(provider, "cloudsmith_entitlement_control.test")(s)
+					},
 					func(s *terraform.State) error {
 						resourceState, ok := s.RootModule().Resources["cloudsmith_entitlement_control.test"]
 						if !ok {
@@ -38,7 +94,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 						if resourceState.Primary.ID == "" {
 							return fmt.Errorf("resource id not set")
 						}
-						pc := testAccProvider.Meta().(*providerConfig)
+						pc := provider.Meta().(*providerConfig)
 						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 						repository := resourceState.Primary.Attributes["repository"]
 						identifier := resourceState.Primary.ID
@@ -51,7 +107,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 			{
 				Config: testAccEntitlementControlConfigBasicUpdate(repositoryName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccEntitlementControlCheckExists("cloudsmith_entitlement_control.test"),
+					testAccEntitlementControlCheckExists(provider, "cloudsmith_entitlement_control.test"),
 					func(s *terraform.State) error {
 						resourceState, ok := s.RootModule().Resources["cloudsmith_entitlement_control.test"]
 						if !ok {
@@ -60,7 +116,7 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 						if resourceState.Primary.ID == "" {
 							return fmt.Errorf("resource id not set")
 						}
-						pc := testAccProvider.Meta().(*providerConfig)
+						pc := provider.Meta().(*providerConfig)
 						namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 						repository := resourceState.Primary.Attributes["repository"]
 						identifier := resourceState.Primary.ID
@@ -88,14 +144,14 @@ func TestAccEntitlementControl_basic(t *testing.T) {
 				},
 			},
 		},
-	})
+	}
 }
 
 //nolint:err113
-func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestCheckFunc {
+func testAccEntitlementControlCheckDestroy(provider *schema.Provider, resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
-		if !ok {
+		if !ok || resourceState == nil || resourceState.Primary == nil {
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
@@ -103,7 +159,7 @@ func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestChe
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc := provider.Meta().(*providerConfig)
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]
@@ -123,7 +179,7 @@ func testAccEntitlementControlCheckDestroy(resourceName string) resource.TestChe
 }
 
 //nolint:err113
-func testAccEntitlementControlCheckExists(resourceName string) resource.TestCheckFunc {
+func testAccEntitlementControlCheckExists(provider *schema.Provider, resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
 		if !ok {
@@ -134,7 +190,7 @@ func testAccEntitlementControlCheckExists(resourceName string) resource.TestChec
 			return fmt.Errorf("resource id not set")
 		}
 
-		pc := testAccProvider.Meta().(*providerConfig)
+		pc := provider.Meta().(*providerConfig)
 
 		namespace := os.Getenv("CLOUDSMITH_NAMESPACE")
 		repository := resourceState.Primary.Attributes["repository"]
@@ -171,6 +227,56 @@ func waitForEntitlementControlEnabled(pc *providerConfig, namespace, repository,
 		}
 		time.Sleep(1 * time.Second)
 	}
+}
+
+// Only the newly created acceptance fixture is expected to acquire a Default
+// token. Repository readiness does not establish entitlement-list readiness;
+// keep this bounded precondition out of the production data source.
+func testAccWaitForDefaultEntitlement(ctx context.Context, pc *providerConfig, namespace, repository string, interval time.Duration) error {
+	// Keep SDK authentication while using the fixture's cancellation/deadline.
+	ctx = context.WithValue(ctx, cloudsmith.ContextAPIKeys, pc.Auth.Value(cloudsmith.ContextAPIKeys))
+	query := buildQueryString(schema.NewSet(schema.HashString, []interface{}{"name:Default"}))
+	last := "no entitlement response"
+	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("waiting for Default entitlement in %s/%s (%s): %w", namespace, repository, last, err)
+		}
+		tokens, resp, err := pc.APIClient.EntitlementsApi.EntitlementsList(ctx, namespace, repository).
+			Page(1).PageSize(DefaultPageSize).ShowTokens(false).Active(false).Query(query).Execute()
+		if resp != nil {
+			resp.Body.Close()
+		}
+		switch {
+		case err == nil:
+			if len(tokens) == 1 && tokens[0].GetDefault() && tokens[0].GetName() == "Default" && tokens[0].GetSlugPerm() != "" {
+				return nil
+			}
+			if len(tokens) != 0 {
+				return fmt.Errorf("unexpected Default entitlement result in %s/%s: expected one default token with a slug_perm", namespace, repository)
+			}
+			last = "empty entitlement list"
+		case is404(resp):
+			last = "entitlement list returned 404"
+		default:
+			return fmt.Errorf("reading Default entitlement in %s/%s: %w", namespace, repository, err)
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return fmt.Errorf("waiting for Default entitlement in %s/%s (%s): %w", namespace, repository, last, ctx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
+func testAccEntitlementControlConfigRepository(repositoryName string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 }
 
 func testAccEntitlementControlConfigBasic(repositoryName string) string {

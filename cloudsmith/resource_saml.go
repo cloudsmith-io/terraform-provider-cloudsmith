@@ -2,9 +2,11 @@ package cloudsmith
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -41,27 +43,14 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		return err
 	}
+	if saml == nil || saml.GetSlugPerm() == "" {
+		return fmt.Errorf("SAML group sync create returned no permanent slug")
+	}
 
 	d.SetId(saml.GetSlugPerm())
 
-	checkerFunc := func() error {
-		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization)
-		_, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncListExecute(req)
-		if err != nil {
-			if resp != nil {
-				if is404(resp) {
-					return errKeepWaiting
-				}
-				if resp.StatusCode == 422 {
-					return fmt.Errorf("team does not exist, please check that the team exist")
-				}
-			}
-			return err
-		}
-		return nil
-	}
-
-	if err := waiter(checkerFunc, defaultCreationTimeout, defaultCreationInterval); err != nil {
+	observed, err := samlWaitForMapping(pc, organization, d.Id(), true, defaultCreationTimeout, defaultCreationInterval)
+	if err != nil {
 		return fmt.Errorf("error waiting for SAML group sync (%s) to be created: %w", d.Id(), err)
 	}
 
@@ -71,7 +60,8 @@ func samlCreate(d *schema.ResourceData, m interface{}) error {
 		}
 	}
 
-	return samlRead(d, m)
+	// Keep the response that satisfied the waiter: another list may hit a stale replica.
+	return samlSetState(d, pc, observed)
 }
 
 // samlEnabledConfigured reports whether `enabled` is explicitly set in the
@@ -118,6 +108,9 @@ func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
 			}
 			return formatAPIError(err)
 		}
+		if status == nil || !status.HasSamlGroupSyncStatus() {
+			return fmt.Errorf("SAML group sync status response is missing its status")
+		}
 		if status.GetSamlGroupSyncStatus() != enabled {
 			return errKeepWaiting
 		}
@@ -134,7 +127,11 @@ func samlSetEnabled(d *schema.ResourceData, m interface{}) error {
 func samlReadEnabled(pc *providerConfig, organization string) (bool, error) {
 	readStatus := func() (*cloudsmith.OrganizationGroupSyncStatus, *http.Response, error) {
 		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatus(pc.Auth, organization)
-		return pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
+		status, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncStatusExecute(req)
+		if err == nil && (status == nil || !status.HasSamlGroupSyncStatus()) {
+			err = fmt.Errorf("SAML group sync status response is missing its status")
+		}
+		return status, resp, err
 	}
 
 	status, resp, err := readStatus()
@@ -169,48 +166,81 @@ func samlReadEnabled(pc *providerConfig, organization string) (bool, error) {
 	return enabled, nil
 }
 
-func samlRead(d *schema.ResourceData, m interface{}) error {
-	pc := m.(*providerConfig)
-
-	organization := requiredString(d, "organization")
-
+func samlFindMapping(ctx context.Context, pc *providerConfig, organization, id string) (*cloudsmith.OrganizationGroupSync, error) {
 	exec := func(page, ps int64) ([]cloudsmith.OrganizationGroupSync, *http.Response, error) {
-		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization).
+		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(ctx, organization).
 			Page(page).
 			PageSize(ps)
 		results, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncListExecute(req)
 		if is404(resp) {
 			return nil, resp, nil
 		}
-		return results, resp, err
+		return results, resp, formatAPIError(err)
 	}
 	samlList, err := PaginateAllHTTP[cloudsmith.OrganizationGroupSync](exec, PaginationOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, item := range samlList {
-		if item.GetSlugPerm() == d.Id() {
-			d.Set("idp_key", item.IdpKey)
-			d.Set("idp_value", item.IdpValue)
-			d.Set("role", item.Role)
-			d.Set("team", item.Team)
-			d.Set("slug_perm", item.SlugPerm)
-
-			enabled, err := samlReadEnabled(pc, organization)
-			if err != nil {
-				return err
-			}
-			d.Set("enabled", enabled)
-
-			// namespace is not returned from the saml group endpoint so we rely on the input value
-			d.Set("organization", organization)
-			return nil
+		if item.GetSlugPerm() == id {
+			return &item, nil
 		}
 	}
+	return nil, nil
+}
 
-	d.SetId("")
+func samlWaitForMapping(pc *providerConfig, organization, id string, present bool, timeout, interval time.Duration) (*cloudsmith.OrganizationGroupSync, error) {
+	ctx, cancel := context.WithTimeout(pc.Auth, timeout)
+	defer cancel()
+	for {
+		item, err := samlFindMapping(ctx, pc, organization, id)
+		if err != nil {
+			return nil, err
+		}
+		if (item != nil) == present {
+			return item, nil
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			if pc.Auth.Err() != nil {
+				return nil, pc.Auth.Err()
+			}
+			return nil, errTimedOut
+		case <-timer.C:
+		}
+	}
+}
+
+func samlSetState(d *schema.ResourceData, pc *providerConfig, item *cloudsmith.OrganizationGroupSync) error {
+	enabled, err := samlReadEnabled(pc, requiredString(d, "organization"))
+	if err != nil {
+		return err
+	}
+	d.Set("idp_key", item.IdpKey)
+	d.Set("idp_value", item.IdpValue)
+	d.Set("role", item.Role)
+	d.Set("team", item.Team)
+	d.Set("slug_perm", item.SlugPerm)
+	d.Set("enabled", enabled)
 	return nil
+}
+
+func samlRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*providerConfig)
+	// An absent list entry can be replication lag even after creation was observed.
+	// Confirm absence for a bounded window, then honor legitimate external deletion.
+	item, err := samlWaitForMapping(pc, requiredString(d, "organization"), d.Id(), true, defaultCreationTimeout, defaultCreationInterval)
+	if errors.Is(err, errTimedOut) {
+		d.SetId("")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return samlSetState(d, pc, item)
 }
 
 func samlDelete(d *schema.ResourceData, m interface{}) error {
@@ -218,26 +248,15 @@ func samlDelete(d *schema.ResourceData, m interface{}) error {
 	organization := requiredString(d, "organization")
 
 	req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDelete(pc.Auth, organization, d.Id())
-	_, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDeleteExecute(req)
+	resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncDeleteExecute(req)
+	if is404(resp) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
 
-	checkerFunc := func() error {
-		req := pc.APIClient.OrgsApi.OrgsSamlGroupSyncList(pc.Auth, organization)
-		_, resp, err := pc.APIClient.OrgsApi.OrgsSamlGroupSyncListExecute(req)
-		if err != nil {
-			if resp != nil {
-				if is404(resp) {
-					return nil
-				}
-			}
-			return err
-		}
-		return nil
-	}
-
-	if err := waiter(checkerFunc, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
+	if _, err := samlWaitForMapping(pc, organization, d.Id(), false, defaultDeletionTimeout, defaultDeletionInterval); err != nil {
 		return fmt.Errorf("error waiting for SAML group sync (%s) to be deleted: %w", d.Id(), err)
 	}
 	return nil
