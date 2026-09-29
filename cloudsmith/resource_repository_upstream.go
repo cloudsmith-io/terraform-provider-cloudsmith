@@ -794,37 +794,57 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 }
 
 func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error {
-	upstream, resp, err := getUpstream(d, m)
-
+	pc := m.(*providerConfig)
+	ctx, cancel := context.WithTimeout(pc.Auth, defaultUpdateTimeout)
+	defer cancel()
+	readConfig := *pc
+	readConfig.Auth = ctx
 	previousUpdatedAt := stringToTime(d.Get(UpdatedAt).(string))
-	if err == nil && upstream.GetUpdatedAt().Before(previousUpdatedAt) {
-		// A refresh can hit a replica older than the snapshot already in state.
-		// Wait only for that revision, not for configuration values to match.
-		checker := func() error {
-			if upstream, resp, err = getUpstream(d, m); err != nil {
-				return err
-			}
-			if upstream.GetUpdatedAt().Before(previousUpdatedAt) {
-				return errKeepWaiting
-			}
-			return nil
-		}
-		err = waiter(checker, defaultUpdateTimeout, defaultUpdateInterval)
-		if err != nil && !is404(resp) {
-			return fmt.Errorf("error waiting for upstream (%s) to reach the last observed revision: %w", d.Id(), err)
-		}
+	readError := func(err error) error {
+		return fmt.Errorf("error waiting for upstream (%s) to reach the last observed revision: %w", d.Id(), err)
 	}
 
-	if err != nil {
-		if is404(resp) {
+	absentThroughout := true
+	notFoundReads := 0
+	for {
+		upstream, resp, err := getUpstream(d, &readConfig)
+		// An in-flight request deadline is not evidence of remote absence.
+		if ctx.Err() != nil {
+			return readError(ctx.Err())
+		}
+		if err != nil {
+			if !is404(resp) {
+				return readError(err)
+			}
+			notFoundReads++
+		} else {
+			// Even an older snapshot proves presence during this window.
+			absentThroughout = false
+			if !upstream.GetUpdatedAt().Before(previousUpdatedAt) {
+				return setRepositoryUpstreamState(d, upstream)
+			}
+		}
+
+		timer := time.NewTimer(defaultUpdateInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+		case <-timer.C:
+			if ctx.Err() == nil {
+				continue
+			}
+		}
+		if pc.Auth.Err() != nil {
+			return readError(pc.Auth.Err())
+		}
+		// Only expiry between completed 404 reads confirms absence over
+		// the entire window. A single response cannot confirm deletion.
+		if absentThroughout && notFoundReads > 1 {
 			d.SetId("")
 			return nil
 		}
-
-		return err
+		return readError(errTimedOut)
 	}
-
-	return setRepositoryUpstreamState(d, upstream)
 }
 
 func setRepositoryUpstreamState(d *schema.ResourceData, upstream Upstream) error {

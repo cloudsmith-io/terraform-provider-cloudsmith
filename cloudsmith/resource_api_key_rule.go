@@ -29,6 +29,21 @@ const minAPIKeyRuleMaxAgeHours = 24
 
 var apiKeyRuleTypes = []string{"Service Accounts", "User Accounts"}
 
+func validateAPIKeyRuleEnforceRefresh(value interface{}, key string) ([]string, []error) {
+	if value.(bool) {
+		return nil, []error{fmt.Errorf("%s: automatic API key refresh is no longer supported by Cloudsmith; set it to false or omit it", key)}
+	}
+	return nil, nil
+}
+
+func apiKeyRuleValidateRefresh(d *schema.ResourceData) error {
+	_, errs := validateAPIKeyRuleEnforceRefresh(d.Get(EnforceRefresh), EnforceRefresh)
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	return nil
+}
+
 func apiKeyRuleMaxAgeHours(d *schema.ResourceData) cloudsmith.NullableInt64 {
 	var maxAge *int64
 	if hours := int64(d.Get(MaxAgeHours).(int)); hours > 0 {
@@ -52,16 +67,18 @@ func importAPIKeyRule(ctx context.Context, d *schema.ResourceData, m interface{}
 }
 
 func resourceAPIKeyRuleCreate(d *schema.ResourceData, m interface{}) error {
+	if err := apiKeyRuleValidateRefresh(d); err != nil {
+		return err
+	}
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
 	req := pc.APIClient.OrgsApi.OrgsApiKeyRulesCreate(pc.Auth, org)
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequest{
-		EnforceRefresh: optionalBool(d, EnforceRefresh),
-		IsEnabled:      optionalBool(d, IsEnabled),
-		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
-		RuleType:       requiredString(d, RuleType),
+		IsEnabled:   optionalBool(d, IsEnabled),
+		MaxAgeHours: apiKeyRuleMaxAgeHours(d),
+		RuleType:    requiredString(d, RuleType),
 	})
 
 	apiKeyRule, _, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesCreateExecute(req)
@@ -128,15 +145,17 @@ func resourceAPIKeyRuleRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceAPIKeyRuleUpdate(d *schema.ResourceData, m interface{}) error {
+	if err := apiKeyRuleValidateRefresh(d); err != nil {
+		return err
+	}
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
 	req := pc.APIClient.OrgsApi.OrgsApiKeyRulesPartialUpdate(pc.Auth, org, d.Id())
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequestPatch{
-		EnforceRefresh: optionalBool(d, EnforceRefresh),
-		IsEnabled:      optionalBool(d, IsEnabled),
-		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
+		IsEnabled:   optionalBool(d, IsEnabled),
+		MaxAgeHours: apiKeyRuleMaxAgeHours(d),
 	})
 
 	apiKeyRule, _, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesPartialUpdateExecute(req)
@@ -193,10 +212,12 @@ func resourceAPIKeyRule() *schema.Resource {
 				Computed:    true,
 			},
 			EnforceRefresh: {
-				Type:        schema.TypeBool,
-				Description: "When enabled, API keys that violate this rule are replaced automatically.",
-				Optional:    true,
-				Computed:    true,
+				Type:         schema.TypeBool,
+				Description:  "Deprecated compatibility setting. Automatic API key refresh is no longer supported; must be false or omitted.",
+				Optional:     true,
+				Computed:     true,
+				Deprecated:   "Automatic API key refresh is no longer supported by Cloudsmith; remove enforce_refresh from configuration.",
+				ValidateFunc: validateAPIKeyRuleEnforceRefresh,
 			},
 			IsEnabled: {
 				Type:        schema.TypeBool,

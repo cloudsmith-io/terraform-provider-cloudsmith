@@ -391,7 +391,6 @@ func TestRepositoryUpstreamReadFreshness(t *testing.T) {
 
 func TestRepositoryUpstreamReadErrors(t *testing.T) {
 	previousTimeout, previousInterval := defaultUpdateTimeout, defaultUpdateInterval
-	defaultUpdateTimeout, defaultUpdateInterval = 20*time.Millisecond, time.Millisecond
 	t.Cleanup(func() {
 		defaultUpdateTimeout, defaultUpdateInterval = previousTimeout, previousInterval
 	})
@@ -403,7 +402,7 @@ func TestRepositoryUpstreamReadErrors(t *testing.T) {
 		wantTimeout bool
 	}{
 		{name: "not found", status: http.StatusNotFound},
-		{name: "deleted after stale read", status: http.StatusNotFound, staleFirst: true},
+		{name: "absence after stale read remains unconfirmed", status: http.StatusNotFound, staleFirst: true, wantTimeout: true},
 		{name: "forbidden", status: http.StatusForbidden},
 		{name: "forbidden after stale read", status: http.StatusForbidden, staleFirst: true},
 		{name: "throttled after stale read", status: http.StatusTooManyRequests, staleFirst: true},
@@ -411,6 +410,10 @@ func TestRepositoryUpstreamReadErrors(t *testing.T) {
 		{name: "perpetually stale", wantTimeout: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			defaultUpdateTimeout, defaultUpdateInterval = 5*time.Second, time.Millisecond
+			if tc.wantTimeout || tc.status == http.StatusNotFound {
+				defaultUpdateTimeout, defaultUpdateInterval = 200*time.Millisecond, 20*time.Millisecond
+			}
 			var mu sync.Mutex
 			var reads int
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -423,7 +426,7 @@ func TestRepositoryUpstreamReadErrors(t *testing.T) {
 				}
 				reads++
 				w.Header().Set("Content-Type", "application/json")
-				if tc.wantTimeout || (tc.staleFirst && reads == 1) {
+				if (tc.wantTimeout && tc.status == 0) || (tc.staleFirst && reads == 1) {
 					if err := json.NewEncoder(w).Encode(testUpstreamResponse(Python, false)); err != nil {
 						t.Errorf("encode upstream: %v", err)
 					}
@@ -467,7 +470,8 @@ func TestRepositoryUpstreamReadErrors(t *testing.T) {
 			if tc.staleFirst {
 				wantReads++
 			}
-			if (!tc.wantTimeout && reads != wantReads) || (tc.wantTimeout && reads < 2) {
+			pollingExpiry := tc.wantTimeout || tc.status == http.StatusNotFound
+			if (!pollingExpiry && reads != wantReads) || (pollingExpiry && reads < 2) {
 				t.Errorf("reads=%d, want %d (timeout=%t)", reads, wantReads, tc.wantTimeout)
 			}
 		})
