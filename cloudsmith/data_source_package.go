@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -223,8 +226,8 @@ func calculateChecksums(filePath string) (Checksums, error) {
 
 func dataSourcePackage() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourcePackageRead,
-
+		Read:        dataSourcePackageRead,
+		Description: "The `cloudsmith_package` data source allows you to list details and download a specific package from a given repository.",
 		Schema: map[string]*schema.Schema{
 			"cdn_url": {
 				Type:        schema.TypeString,

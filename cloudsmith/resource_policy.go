@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -140,6 +143,8 @@ func setPolicyOnSchema(d *schema.ResourceData, p *components.Policy, slugPermKey
 
 func resourcePolicy() *schema.Resource {
 	return &schema.Resource{
+		Description: "Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy_action).",
+
 		CreateContext: resourcePolicyCreate,
 		ReadContext:   resourcePolicyRead,
 		UpdateContext: resourcePolicyUpdate,

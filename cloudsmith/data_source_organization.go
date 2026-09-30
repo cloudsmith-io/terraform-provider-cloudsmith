@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -31,6 +34,8 @@ func dataSourceOrganizationRead(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func dataSourceOrganization() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `organization` data source allows fetching of metadata about a given Cloudsmith organization. The fetched data can be used to resolve permanent identifiers from an organization's user-facing name. These identifiers can then be passed to other resources to allow more consistent identification as user-facing names can change.",
+
 		Read: dataSourceOrganizationRead,
 
 		Schema: map[string]*schema.Schema{

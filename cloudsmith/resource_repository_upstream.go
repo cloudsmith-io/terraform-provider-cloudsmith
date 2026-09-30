@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -1488,6 +1491,9 @@ func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, 
 
 func resourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
+		Description: "The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.",
+
 		Create: resourceRepositoryUpstreamCreate,
 		Read:   resourceRepositoryUpstreamRead,
 		Update: resourceRepositoryUpstreamUpdate,

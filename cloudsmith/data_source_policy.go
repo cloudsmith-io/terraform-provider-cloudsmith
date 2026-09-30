@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -35,7 +38,7 @@ func dataSourcePolicyRead(ctx context.Context, d *schema.ResourceData, m interfa
 func dataSourcePolicy() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourcePolicyRead,
-		Description: "Get an existing policy in a Cloudsmith workspace.",
+		Description: "Get an existing policy in a Cloudsmith workspace.\n\n `cloudsmith_policy is supported only for policies as code.`",
 
 		Schema: map[string]*schema.Schema{
 			"workspace": {
@@ -52,11 +55,11 @@ func dataSourcePolicy() *schema.Resource {
 			},
 			"name":        {Type: schema.TypeString, Description: "The name of the policy.", Computed: true},
 			"description": {Type: schema.TypeString, Description: "The description of the policy.", Computed: true},
-			"rego":        {Type: schema.TypeString, Description: "The rego source for the policy logic.", Computed: true},
+			"rego":        {Type: schema.TypeString, Description: "The Rego source for the policy logic.", Computed: true},
 			"enabled":     {Type: schema.TypeBool, Description: "If true, the policy is enabled.", Computed: true},
 			"is_terminal": {Type: schema.TypeBool, Description: "If true and the policy matches, no further policies are evaluated.", Computed: true},
 			"precedence":  {Type: schema.TypeInt, Description: "The order in which this policy is evaluated relative to other policies.", Computed: true},
-			"version":     {Type: schema.TypeInt, Description: "The version of the rego code.", Computed: true},
+			"version":     {Type: schema.TypeInt, Description: "The version of the Rego code.", Computed: true},
 			"read_only":   {Type: schema.TypeBool, Description: "Whether the policy is read-only (only specific variables can be updated).", Computed: true},
 			"created_at":  {Type: schema.TypeString, Description: "The time the policy was created.", Computed: true},
 			"updated_at":  {Type: schema.TypeString, Description: "The time the policy was last updated.", Computed: true},

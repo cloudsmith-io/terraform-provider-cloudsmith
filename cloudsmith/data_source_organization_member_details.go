@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -37,6 +40,8 @@ func dataSourceOrganizationMemberDetailsRead(d *schema.ResourceData, m interface
 
 func dataSourceMemberDetails() *schema.Resource {
 	return &schema.Resource{
+		Description: "Get the details for a specific organization member.",
+
 		Read: dataSourceOrganizationMemberDetailsRead,
 
 		Schema: map[string]*schema.Schema{

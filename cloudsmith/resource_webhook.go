@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -299,6 +302,9 @@ func resourceWebhookDelete(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func resourceWebhook() *schema.Resource {
 	return &schema.Resource{
+		Description: "The webhook resource allows the creation and management of webhooks for a given Cloudsmith repository. Webhooks allow integration with external systems by emitting events via HTTP POST request.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/logs-and-observability/webhooks) for full webhook documentation.",
+
 		Create: resourceWebhookCreate,
 		Read:   resourceWebhookRead,
 		Update: resourceWebhookUpdate,

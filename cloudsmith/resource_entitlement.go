@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -191,6 +194,9 @@ func setEntitlementPrivateBroadcasts(pc *providerConfig, namespace, repository, 
 //nolint:funlen
 func resourceEntitlement() *schema.Resource {
 	return &schema.Resource{
+		Description: "The entitlement resource allows the creation and management of entitlement tokens for a given Cloudsmith repository. Entitlement tokens grant read-only access to a repository and can be configured with a number of custom restrictions if necessary.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/software-distribution/entitlement-tokens) for full entitlement documentation.",
+
 		Create: resourceEntitlementCreate,
 		Read:   resourceEntitlementRead,
 		Update: resourceEntitlementUpdate,

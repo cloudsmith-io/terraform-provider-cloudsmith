@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 // Package cloudsmith provides Terraform provider functionality for managing Cloudsmith resources.
 package cloudsmith
 
@@ -351,6 +354,8 @@ func handleSAMLAuthError(err error, action string) error {
 // This resource allows configuring SAML authentication settings for a Cloudsmith organization.
 func resourceSAMLAuth() *schema.Resource {
 	return &schema.Resource{
+		Description: "The SAML Authentication resource allows the configuration of SAML-based authentication for a Cloudsmith organization. This enables organizations to integrate with SAML identity providers for user authentication.",
+
 		CreateContext: samlAuthCreate,
 		ReadContext:   samlAuthRead,
 		UpdateContext: samlAuthUpdate,

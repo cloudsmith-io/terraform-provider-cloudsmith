@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -164,6 +167,9 @@ func resourceLicensePolicyRead(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func resourceLicensePolicy() *schema.Resource {
 	return &schema.Resource{
+		Description: "The license policy resource allows for creation and management of license policies within a Cloudsmith organization.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/policy-management/license-policy) for the full license policies documentation.",
+
 		Create: resourceLicensePolicyCreate,
 		Read:   resourceLicensePolicyRead,
 		Update: resourceLicensePolicyUpdate,

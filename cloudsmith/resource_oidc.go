@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -209,6 +212,9 @@ func oidcDelete(d *schema.ResourceData, m interface{}) error {
 
 func resourceOIDC() *schema.Resource {
 	return &schema.Resource{
+		Description: "The OIDC resource allows the creation and management of OpenID Connect (OIDC) configurations for a given Cloudsmith organization. It supports either static service accounts or dynamic mappings from a claim value to service accounts.\n\n" +
+			"Note: Dynamic mappings (`mapping_claim` and `dynamic_mappings`) are in early access; breaking changes are possible.",
+
 		Create: oidcCreate,
 		Read:   oidcRead,
 		Update: oidcUpdate,
@@ -221,7 +227,7 @@ func resourceOIDC() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"claims": {
 				Type:        schema.TypeMap,
-				Description: "The claims associated with these provider settings",
+				Description: "The claims associated with these provider settings.",
 				Required:    true,
 			},
 			"enabled": {
@@ -231,7 +237,7 @@ func resourceOIDC() *schema.Resource {
 			},
 			"name": {
 				Type:        schema.TypeString,
-				Description: "The name of the provider settings are being configured for",
+				Description: "The name of the provider settings are being configured for.",
 				Required:    true,
 			},
 			"namespace": {

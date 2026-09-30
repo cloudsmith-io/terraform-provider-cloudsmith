@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -54,6 +57,8 @@ func dataSourceOidcRead(d *schema.ResourceData, m interface{}) error {
 
 func dataSourceOidc() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `oidc` data source allows fetching of metadata about a given Cloudsmith OIDC (OpenID Connect) provider configuration. This can be used to retrieve information about existing OIDC configurations for use in other Terraform resources or to verify configuration details.",
+
 		Read: dataSourceOidcRead,
 
 		Schema: map[string]*schema.Schema{
@@ -120,7 +125,7 @@ func dataSourceOidc() *schema.Resource {
 			},
 			"slug_perm": {
 				Type:         schema.TypeString,
-				Description:  "The slug_perm identifies the oidc.",
+				Description:  "The slug_perm identifies the OIDC config.",
 				Required:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},

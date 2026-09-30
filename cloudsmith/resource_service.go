@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -260,6 +263,9 @@ func resourceServiceDelete(ctx context.Context, d *schema.ResourceData, m interf
 //nolint:funlen
 func resourceService() *schema.Resource {
 	return &schema.Resource{
+		Description: "The service resource allows the creation and management of services for a given Cloudsmith organization. Services allow users to create API keys that can be used for machine-to-machine or other programmatic access without requiring a real user account.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/accounts-and-teams/service-accounts) for full service documentation.",
+
 		CreateContext: resourceServiceCreate,
 		ReadContext:   resourceServiceRead,
 		UpdateContext: resourceServiceUpdate,

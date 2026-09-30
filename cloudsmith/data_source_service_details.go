@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -82,7 +85,8 @@ func dataSourceServiceDetailsRead(d *schema.ResourceData, m interface{}) error {
 
 func dataSourceServiceDetails() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceServiceDetailsRead,
+		Read:        dataSourceServiceDetailsRead,
+		Description: `Retrieve detailed information about a single service account in a Cloudsmith organization.`,
 		Schema: map[string]*schema.Schema{
 			"organization":   {Type: schema.TypeString, Required: true, Description: "Organization to which the service belongs."},
 			"service":        {Type: schema.TypeString, Required: true, Description: "Slug of the service to retrieve."},

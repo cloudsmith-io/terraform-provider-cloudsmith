@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -81,6 +84,8 @@ func flattenPackages(packages []cloudsmith.Package) []interface{} {
 
 func dataSourcePackageList() *schema.Resource {
 	return &schema.Resource{
+		Description: "The `package_list` data source allows for retrieval of a list of packages within a given repository.",
+
 		Read: dataSourcePackageListRead,
 
 		Schema: map[string]*schema.Schema{
@@ -105,7 +110,7 @@ func dataSourcePackageList() *schema.Resource {
 			},
 			"most_recent": {
 				Type:        schema.TypeBool,
-				Description: "Only return the most recent package",
+				Description: "Only return the most recent package.",
 				Optional:    true,
 			},
 			"packages": {

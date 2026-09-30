@@ -1,3 +1,6 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
 package cloudsmith
 
 import (
@@ -56,6 +59,8 @@ func flattenOrganizationMembers(members []cloudsmith.OrganizationMembership) []i
 
 func dataSourceOrganizationMembersList() *schema.Resource {
 	return &schema.Resource{
+		Description: "Get the details for all organization members.",
+
 		Read: dataSourceOrganizationMembersListRead,
 		Schema: map[string]*schema.Schema{
 			"namespace": {
