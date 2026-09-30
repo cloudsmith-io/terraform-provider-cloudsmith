@@ -757,7 +757,7 @@ func resourceRepository() *schema.Resource {
 							Default:  0,
 							Description: "The maximum total size (in bytes) of packages to retain. Must be " +
 								"between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
-							ValidateFunc: validation.IntBetween(0, 21474836480),
+							ValidateDiagFunc: Int64AtMost(retentionMaxBytes),
 						},
 						"retention_package_query_string": {
 							Type:     schema.TypeString,
