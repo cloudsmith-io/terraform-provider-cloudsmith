@@ -16,7 +16,7 @@ data "cloudsmith_repository" "my_repository" {
 
 data "cloudsmith_entitlement_list" "my_tokens" {
   namespace    = data.cloudsmith_repository.my_repository.namespace
-  repository   = data.cloudsmith_repository.my_repository.slug_perm
+  repository   = data.cloudsmith_repository.my_repository.id
   query        = ["name:Default"]
   show_token   = true
   active_token = true

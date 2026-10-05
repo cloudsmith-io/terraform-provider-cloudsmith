@@ -16,7 +16,7 @@ resource "cloudsmith_repository" "devops" {
 
 resource "cloudsmith_repository_privileges" "devops-privs" {
   organization = data.cloudsmith_organization.org-demo.slug
-  repository   = cloudsmith_repository.devops.slug
+  repository   = cloudsmith_repository.devops.id
 
   service {
     privilege = "Write"
@@ -30,7 +30,7 @@ resource "cloudsmith_repository_privileges" "devops-privs" {
 }
 
 resource "cloudsmith_repository_geo_ip_rules" "devops-geoip" {
-  repository         = cloudsmith_repository.devops.slug
+  repository         = cloudsmith_repository.devops.id
   namespace          = data.cloudsmith_organization.org-demo.slug
   country_code_allow = var.geopip_allow_countries
 }

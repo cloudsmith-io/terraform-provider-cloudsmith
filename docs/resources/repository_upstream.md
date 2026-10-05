@@ -31,7 +31,7 @@ data "cloudsmith_repository" "my_repository" {
 resource "cloudsmith_repository_upstream" "gradle_distributions" {
   name            = "Gradle Distributions"
   namespace       = data.cloudsmith_organization.my_organization.slug_perm
-  repository      = resource.cloudsmith_repository.my_repository.slug_perm
+  repository      = resource.cloudsmith_repository.my_repository.id
   upstream_type   = "generic"
   upstream_url    = "https://services.gradle.org"
   upstream_prefix = "distributions"

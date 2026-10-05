@@ -16,7 +16,7 @@ resource "cloudsmith_repository" "oidc_demo" {
 
 resource "cloudsmith_repository_privileges" "oidc_demo-privs" {
   organization = data.cloudsmith_organization.org-demo.slug
-  repository   = cloudsmith_repository.oidc_demo.slug
+  repository   = cloudsmith_repository.oidc_demo.id
 
   service {
     privilege = "Write"

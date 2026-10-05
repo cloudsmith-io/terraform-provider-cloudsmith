@@ -18,7 +18,7 @@ resource "cloudsmith_repository" "my_repository" {
 
 resource "cloudsmith_webhook" "my_webhook" {
   namespace  = cloudsmith_repository.my_repository.namespace
-  repository = cloudsmith_repository.my_repository.slug_perm
+  repository = cloudsmith_repository.my_repository.id
 
   events              = ["package.created", "package.deleted"]
   request_body_format = "Handlebars Template"

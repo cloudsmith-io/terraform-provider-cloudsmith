@@ -19,5 +19,5 @@ resource "cloudsmith_repository" "my_repository" {
 resource "cloudsmith_entitlement" "my_entitlement" {
   name       = "Test Entitlement"
   namespace  = cloudsmith_repository.my_repository.namespace
-  repository = cloudsmith_repository.my_repository.slug_perm
+  repository = cloudsmith_repository.my_repository.id
 }

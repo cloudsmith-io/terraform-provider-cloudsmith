@@ -16,13 +16,13 @@ resource "cloudsmith_repository" "staging" {
 resource "cloudsmith_entitlement" "staging-main_entitlement" {
   namespace           = data.cloudsmith_organization.org-demo.slug
   name                = var.main_entitlement_token
-  repository          = cloudsmith_repository.staging.slug
+  repository          = cloudsmith_repository.staging.id
   limit_num_downloads = var.main_entitlement_token_limit_num_downloads
 }
 
 resource "cloudsmith_repository_privileges" "staging-privs" {
   organization = data.cloudsmith_organization.org-demo.slug
-  repository   = cloudsmith_repository.staging.slug
+  repository   = cloudsmith_repository.staging.id
 
   service {
     privilege = "Write"

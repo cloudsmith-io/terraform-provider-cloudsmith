@@ -44,8 +44,8 @@ resource "cloudsmith_repository" "target" {
 
 resource "cloudsmith_repository_connected" "link" {
   namespace         = cloudsmith_repository.source.namespace
-  repository        = cloudsmith_repository.source.slug_perm
-  target_repository = cloudsmith_repository.target.slug
+  repository        = cloudsmith_repository.source.id
+  target_repository = cloudsmith_repository.target.id
   is_active         = true
   priority          = 1
 }
