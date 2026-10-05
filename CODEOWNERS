@@ -1,1 +1,6 @@
 * @cloudsmith-io/engineering @cloudsmith-io/squad-developer-tooling
+
+# An approval from Cloudsmith Bot satisfies code owner review only for these files.
+/go.mod @cloudsmith-io/engineering @cloudsmith-io/squad-developer-tooling @cloudsmith-bot
+/go.sum @cloudsmith-io/engineering @cloudsmith-io/squad-developer-tooling @cloudsmith-bot
+/.github/workflows/ @cloudsmith-io/engineering @cloudsmith-io/squad-developer-tooling @cloudsmith-bot
