@@ -12,6 +12,16 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      go-major:
+        patterns: ["*"]
+        update-types:
+          - "major"
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "github-actions"
     cooldown:
       default-days: 7
@@ -20,6 +30,16 @@ updates:
       interval: "weekly"
     groups:
       actions-all:
+        patterns: ["*"]
+        update-types:
+          - "minor"
+          - "patch"
+      actions-major:
+        patterns: ["*"]
+        update-types:
+          - "major"
+      actions-security:
+        applies-to: security-updates
         patterns: ["*"]
         update-types:
           - "minor"
