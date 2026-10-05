@@ -35,8 +35,8 @@ resource "cloudsmith_service" "my_service" {
 data "cloudsmith_user_self" "current" {}
 
 resource "cloudsmith_repository_privileges" "privs" {
-  organization = data.cloudsmith_organization.my_organization.slug
-  repository   = cloudsmith_repository.my_repository.slug
+  organization = data.cloudsmith_organization.my_organization.id
+  repository   = cloudsmith_repository.my_repository.id
 
   ### Always include the authenticated account to avoid lockout (see note above)
 

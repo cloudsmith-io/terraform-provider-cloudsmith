@@ -18,14 +18,14 @@ resource "cloudsmith_repository" "my_repository" {
 
 data "cloudsmith_entitlement_list" "my_tokens" {
   namespace  = resource.cloudsmith_repository.my_repository.namespace
-  repository = resource.cloudsmith_repository.my_repository.slug_perm
+  repository = resource.cloudsmith_repository.my_repository.id
 
   query = ["name:Default"]
 }
 
 resource "cloudsmith_entitlement_control" "my_entitlement_control" {
   namespace  = resource.cloudsmith_repository.my_repository.namespace
-  repository = resource.cloudsmith_repository.my_repository.slug_perm
+  repository = resource.cloudsmith_repository.my_repository.id
   identifier = data.cloudsmith_entitlement_list.my_tokens.entitlement_tokens[0].slug_perm
   enabled    = false
 }

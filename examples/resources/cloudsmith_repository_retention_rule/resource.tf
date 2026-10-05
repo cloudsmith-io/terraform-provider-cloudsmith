@@ -16,7 +16,7 @@ resource "cloudsmith_repository" "my_repository" {
 
 resource "cloudsmith_repository_retention_rule" "retention_rule" {
   namespace                       = data.cloudsmith_organization.my_organization.slug
-  repository                      = cloudsmith_repository.my_repository.slug
+  repository                      = cloudsmith_repository.my_repository.id
   retention_enabled               = true
   retention_count_limit           = 100
   retention_days_limit            = 28

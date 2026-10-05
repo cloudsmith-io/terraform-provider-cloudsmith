@@ -16,7 +16,7 @@ resource "cloudsmith_repository" "repositories" {
 resource "cloudsmith_repository_privileges" "repo-privs" {
   for_each     = var.repositories
   organization = data.cloudsmith_organization.cloudsmith-org.slug
-  repository   = cloudsmith_repository.repositories[each.key].slug
+  repository   = cloudsmith_repository.repositories[each.key].id
 
   # if you're using a service account to provision, be sure to include it as an Admin here!
   service {

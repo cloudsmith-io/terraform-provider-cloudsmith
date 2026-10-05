@@ -12,5 +12,5 @@ resource "cloudsmith_repository" "test" {
 
 data "cloudsmith_repository_privileges" "test_data" {
   organization = cloudsmith_repository.test.namespace
-  repository   = cloudsmith_repository.test.slug
+  repository   = cloudsmith_repository.test.id
 }

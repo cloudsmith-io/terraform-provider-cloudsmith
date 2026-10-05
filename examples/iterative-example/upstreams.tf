@@ -6,7 +6,7 @@ resource "cloudsmith_repository_upstream" "cgr-public" {
   for_each      = var.repositories
   name          = "cgr-public"
   namespace     = data.cloudsmith_organization.cloudsmith-org.slug_perm
-  repository    = cloudsmith_repository.repositories[each.key].slug_perm
+  repository    = cloudsmith_repository.repositories[each.key].id
   is_active     = true
   upstream_type = "docker"
   upstream_url  = "https://cgr.dev"
@@ -19,7 +19,7 @@ resource "cloudsmith_repository_upstream" "cgr-private" {
   for_each      = var.repositories
   name          = "cgr-private"
   namespace     = data.cloudsmith_organization.cloudsmith-org.slug_perm
-  repository    = cloudsmith_repository.repositories[each.key].slug_perm
+  repository    = cloudsmith_repository.repositories[each.key].id
   is_active     = true
   upstream_type = "docker"
   upstream_url  = "https://cgr.dev"
@@ -34,7 +34,7 @@ resource "cloudsmith_repository_upstream" "dockerhub" {
   for_each      = var.repositories
   name          = "dockerhub"
   namespace     = data.cloudsmith_organization.cloudsmith-org.slug_perm
-  repository    = cloudsmith_repository.repositories[each.key].slug_perm
+  repository    = cloudsmith_repository.repositories[each.key].id
   upstream_type = "docker"
   upstream_url  = "https://index.docker.io"
   mode          = "Cache and Proxy"

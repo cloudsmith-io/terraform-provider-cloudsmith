@@ -18,7 +18,7 @@ resource "cloudsmith_repository" "my_repository" {
 
 resource "cloudsmith_repository_geo_ip_rules" "my_rules" {
   namespace  = data.cloudsmith_organization.my_organization.slug_perm
-  repository = resource.cloudsmith_repository.my_repository.slug_perm
+  repository = resource.cloudsmith_repository.my_repository.id
   cidr_allow = [
     "10.0.0.0/24",
     "6cc2:ab98:2143:7e6e:8827:e81a:1527:9645/128",
