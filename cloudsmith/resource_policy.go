@@ -143,8 +143,7 @@ func setPolicyOnSchema(d *schema.ResourceData, p *components.Policy, slugPermKey
 
 func resourcePolicy() *schema.Resource {
 	return &schema.Resource{
-		Description: "Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy_action).\n\n" +
-			"> ⚠️ **When you create a cooldown policy, you must attach a `set_package_state` action with `package_state = \"HIDDEN\"`. A cooldown policy without this action is evaluated and matches packages, but does not hide anything from the index.**",
+		Description: "Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy_action).",
 
 		CreateContext: resourcePolicyCreate,
 		ReadContext:   resourcePolicyRead,
