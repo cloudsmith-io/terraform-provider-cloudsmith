@@ -1,0 +1,21 @@
+---
+page_title: {{ .Name }} {{ .Type }} - {{ .ProviderShortName }}
+description: |-
+    {{ .Description }}
+---
+
+# {{ .Name }} ({{ .Type }})
+
+{{ .Description }}
+
+!>⚠️ **Cooldown policies**
+
+When you create a cooldown policy, you must:
+
+- Attach a `set_package_state` action with `package_state = \"HIDDEN\"`. A cooldown policy without this action is evaluated and matches packages, but does not hide anything from the index.
+- Set `is_terminal` to `true`. This prevents the evaluation of any further policies if the cooldown policy matches.
+
+# Example usage
+{{tffile .ExampleFile}}
+
+{{ .SchemaMarkdown | trimspace }}
