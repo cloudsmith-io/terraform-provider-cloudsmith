@@ -29,21 +29,6 @@ const minAPIKeyRuleMaxAgeHours = 24
 
 var apiKeyRuleTypes = []string{"Service Accounts", "User Accounts"}
 
-func validateAPIKeyRuleEnforceRefresh(value interface{}, key string) ([]string, []error) {
-	if value.(bool) {
-		return nil, []error{fmt.Errorf("%s: automatic API key refresh is no longer supported by Cloudsmith; set it to false or omit it", key)}
-	}
-	return nil, nil
-}
-
-func apiKeyRuleValidateRefresh(d *schema.ResourceData) error {
-	_, errs := validateAPIKeyRuleEnforceRefresh(d.Get(EnforceRefresh), EnforceRefresh)
-	if len(errs) > 0 {
-		return errs[0]
-	}
-	return nil
-}
-
 func apiKeyRuleMaxAgeHours(d *schema.ResourceData) cloudsmith.NullableInt64 {
 	var maxAge *int64
 	if hours := int64(d.Get(MaxAgeHours).(int)); hours > 0 {
@@ -67,18 +52,16 @@ func importAPIKeyRule(ctx context.Context, d *schema.ResourceData, m interface{}
 }
 
 func resourceAPIKeyRuleCreate(d *schema.ResourceData, m interface{}) error {
-	if err := apiKeyRuleValidateRefresh(d); err != nil {
-		return err
-	}
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
 	req := pc.APIClient.OrgsApi.OrgsApiKeyRulesCreate(pc.Auth, org)
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequest{
-		IsEnabled:   optionalBool(d, IsEnabled),
-		MaxAgeHours: apiKeyRuleMaxAgeHours(d),
-		RuleType:    requiredString(d, RuleType),
+		EnforceRefresh: optionalBool(d, EnforceRefresh),
+		IsEnabled:      optionalBool(d, IsEnabled),
+		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
+		RuleType:       requiredString(d, RuleType),
 	})
 
 	apiKeyRule, _, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesCreateExecute(req)
@@ -145,17 +128,15 @@ func resourceAPIKeyRuleRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceAPIKeyRuleUpdate(d *schema.ResourceData, m interface{}) error {
-	if err := apiKeyRuleValidateRefresh(d); err != nil {
-		return err
-	}
 	pc := m.(*providerConfig)
 
 	org := requiredString(d, Organization)
 
 	req := pc.APIClient.OrgsApi.OrgsApiKeyRulesPartialUpdate(pc.Auth, org, d.Id())
 	req = req.Data(cloudsmith.OrganizationApiKeyRuleRequestPatch{
-		IsEnabled:   optionalBool(d, IsEnabled),
-		MaxAgeHours: apiKeyRuleMaxAgeHours(d),
+		EnforceRefresh: optionalBool(d, EnforceRefresh),
+		IsEnabled:      optionalBool(d, IsEnabled),
+		MaxAgeHours:    apiKeyRuleMaxAgeHours(d),
 	})
 
 	apiKeyRule, _, err := pc.APIClient.OrgsApi.OrgsApiKeyRulesPartialUpdateExecute(req)
@@ -196,6 +177,11 @@ func resourceAPIKeyRuleDelete(d *schema.ResourceData, m interface{}) error {
 //nolint:funlen
 func resourceAPIKeyRule() *schema.Resource {
 	return &schema.Resource{
+		Description: "The API key rule resource manages the maximum permitted age of API keys in a Cloudsmith organization. " +
+			"Each rule applies to either user accounts or service accounts. Requests using an API key older than " +
+			"`max_age_hours` are rejected, and keys can optionally be rotated automatically once they exceed it.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/workspaces/api-key-rules) for the full API key rules documentation.",
+
 		Create: resourceAPIKeyRuleCreate,
 		Read:   resourceAPIKeyRuleRead,
 		Update: resourceAPIKeyRuleUpdate,
@@ -212,12 +198,13 @@ func resourceAPIKeyRule() *schema.Resource {
 				Computed:    true,
 			},
 			EnforceRefresh: {
-				Type:         schema.TypeBool,
-				Description:  "Deprecated compatibility setting. Automatic API key refresh is no longer supported; must be false or omitted.",
-				Optional:     true,
-				Computed:     true,
-				Deprecated:   "Automatic API key refresh is no longer supported by Cloudsmith; remove enforce_refresh from configuration.",
-				ValidateFunc: validateAPIKeyRuleEnforceRefresh,
+				Type: schema.TypeBool,
+				Description: "Whether API keys that exceed `max_age_hours` are rotated automatically. Rotation is " +
+					"irreversible: anything using an old key must be updated with the new one. Collaborators are " +
+					"never rotated. When omitted, the current setting is left unchanged; set it to `false` to turn " +
+					"automatic rotation off.",
+				Optional: true,
+				Computed: true,
 			},
 			IsEnabled: {
 				Type:        schema.TypeBool,
@@ -233,7 +220,7 @@ func resourceAPIKeyRule() *schema.Resource {
 			MaxAgeHours: {
 				Type: schema.TypeInt,
 				Description: "The maximum permitted age of an API key, in hours. API keys older than " +
-					"this lose access until refreshed. Omit to disable the age limit.",
+					"this lose access until rotated. Omit to disable the age limit.",
 				Optional:     true,
 				ValidateFunc: validation.IntAtLeast(minAPIKeyRuleMaxAgeHours),
 			},

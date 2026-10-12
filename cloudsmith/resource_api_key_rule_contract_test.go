@@ -12,12 +12,10 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-api-go"
-	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -53,9 +51,10 @@ func (f *apiKeyRuleFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.rule = map[string]interface{}{
 				"slug_perm": "rule-id", "slug": "account-policy", "rule_type": f.ruleType,
 				"created_at": "2026-09-29T12:00:00Z", "last_applied_at": nil, "is_enabled": true,
+				"enforce_refresh": false,
 			}
 		}
-		for _, field := range []string{"is_enabled", "max_age_hours"} {
+		for _, field := range []string{"enforce_refresh", "is_enabled", "max_age_hours"} {
 			if value, ok := body[field]; ok {
 				f.rule[field] = value
 			}
@@ -107,53 +106,10 @@ func testAPIKeyRuleConfig(ruleType string, refresh interface{}, maxAge interface
 	return config
 }
 
-func TestAPIKeyRuleRejectsRemovedRefresh(t *testing.T) {
-	t.Parallel()
-	for _, ruleType := range apiKeyRuleTypes {
-		t.Run(ruleType, func(t *testing.T) {
-			t.Parallel()
-			config := terraform.NewResourceConfigRaw(testAPIKeyRuleConfig(ruleType, true, 48, true))
-			diagnostics := resourceAPIKeyRule().Validate(config)
-			if !diagnostics.HasError() {
-				// Exercise the pre-fix acceptance failure through real SDK state
-				// handoff, not just a request-serialization proxy.
-				fixture := &apiKeyRuleFixture{t: t, key: "unchanged-local-key", keyAge: 96, ruleType: ruleType}
-				server := httptest.NewServer(fixture)
-				defer server.Close()
-				pc := testAPIKeyRuleProvider(server)
-				res := resourceAPIKeyRule()
-				diff, err := res.Diff(context.Background(), nil, config, pc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				state, applyDiagnostics := res.Apply(context.Background(), nil, diff, pc)
-				if applyDiagnostics.HasError() {
-					t.Fatal(applyDiagnostics)
-				}
-				state, applyDiagnostics = res.RefreshWithoutUpgrade(context.Background(), state, pc)
-				if applyDiagnostics.HasError() {
-					t.Fatal(applyDiagnostics)
-				}
-				diff, err = res.Diff(context.Background(), state, config, pc)
-				if err != nil {
-					t.Fatal(err)
-				}
-				fixture.mu.Lock()
-				t.Logf("unsupported request accepted: sent enforce_refresh=%v, refreshed state=%s, post-refresh diff empty=%t, key unchanged=%t",
-					fixture.requests[0][EnforceRefresh], state.Attributes[EnforceRefresh], diff.Empty(), fixture.key == "unchanged-local-key")
-				fixture.mu.Unlock()
-			}
-			if !diagnostics.HasError() || !strings.Contains(fmt.Sprint(diagnostics), "automatic API key refresh is no longer supported") {
-				t.Fatalf("enforce_refresh=true must fail validation, got %v", diagnostics)
-			}
-		})
-	}
-}
-
 func TestAPIKeyRuleContractLifecycle(t *testing.T) {
 	t.Parallel()
 	for _, ruleType := range apiKeyRuleTypes {
-		for _, refresh := range []interface{}{nil, false} {
+		for _, refresh := range []interface{}{nil, false, true} {
 			t.Run(fmt.Sprintf("%s/refresh=%v", ruleType, refresh), func(t *testing.T) {
 				t.Parallel()
 				fixture := &apiKeyRuleFixture{t: t, key: "unchanged-local-key", keyAge: 96, ruleType: ruleType}
@@ -183,8 +139,13 @@ func TestAPIKeyRuleContractLifecycle(t *testing.T) {
 					if diagnostics.HasError() {
 						t.Fatal(diagnostics)
 					}
-					if state.Attributes[EnforceRefresh] != "false" || state.Attributes[IsEnabled] != fmt.Sprint(configMap[IsEnabled]) {
-						t.Fatal("state must reflect current API fields, not unsupported refresh intent")
+					wantRefresh := "false"
+					if configured, ok := configMap[EnforceRefresh]; ok {
+						wantRefresh = fmt.Sprint(configured)
+					}
+					if state.Attributes[EnforceRefresh] != wantRefresh || state.Attributes[IsEnabled] != fmt.Sprint(configMap[IsEnabled]) {
+						t.Fatalf("step %d: state must reflect the API, got enforce_refresh=%s is_enabled=%s",
+							step, state.Attributes[EnforceRefresh], state.Attributes[IsEnabled])
 					}
 					diff, err = res.Diff(context.Background(), state, config, pc)
 					if err != nil || !diff.Empty() {
@@ -196,16 +157,17 @@ func TestAPIKeyRuleContractLifecycle(t *testing.T) {
 					if age, ok := configMap[MaxAgeHours]; ok {
 						want[MaxAgeHours] = float64(age.(int))
 					}
+					if refresh, ok := configMap[EnforceRefresh]; ok {
+						want[EnforceRefresh] = refresh
+					}
 					if step == 0 {
 						want[RuleType] = ruleType
 					}
 					if !reflect.DeepEqual(request, want) {
 						t.Errorf("step %d payload=%v, want %v", step, request, want)
 					}
-					for _, removed := range []string{EnforceRefresh, "refresh_immediately"} {
-						if _, ok := request[removed]; ok {
-							t.Errorf("request must omit %s, including explicit false", removed)
-						}
+					if _, ok := request["refresh_immediately"]; ok {
+						t.Error("request must never trigger an immediate rotation")
 					}
 					if fixture.key != "unchanged-local-key" || fixture.keyAge != 96 {
 						t.Error("rule operations must not rotate fixture keys")
@@ -238,7 +200,7 @@ func TestAPIKeyRuleContractLifecycle(t *testing.T) {
 				}
 				importedState, diagnostics := res.RefreshWithoutUpgrade(context.Background(), imported[0].State(), pc)
 				if diagnostics.HasError() || importedState.ID != "rule-id" || importedState.Attributes[EnforceRefresh] != "false" {
-					t.Fatalf("import did not read current API contract: %v", diagnostics)
+					t.Fatalf("import must read enforce_refresh from the API, not the import config: %v", diagnostics)
 				}
 				importedState.Attributes[EnforceRefresh] = "true"
 				state, diagnostics = res.Apply(context.Background(), importedState, &terraform.InstanceDiff{Destroy: true}, pc)
@@ -246,87 +208,6 @@ func TestAPIKeyRuleContractLifecycle(t *testing.T) {
 					t.Fatalf("delete: state=%v diagnostics=%v", state, diagnostics)
 				}
 			})
-		}
-	}
-}
-
-func TestAPIKeyRuleRejectsRefreshAtApply(t *testing.T) {
-	t.Parallel()
-	for _, ruleType := range apiKeyRuleTypes {
-		for _, operation := range []string{"create", "update"} {
-			for _, entry := range []string{"SDK Apply", "direct callback"} {
-				t.Run(ruleType+"/"+operation+"/"+entry, func(t *testing.T) {
-					t.Parallel()
-					var requests atomic.Int64
-					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-						requests.Add(1)
-						w.Header().Set("Content-Type", "application/json")
-						w.WriteHeader(http.StatusServiceUnavailable)
-						fmt.Fprint(w, `{"detail":"unexpected request"}`)
-					}))
-					defer server.Close()
-					pc := testAPIKeyRuleProvider(server)
-					res := resourceAPIKeyRule()
-					known := testAPIKeyRuleConfig(ruleType, true, 48, true)
-
-					if entry == "SDK Apply" {
-						coreSchema := res.CoreConfigSchema()
-						values := make(map[string]cty.Value, len(coreSchema.Attributes))
-						for name, attribute := range coreSchema.Attributes {
-							values[name] = cty.NullVal(attribute.Type)
-						}
-						values[Organization] = cty.StringVal("isolated-org")
-						values[RuleType] = cty.StringVal(ruleType)
-						values[MaxAgeHours] = cty.NumberIntVal(48)
-						values[IsEnabled] = cty.True
-						values[EnforceRefresh] = cty.UnknownVal(cty.Bool)
-						unknown := terraform.NewResourceConfigShimmed(cty.ObjectVal(values), coreSchema)
-						if diagnostics := res.Validate(unknown); diagnostics.HasError() {
-							t.Fatalf("unknown input must pass schema validation: %v", diagnostics)
-						}
-						var initial *terraform.InstanceState
-						if operation == "update" {
-							d := schema.TestResourceDataRaw(t, res.Schema, testAPIKeyRuleConfig(ruleType, false, 48, true))
-							d.SetId("rule-id")
-							initial = d.State()
-						}
-						planned, err := res.Diff(context.Background(), initial, unknown, pc)
-						if err != nil {
-							t.Fatal(err)
-						}
-						if attribute := planned.Attributes[EnforceRefresh]; attribute == nil || !attribute.NewComputed {
-							t.Fatal("plan must retain the unknown refresh value")
-						}
-						// Terraform resolves the unknown expression before Apply.
-						resolved, err := res.Diff(context.Background(), initial, terraform.NewResourceConfigRaw(known), pc)
-						if err != nil {
-							t.Fatal(err)
-						}
-						_, diagnostics := res.Apply(context.Background(), initial, resolved, pc)
-						if !diagnostics.HasError() || !strings.Contains(fmt.Sprint(diagnostics), "automatic API key refresh is no longer supported") {
-							t.Errorf("apply must reject resolved true: %v", diagnostics)
-						}
-					} else {
-						d := schema.TestResourceDataRaw(t, res.Schema, known)
-						callback := resourceAPIKeyRuleCreate
-						if operation == "update" {
-							d.SetId("rule-id")
-							callback = resourceAPIKeyRuleUpdate
-						}
-						before := d.State()
-						err := callback(d, pc)
-						if err == nil || !strings.Contains(err.Error(), "automatic API key refresh is no longer supported") {
-							t.Errorf("callback must reject true: %v", err)
-						}
-						if !reflect.DeepEqual(before, d.State()) {
-							t.Error("rejected callback changed resource state")
-						}
-					}
-					if got := requests.Load(); got != 0 {
-						t.Errorf("unsupported true made %d HTTP requests, want zero", got)
-					}
-				})
-			}
 		}
 	}
 }
@@ -359,10 +240,18 @@ func TestAPIKeyRuleRequestDefaults(t *testing.T) {
 	}
 }
 
-func TestAPIKeyRuleReadClearsLegacyRefresh(t *testing.T) {
+func TestAPIKeyRuleReadsRefreshFromAPI(t *testing.T) {
 	t.Parallel()
-	for _, explicitFalse := range []bool{false, true} {
-		t.Run(fmt.Sprintf("explicit API false=%t", explicitFalse), func(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		api  interface{}
+		want string
+	}{
+		{name: "omitted", api: nil, want: "false"},
+		{name: "false", api: false, want: "false"},
+		{name: "true", api: true, want: "true"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fixture := &apiKeyRuleFixture{
 				t: t, ruleType: "User Accounts",
@@ -371,28 +260,68 @@ func TestAPIKeyRuleReadClearsLegacyRefresh(t *testing.T) {
 					IsEnabled: false, MaxAgeHours: 72,
 				},
 			}
-			if explicitFalse {
-				fixture.rule[EnforceRefresh] = false
+			if tc.api != nil {
+				fixture.rule[EnforceRefresh] = tc.api
 			}
 			server := httptest.NewServer(fixture)
 			defer server.Close()
 			pc := testAPIKeyRuleProvider(server)
 			res := resourceAPIKeyRule()
-			d := schema.TestResourceDataRaw(t, res.Schema, testAPIKeyRuleConfig("User Accounts", true, 48, true))
+			d := schema.TestResourceDataRaw(t, res.Schema, testAPIKeyRuleConfig("User Accounts", nil, 48, true))
 			d.SetId("rule-id")
 			state, diagnostics := res.RefreshWithoutUpgrade(context.Background(), d.State(), pc)
 			if diagnostics.HasError() {
 				t.Fatal(diagnostics)
 			}
-			if state.Attributes[EnforceRefresh] != "false" || state.Attributes[IsEnabled] != "false" || state.Attributes[MaxAgeHours] != "72" {
-				t.Fatal("read must not retain obsolete true state or mask actual API values")
-			}
-			diff, err := res.Diff(context.Background(), state,
-				terraform.NewResourceConfigRaw(testAPIKeyRuleConfig("User Accounts", false, 48, true)), pc)
-			if err != nil || diff.Empty() {
-				t.Fatalf("expected real supported-field drift: diff=%v err=%v", diff, err)
+			if state.Attributes[EnforceRefresh] != tc.want || state.Attributes[IsEnabled] != "false" || state.Attributes[MaxAgeHours] != "72" {
+				t.Fatalf("read must mirror the API, got enforce_refresh=%s", state.Attributes[EnforceRefresh])
 			}
 		})
+	}
+}
+
+// A rule can have auto-rotation switched on in the web app; configuration that
+// never mentions enforce_refresh must not switch it back off.
+func TestAPIKeyRuleOmittedRefreshKeepsRemoteSetting(t *testing.T) {
+	t.Parallel()
+	fixture := &apiKeyRuleFixture{
+		t: t, ruleType: "Service Accounts",
+		rule: map[string]interface{}{
+			"slug_perm": "rule-id", "slug": "account-policy", RuleType: "Service Accounts",
+			IsEnabled: true, MaxAgeHours: float64(48), EnforceRefresh: true,
+		},
+	}
+	server := httptest.NewServer(fixture)
+	defer server.Close()
+	pc := testAPIKeyRuleProvider(server)
+	res := resourceAPIKeyRule()
+
+	d := schema.TestResourceDataRaw(t, res.Schema, testAPIKeyRuleConfig("Service Accounts", nil, 48, true))
+	d.SetId("rule-id")
+	state, diagnostics := res.RefreshWithoutUpgrade(context.Background(), d.State(), pc)
+	if diagnostics.HasError() {
+		t.Fatal(diagnostics)
+	}
+
+	config := terraform.NewResourceConfigRaw(testAPIKeyRuleConfig("Service Accounts", nil, 72, true))
+	diff, err := res.Diff(context.Background(), state, config, pc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attribute, ok := diff.Attributes[EnforceRefresh]; ok && attribute.New != attribute.Old {
+		t.Fatalf("omitted enforce_refresh must not plan a change: %#v", attribute)
+	}
+	if _, diagnostics := res.Apply(context.Background(), state, diff, pc); diagnostics.HasError() {
+		t.Fatal(diagnostics)
+	}
+
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	if sent, ok := fixture.requests[len(fixture.requests)-1][EnforceRefresh]; ok && sent != true {
+		t.Errorf("update sent enforce_refresh=%v for a rule that has it on", sent)
+	}
+	if fixture.rule[EnforceRefresh] != true {
+		t.Error("auto-rotation set outside Terraform was switched off")
 	}
 }
 
