@@ -64,6 +64,14 @@ func TestAccRepositoryPrivileges_basic(t *testing.T) {
 				),
 			},
 			{
+				Config: testAdditivePriveligeManagementConfig(repositoryName,callerBlock),
+				Check:resource.ComposeTestCheckFunc(
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "service", "cloudsmith_service.test", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test", "team", "cloudsmith_team.test_2", "Write"),
+					testAccRepositoryPrivilegeForResource("cloudsmith_repository_privileges.test_add", "team", "cloudsmith_team.test_1", "Read"),
+				),
+			},
+			{
 				ResourceName: "cloudsmith_repository_privileges.test",
 				ImportState:  true,
 				ImportStateIdFunc: func(s *terraform.State) (string, error) {
@@ -94,8 +102,8 @@ resource "cloudsmith_service" "test" {
 }
 
 resource "cloudsmith_repository_privileges" "test" {
-    organization = cloudsmith_repository.test.namespace
-    repository   = cloudsmith_repository.test.slug
+	organization = cloudsmith_repository.test.namespace
+	repository   = cloudsmith_repository.test.slug
 
 	service {
 		privilege = "Read"
@@ -209,6 +217,58 @@ resource "cloudsmith_repository_privileges" "test" {
 		privilege = "Write"
 		slug      = cloudsmith_team.test_2.slug
 	}
+
+	team {
+		privilege = "Read"
+		slug      = cloudsmith_team.test_1.slug
+	}
+
+%s
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), callerBlock)
+}
+
+func testAdditivePriveligeManagementConfig(repositoryName, callerBlock string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service Privs"
+	organization = cloudsmith_repository.test.namespace
+	role         = "Member"
+}
+
+resource "cloudsmith_team" "test_1" {
+	name         = "TF Test Team Privs 1"
+	organization = cloudsmith_repository.test.namespace
+}
+
+resource "cloudsmith_team" "test_2" {
+	name         = "TF Test Team Privs 2"
+	organization = cloudsmith_repository.test.namespace
+}
+
+resource "cloudsmith_repository_privileges" "test" {
+    organization = cloudsmith_repository.test.namespace
+    repository   = cloudsmith_repository.test.slug
+
+	service {
+		privilege = "Write"
+		slug      = cloudsmith_service.test.slug
+	}
+
+	team {
+		privilege = "Write"
+		slug      = cloudsmith_team.test_2.slug
+	}
+}
+
+resource "cloudsmith_repository_privileges" "test_add" {
+    organization = cloudsmith_repository.test.namespace
+    repository   = cloudsmith_repository.test.slug
 
 	team {
 		privilege = "Read"

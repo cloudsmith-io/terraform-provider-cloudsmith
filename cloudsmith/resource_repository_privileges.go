@@ -210,12 +210,12 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 		log.Printf("[WARN] repository_privileges (%s.%s): authenticated account slug '%s' not explicitly included via user/service; ensure access via configured teams to avoid lockout.", organization, repository, currentSlug)
 	}
 
-	req := pc.APIClient.ReposApi.ReposPrivilegesUpdate(pc.Auth, organization, repository)
-	req = req.Data(cloudsmith.RepositoryPrivilegeInputRequest{
+	req := pc.APIClient.ReposApi.ReposPrivilegesPartialUpdate(pc.Auth, organization, repository)
+	req = req.Data(cloudsmith.RepositoryPrivilegeInputRequestPatch{
 		Privileges: privileges,
 	})
 
-	_, err = pc.APIClient.ReposApi.ReposPrivilegesUpdateExecute(req)
+	_, err = pc.APIClient.ReposApi.ReposPrivilegesPartialUpdateExecute(req)
 	if err != nil {
 		return formatAPIError(err)
 	}
