@@ -100,7 +100,9 @@ func resourceRepositoryConnectedUpdate(d *schema.ResourceData, m interface{}) er
 	namespace := requiredString(d, Namespace)
 	repository := requiredString(d, Repository)
 
-	data := cloudsmith.NewConnectedRepositoryRequestPatch()
+	// Don't use NewConnectedRepositoryRequestPatch: it defaults IsActive to false,
+	// which would deactivate the connection on unrelated updates.
+	data := &cloudsmith.ConnectedRepositoryRequestPatch{}
 	if d.HasChange(IsActive) {
 		data.SetIsActive(requiredBool(d, IsActive))
 	}
