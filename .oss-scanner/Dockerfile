@@ -1,7 +1,7 @@
 # Copyright Cloudsmith Ltd 2026
 # SPDX-License-Identifier: MPL-2.0
 
-FROM golang:1.26
+FROM golang:1.26.10
 # Pinned Debian package versions break on every point release.
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends unzip \

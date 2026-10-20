@@ -1,6 +1,6 @@
 module github.com/cloudsmith-io/terraform-provider-cloudsmith
 
-go 1.26
+go 1.26.10
 
 require (
 	github.com/cloudsmith-io/cloudsmith-api-go v0.0.64
