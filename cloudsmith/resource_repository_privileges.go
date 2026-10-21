@@ -38,10 +38,24 @@ func containsAccountSlug(privs []cloudsmith.RepositoryPrivilegeDict, slug string
 	return false
 }
 
-// containsTeam returns true if any privilege entry references a team.
-func containsTeam(privs []cloudsmith.RepositoryPrivilegeDict) bool {
+// containsAdminTeam returns true if any privilege entry references a team with Admin privilege.
+func containsAdminTeam(privs []cloudsmith.RepositoryPrivilegeDict) bool {
 	for _, p := range privs {
-		if p.HasTeam() {
+		if p.HasTeam() && p.GetPrivilege() == "Admin" {
+			return true
+		}
+	}
+	return false
+}
+
+// setContainsAdminTeam returns true if the *schema.Set contains an element with Admin privilege.
+func setContainsAdminTeam(set *schema.Set) bool {
+	if set == nil {
+		return false
+	}
+	for _, x := range set.List() {
+		m := x.(map[string]interface{})
+		if m["privilege"] == "Admin" {
 			return true
 		}
 	}
@@ -201,9 +215,9 @@ func resourceRepositoryPrivilegesCreateUpdate(d *schema.ResourceData, m interfac
 	currentSlug := userSelf.GetSlug()
 
 	if !containsAccountSlug(privileges, currentSlug) {
-		if !containsTeam(privileges) {
+		if !containsAdminTeam(privileges) {
 			return fmt.Errorf(
-				"repository_privileges (%s.%s): configuration must include authenticated account slug '%s' (user or service block) OR at least one team block to avoid potential lockout",
+				"repository_privileges (%s.%s): authenticated account slug '%s' must be included (user or service block) OR at least one team, with Admin privilege, block must be defined to avoid potential lockout",
 				organization, repository, currentSlug,
 			)
 		}
@@ -391,7 +405,7 @@ func resourceRepositoryPrivileges() *schema.Resource {
 			"When this resource is destroyed, the provider removes its managed grants but retains an explicit Admin grant for the authenticated user or service account. If access was team-based, the provider creates that direct grant during deletion. This prevents Terraform from revoking its own authority before a dependent repository is deleted. Destruction fails safely if the authenticated account type cannot be resolved.\n\n" +
 			"Note that while users can be added to repositories in this manner, since Terraform does not (and cannot currently) manage those user accounts, you may encounter issues if the users change or are deleted outside of Terraform.\n\n" +
 			"~> **Important:** When a repository is first created in Cloudsmith, the creating account (user or service account that owns the API key) is automatically granted an implicit Admin privilege.\n\n" +
-			"When you later manage privileges via this resource, you must explicitly include that account (using a `user` or `service` block with the appropriate `slug`). Otherwise, the provider will refuse to apply the change to prevent locking you out. You will still be able to apply changes if a `team` block is present. However, you must make sure that the account has sufficient permission within the team, or lockout can still occur.\n\n" +
+			"When you later manage privileges via this resource, you must explicitly include that account (using a `user` or `service` block with the appropriate `slug`). Otherwise, the provider will refuse to apply the change to prevent locking you out. You will still be able to apply changes if a `team` block with `Admin` privilege is present. However, you must make sure that the account has sufficient permission within the team, or lockout can still occur.\n\n" +
 			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories/repository-settings#repository-privileges) for full permissions documentation.",
 
 		Create: resourceRepositoryPrivilegesCreateUpdate,
@@ -425,14 +439,10 @@ func resourceRepositoryPrivileges() *schema.Resource {
 			}
 
 			hasUserOrService := setContainsSlug(userSet, currentSlug) || setContainsSlug(serviceSet, currentSlug)
-			teamCount := 0
-			if teamSet != nil {
-				teamCount = teamSet.Len()
-			}
 
 			if !hasUserOrService {
-				if teamCount == 0 {
-					return fmt.Errorf("repository_privileges: authenticated account slug '%s' must be included (user or service block) OR at least one team block must be defined to avoid potential lockout", currentSlug)
+				if !setContainsAdminTeam(teamSet) {
+					return fmt.Errorf("repository_privileges: authenticated account slug '%s' must be included (user or service block) OR at least one team, with Admin privilege, block must be defined to avoid potential lockout", currentSlug)
 				}
 				log.Printf("[WARN] repository_privileges (plan): authenticated account slug '%s' not explicitly included via user/service; ensure team-based access is sufficient to avoid lockout.", currentSlug)
 			}
