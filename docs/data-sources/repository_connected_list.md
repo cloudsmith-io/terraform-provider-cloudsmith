@@ -4,7 +4,7 @@ page_title: "cloudsmith_repository_connected_list Data Source - cloudsmith"
 subcategory: ""
 description: |-
   The cloudsmith_repository_connected_list data source returns all connected repositories configured for a given source repository.
-  By default, each source repository has a soft limit of 5 connected repositories. Contact Cloudsmith support if you need this limit increased.
+  By default, each source repository has a soft limit of 25 connected repositories. Contact Cloudsmith support if you need this limit increased.
 ---
 
 # cloudsmith_repository_connected_list (Data Source)
