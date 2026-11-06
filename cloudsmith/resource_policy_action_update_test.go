@@ -25,14 +25,22 @@ func testPolicyActionConfig(kind string, updated bool) map[string]interface{} {
 	if updated {
 		block["package_state"] = "DELETED"
 	}
-	if kind != actionSetPackageState {
+	switch kind {
+	case actionAddPackageTags, actionRemovePackageTags:
 		block = map[string]interface{}{"tags": []interface{}{"needs-review", "imported"}}
 		if updated {
 			block["tags"] = []interface{}{"needs-review"}
 		}
+	case actionBlockPackage:
+		block = map[string]interface{}{}
+	}
+	// block_package has no arguments, so precedence is its only in-place update.
+	precedence := 10
+	if updated && kind == actionBlockPackage {
+		precedence = 20
 	}
 	return map[string]interface{}{
-		"workspace": "workspace", "policy_slug_perm": "policy", "precedence": 10,
+		"workspace": "workspace", "policy_slug_perm": "policy", "precedence": precedence,
 		kind: []interface{}{block},
 	}
 }
@@ -40,10 +48,11 @@ func testPolicyActionConfig(kind string, updated bool) map[string]interface{} {
 func testPolicyActionResponse(kind string, updated bool) map[string]interface{} {
 	config := testPolicyActionConfig(kind, updated)
 	actionType := map[string]string{
-		actionSetPackageState: "SetPackageState", actionAddPackageTags: "AddPackageTags", actionRemovePackageTags: "RemovePackageTags",
+		actionSetPackageState: "SetPackageState", actionAddPackageTags: "AddPackageTags",
+		actionRemovePackageTags: "RemovePackageTags", actionBlockPackage: "BlockPackage",
 	}[kind]
 	response := map[string]interface{}{
-		"action_type": actionType, "effect": kind, "slug_perm": "action", "precedence": 10,
+		"action_type": actionType, "effect": kind, "slug_perm": "action", "precedence": config["precedence"],
 		"created_at": "2026-09-29T12:00:00.123456Z", "updated_at": "2026-09-29T12:00:00.123456Z",
 	}
 	if updated {
@@ -95,7 +104,7 @@ func TestPolicyActionUpdateLifecycle(t *testing.T) {
 				if wantDrift {
 					fresh = testPolicyActionResponse(kind, false)
 					fresh["updated_at"] = "2026-09-29T12:00:02.123456Z"
-					fresh["precedence"] = 20
+					fresh["precedence"] = 30
 					if scenario == "same second external drift" {
 						fresh["updated_at"] = "2026-09-29T12:00:00.900000Z"
 					}
@@ -123,7 +132,11 @@ func TestPolicyActionUpdateLifecycle(t *testing.T) {
 						if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 							t.Errorf("decode PUT: %v", err)
 						}
-						for key, want := range testPolicyActionConfig(kind, true)[kind].([]interface{})[0].(map[string]interface{}) {
+						wantConfig := testPolicyActionConfig(kind, true)
+						if fmt.Sprint(body["precedence"]) != fmt.Sprint(wantConfig["precedence"]) {
+							t.Errorf("PUT precedence = %v, want %v", body["precedence"], wantConfig["precedence"])
+						}
+						for key, want := range wantConfig[kind].([]interface{})[0].(map[string]interface{}) {
 							if fmt.Sprint(body[key]) != fmt.Sprint(want) {
 								t.Errorf("PUT %s = %v, want %v", key, body[key], want)
 							}
@@ -190,7 +203,7 @@ func TestPolicyActionUpdateLifecycle(t *testing.T) {
 				if got := state.Attributes["updated_at"]; got != stringToTime(fresh["updated_at"].(string)).Format(time.RFC3339Nano) {
 					t.Errorf("refreshed revision = %s, want %s", got, fresh["updated_at"])
 				}
-				if wantDrift && state.Attributes["precedence"] != "20" {
+				if wantDrift && state.Attributes["precedence"] != "30" {
 					t.Error("refresh did not record newer external drift")
 				}
 				mu.Lock()

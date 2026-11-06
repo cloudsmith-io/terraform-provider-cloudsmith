@@ -25,3 +25,12 @@ resource "cloudsmith_policy_action" "tag" {
     tags = ["needs-review", "imported"]
   }
 }
+
+# Blocks a matching package at first publish, instead of letting it land and
+# acting afterwards. It takes no arguments of its own.
+resource "cloudsmith_policy_action" "block" {
+  workspace        = "my-workspace"
+  policy_slug_perm = cloudsmith_policy.p.slug_perm
+
+  block_package {}
+}
