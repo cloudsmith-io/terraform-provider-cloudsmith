@@ -127,6 +127,39 @@ func TestAccPolicyAction_removePackageTags(t *testing.T) {
 	})
 }
 
+func TestAccPolicyAction_blockPackage(t *testing.T) {
+	t.Parallel()
+
+	parentName := testAccUniquePolicyName("TF Acc Policy For Block")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			testAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 10),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_policy_action.test", "slug_perm"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "block_package.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "precedence", "10"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 20),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "precedence", "20"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccPolicyAction_typeSwitchForcesReplace(t *testing.T) {
 	t.Parallel()
 
@@ -152,6 +185,14 @@ func TestAccPolicyAction_typeSwitchForcesReplace(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
 					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.0.tags.#", "2"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 0),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "block_package.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.#", "0"),
 				),
 			},
 		},
@@ -296,6 +337,18 @@ resource "cloudsmith_policy_action" "test" {
     }
 }
 `, testAccNamespace(), hclStringList(tags))
+}
+
+func testAccPolicyActionConfigBlockPackage(parentName string, precedence int) string {
+	return testAccPolicyActionConfigParentBlock(parentName) + fmt.Sprintf(`
+resource "cloudsmith_policy_action" "test" {
+    workspace        = "%s"
+    policy_slug_perm = cloudsmith_policy.parent.slug_perm
+    precedence       = %d
+
+    block_package {}
+}
+`, testAccNamespace(), precedence)
 }
 
 func hclStringList(items []string) string {

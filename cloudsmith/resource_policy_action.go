@@ -47,9 +47,15 @@ const (
 	actionSetPackageState   = "set_package_state"
 	actionAddPackageTags    = "add_package_tags"
 	actionRemovePackageTags = "remove_package_tags"
+	actionBlockPackage      = "block_package"
 )
 
-var actionTypeBlocks = []string{actionSetPackageState, actionAddPackageTags, actionRemovePackageTags}
+var actionTypeBlocks = []string{
+	actionSetPackageState,
+	actionAddPackageTags,
+	actionRemovePackageTags,
+	actionBlockPackage,
+}
 
 func importPolicyAction(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), ".", 3)
@@ -196,6 +202,15 @@ func buildPolicyActionInput(d *schema.ResourceData) (components.PolicyActionRequ
 			},
 		), nil
 	}
+	// GetOk reports an empty block as unset, so test the raw list instead: the
+	// block carries no arguments, and its presence alone selects the action.
+	if blockIsSet(d.Get(actionBlockPackage)) {
+		return components.CreatePolicyActionRequestBlockPackage(
+			components.BlockPackagePolicyActionTypedRequest{
+				Precedence: precedence,
+			},
+		), nil
+	}
 	return components.PolicyActionRequest{}, fmt.Errorf("no action type block set; expected one of %v", actionTypeBlocks)
 }
 
@@ -234,6 +249,15 @@ func describePolicyAction(pa *components.PolicyAction) (actionMeta, string, []in
 		return actionMeta{slugPerm: t.SlugPerm, precedence: t.Precedence, createdAt: t.CreatedAt, updatedAt: t.UpdatedAt},
 			actionRemovePackageTags,
 			[]interface{}{map[string]interface{}{"tags": flattenStrings(t.Tags)}},
+			nil
+	case components.PolicyActionTypeBlockPackage:
+		t := pa.BlockPackagePolicyActionTyped
+		if t == nil {
+			return actionMeta{}, "", nil, fmt.Errorf("block_package action is nil")
+		}
+		return actionMeta{slugPerm: t.SlugPerm, precedence: t.Precedence, createdAt: t.CreatedAt, updatedAt: t.UpdatedAt},
+			actionBlockPackage,
+			[]interface{}{map[string]interface{}{}},
 			nil
 	default:
 		return actionMeta{}, "", nil, fmt.Errorf("unsupported policy action type %s; expected one of %v", pa.Type, actionTypeBlocks)
@@ -290,7 +314,7 @@ func customizeDiffPolicyActionType(_ context.Context, d *schema.ResourceDiff, _ 
 
 func resourcePolicyAction() *schema.Resource {
 	return &schema.Resource{
-		Description: "Attaches an effect to a [`cloudsmith_policy`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy) (policy as code only). Each action is one of three typed shapes: `set_package_state`, `add_package_tags`, or `remove_package_tags`. Exactly one block must be set. Switching between them forces resource replacement, because the API exposes a separate typed resource per kind.",
+		Description: "Attaches an effect to a [`cloudsmith_policy`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy) (policy as code only). Each action is one of four typed shapes: `set_package_state`, `add_package_tags`, `remove_package_tags`, or `block_package`. Exactly one block must be set. Switching between them forces resource replacement, because the API exposes a separate typed resource per kind.",
 
 		CreateContext: resourcePolicyActionCreate,
 		ReadContext:   resourcePolicyActionRead,
@@ -380,6 +404,14 @@ func resourcePolicyAction() *schema.Resource {
 						},
 					},
 				},
+			},
+			actionBlockPackage: {
+				Type:         schema.TypeList,
+				Description:  "Block matching packages, failing the publish. Takes no arguments; set `precedence` on the resource itself.",
+				MaxItems:     1,
+				Optional:     true,
+				ExactlyOneOf: actionTypeBlocks,
+				Elem:         &schema.Resource{Schema: map[string]*schema.Schema{}},
 			},
 			"slug_perm": {
 				Type:        schema.TypeString,
