@@ -4,7 +4,7 @@ go 1.26.10
 
 require (
 	github.com/cloudsmith-io/cloudsmith-api-go v0.0.64
-	github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20260602111530-3868b1d47523
+	github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20261109121136-faf252b57156
 	github.com/hashicorp/copywrite v0.25.3
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-docs v0.25.0
@@ -93,7 +93,7 @@ require (
 	github.com/spf13/cast v1.7.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/spyzhov/ajson v0.8.0 // indirect
+	github.com/spyzhov/ajson v0.9.6 // indirect
 	github.com/thanhpk/randstr v1.0.6 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
@@ -102,7 +102,7 @@ require (
 	github.com/yuin/goldmark-meta v1.1.0 // indirect
 	github.com/zclconf/go-cty v1.18.1 // indirect
 	go.abhg.dev/goldmark/frontmatter v0.2.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
 	golang.org/x/mod v0.38.0 // indirect
