@@ -397,6 +397,21 @@ func TestJwtExpiry(t *testing.T) {
 	}
 }
 
+func TestIsJWT(t *testing.T) {
+	t.Parallel()
+	for token, want := range map[string]bool{
+		signedTestJWT(time.Unix(1_700_000_000, 0)): true,
+		"0123456789abcdef0123456789abcdef01234567": false,
+		"a.b.c":         false,
+		"eyJhbGciOiJ9":  false,
+		"eyJa.eyJb.c.d": false,
+	} {
+		if got := isJWT(token); got != want {
+			t.Errorf("isJWT(%q) = %v, want %v", token, got, want)
+		}
+	}
+}
+
 func TestOIDCTokenSourceRefresh(t *testing.T) {
 	now := time.Unix(1_700_000_000, 0)
 	firstExp := now.Add(2 * time.Hour)

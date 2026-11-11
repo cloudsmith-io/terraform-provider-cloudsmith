@@ -299,6 +299,10 @@ func openIDServerURL(apiHost string) (string, error) {
 	return out, nil
 }
 
+func isJWT(token string) bool {
+	return strings.HasPrefix(token, "eyJ") && strings.Count(token, ".") == 2
+}
+
 func jwtExpiry(token string) time.Time {
 	parts := strings.Split(token, ".")
 	if len(parts) < 2 {

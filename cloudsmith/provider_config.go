@@ -211,7 +211,7 @@ func (t *apiKeyTransport) setAPIKey(req *http.Request) (string, error) {
 		return "", err
 	}
 	// The API rejects a SAML JWT in X-Api-Key before it reads Authorization.
-	if strings.Count(tok, ".") == 2 {
+	if isJWT(tok) {
 		req.Header.Del("X-Api-Key")
 		req.Header.Set("Authorization", "Bearer "+tok)
 		return tok, nil
