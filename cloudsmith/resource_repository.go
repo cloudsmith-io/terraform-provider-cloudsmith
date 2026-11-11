@@ -611,6 +611,7 @@ func resourceRepository() *schema.Resource {
 				Type:         schema.TypeString,
 				Description:  "A descriptive name for the repository.",
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
 			},
 			"namespace": {
