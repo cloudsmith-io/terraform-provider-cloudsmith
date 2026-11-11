@@ -27,6 +27,7 @@ type testUpstream struct {
 	isActive          bool
 	disableReason     string
 	disableReasonText string
+	pendingValidation bool
 }
 
 func (u testUpstream) GetAuthMode() string          { return "" }
@@ -47,6 +48,7 @@ func (u testUpstream) GetSlugPerm() string          { return "" }
 func (u testUpstream) GetUpdatedAt() time.Time      { return time.Time{} }
 func (u testUpstream) GetUpstreamUrl() string       { return "" }
 func (u testUpstream) GetVerifySsl() bool           { return false }
+func (u testUpstream) GetPendingValidation() bool   { return u.pendingValidation }
 
 func TestActionableUpstreamDisableReason(t *testing.T) {
 	tests := []struct {
@@ -103,6 +105,11 @@ func TestCheckUpstreamActivation(t *testing.T) {
 			wantErr:  errKeepWaiting,
 		},
 		{
+			name:     "inactive while pending validation keeps waiting",
+			upstream: testUpstream{disableReasonText: "Pending validation", pendingValidation: true},
+			wantErr:  errKeepWaiting,
+		},
+		{
 			name:           "inactive with disable reason fails fast",
 			upstream:       testUpstream{disableReasonText: "Manually disabled", disableReason: "manual"},
 			wantErr:        upstreamActivationDisabledError{},
@@ -122,7 +129,8 @@ func TestCheckUpstreamActivation(t *testing.T) {
 
 			if !errors.Is(err, tt.wantErr) {
 				var disabledErr upstreamActivationDisabledError
-				if !errors.As(err, &disabledErr) {
+				_, wantDisabled := tt.wantErr.(upstreamActivationDisabledError)
+				if !wantDisabled || !errors.As(err, &disabledErr) {
 					t.Fatalf("checkUpstreamActivation() error = %v, want %T", err, tt.wantErr)
 				}
 			}
