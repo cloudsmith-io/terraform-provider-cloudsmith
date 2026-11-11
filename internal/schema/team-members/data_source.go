@@ -1,0 +1,98 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package team_members
+
+import (
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"strconv"
+	"time"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+)
+
+// dataSourceTeamMembersRead lists members for a given team within an organization.
+func dataSourceTeamMembersRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	organization := util.RequiredString(d, "organization")
+	teamName := util.RequiredString(d, "team_name")
+
+	var teamMembers *cloudsmith.OrganizationTeamMembers
+	readTeamMembers := func() error {
+		req := pc.APIClient.OrgsApi.OrgsTeamsMembersList(pc.Auth, organization, teamName)
+		members, resp, err := pc.APIClient.OrgsApi.OrgsTeamsMembersListExecute(req)
+		if err != nil {
+			if util.Is404(resp) {
+				return util.ErrKeepWaiting
+			}
+			return err
+		}
+		teamMembers = members
+		return nil
+	}
+
+	// Most reads are immediately consistent and should not incur util.Waiter's initial delay.
+	err := readTeamMembers()
+	if err == util.ErrKeepWaiting {
+		err = util.Waiter(readTeamMembers, util.DefaultCreationTimeout, util.DefaultCreationInterval)
+		if err == util.ErrTimedOut {
+			// Preserve the data-source behavior for an organization or team that does not exist.
+			d.SetId("")
+			return nil
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("error retrieving team members for %s/%s: %w", organization, teamName, err)
+	}
+
+	if err := d.Set("members", flattenOrganizationTeamMembers(teamMembers.GetMembers())); err != nil {
+		return fmt.Errorf("error setting members: %w", err)
+	}
+
+	// Ephemeral ID for the data source
+	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
+	return nil
+}
+
+// flattenOrganizationTeamMembers converts []OrganizationTeamServiceMember into []interface{} for state.
+func flattenOrganizationTeamMembers(members []cloudsmith.OrganizationTeamServiceMember) []interface{} {
+	out := make([]interface{}, len(members))
+	for i, member := range members {
+		m := make(map[string]interface{})
+		m["role"] = member.GetRole()
+		m["user"] = member.GetUser()
+		out[i] = m
+	}
+	return out
+}
+
+func DataSourceTeamMembers() *schema.Resource {
+	return &schema.Resource{
+		Description: "Retrieve all members of a specific team within a Cloudsmith organization.",
+
+		Read: dataSourceTeamMembersRead,
+		Schema: map[string]*schema.Schema{
+			"organization": {
+				Type:        schema.TypeString,
+				Description: "Organization to which this team belongs.",
+				Required:    true,
+			},
+			"team_name": {
+				Type:        schema.TypeString,
+				Description: "Name (slug) of the team whose members to list.",
+				Required:    true,
+			},
+			"members": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem: &schema.Resource{Schema: map[string]*schema.Schema{
+					"role": {Type: schema.TypeString, Computed: true},
+					"user": {Type: schema.TypeString, Computed: true},
+				}},
+			},
+		},
+	}
+}

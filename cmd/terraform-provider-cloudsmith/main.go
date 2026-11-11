@@ -1,0 +1,24 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package main
+
+import (
+	"flag"
+
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/provider"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+)
+
+func main() {
+	var debugMode bool
+
+	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
+	flag.Parse()
+
+	plugin.Serve(&plugin.ServeOpts{
+		ProviderFunc: provider.Provider,
+		ProviderAddr: "registry.terraform.io/cloudsmith-io/cloudsmith",
+		Debug:        debugMode,
+	})
+}

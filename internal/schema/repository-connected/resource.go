@@ -1,0 +1,214 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package repository_connected
+
+import (
+	"context"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"net/http"
+	"strings"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+const (
+	TargetRepository = "target_repository"
+)
+
+func importRepositoryConnected(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 3 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <namespace>.<repository>.<slug_perm>, got: %s", d.Id(),
+		)
+	}
+
+	_ = d.Set(Namespace, idParts[0])
+	_ = d.Set(Repository, idParts[1])
+	d.SetId(idParts[2])
+	return []*schema.ResourceData{d}, nil
+}
+
+func resourceRepositoryConnectedCreate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+	targetRepository := util.RequiredString(d, TargetRepository)
+
+	data := cloudsmith.NewConnectedRepositoryRequest(targetRepository)
+	data.SetIsActive(util.RequiredBool(d, IsActive))
+	if priority := util.OptionalInt64(d, Priority); priority != nil {
+		data.SetPriority(*priority)
+	}
+
+	req := pc.APIClient.ReposApi.ReposConnectedCreate(pc.Auth, namespace, repository)
+	req = req.Data(*data)
+
+	connected, _, err := pc.APIClient.ReposApi.ReposConnectedCreateExecute(req)
+	if err != nil {
+		return err
+	}
+
+	d.SetId(connected.GetSlugPerm())
+
+	readFunc := func() (*http.Response, error) {
+		readReq := pc.APIClient.ReposApi.ReposConnectedRead(pc.Auth, namespace, repository, d.Id())
+		_, resp, err := pc.APIClient.ReposApi.ReposConnectedReadExecute(readReq)
+		return resp, err
+	}
+	if err := util.WaitForCreation(readFunc, "connected repository", d.Id()); err != nil {
+		return err
+	}
+
+	return resourceRepositoryConnectedRead(d, m)
+}
+
+func resourceRepositoryConnectedRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	req := pc.APIClient.ReposApi.ReposConnectedRead(pc.Auth, namespace, repository, d.Id())
+	connected, resp, err := pc.APIClient.ReposApi.ReposConnectedReadExecute(req)
+	if err != nil {
+		if util.Is404(resp) {
+			d.SetId("")
+			return nil
+		}
+		return err
+	}
+
+	_ = d.Set(Namespace, namespace)
+	_ = d.Set(Repository, repository)
+	_ = d.Set(TargetRepository, connected.GetTargetRepository())
+	_ = d.Set(IsActive, connected.GetIsActive())
+	_ = d.Set(Priority, connected.GetPriority())
+	_ = d.Set(SlugPerm, connected.GetSlugPerm())
+	_ = d.Set(CreatedAt, util.TimeToString(connected.GetCreatedAt()))
+
+	return nil
+}
+
+func resourceRepositoryConnectedUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	// Don't use NewConnectedRepositoryRequestPatch: it defaults IsActive to false,
+	// which would deactivate the connection on unrelated updates.
+	data := &cloudsmith.ConnectedRepositoryRequestPatch{}
+	if d.HasChange(IsActive) {
+		data.SetIsActive(util.RequiredBool(d, IsActive))
+	}
+	if d.HasChange(Priority) {
+		if priority := util.OptionalInt64(d, Priority); priority != nil {
+			data.SetPriority(*priority)
+		}
+	}
+
+	req := pc.APIClient.ReposApi.ReposConnectedPartialUpdate(pc.Auth, namespace, repository, d.Id())
+	req = req.Data(*data)
+
+	_, _, err := pc.APIClient.ReposApi.ReposConnectedPartialUpdateExecute(req)
+	if err != nil {
+		return err
+	}
+
+	if err := util.WaitForUpdate("connected repository", d.Id()); err != nil {
+		return err
+	}
+
+	return resourceRepositoryConnectedRead(d, m)
+}
+
+func resourceRepositoryConnectedDelete(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	req := pc.APIClient.ReposApi.ReposConnectedDelete(pc.Auth, namespace, repository, d.Id())
+	_, err := pc.APIClient.ReposApi.ReposConnectedDeleteExecute(req)
+	if err != nil {
+		return err
+	}
+
+	readFunc := func() (*http.Response, error) {
+		readReq := pc.APIClient.ReposApi.ReposConnectedRead(pc.Auth, namespace, repository, d.Id())
+		_, resp, err := pc.APIClient.ReposApi.ReposConnectedReadExecute(readReq)
+		return resp, err
+	}
+	return util.WaitForDeletion(readFunc, "connected repository", d.Id())
+}
+
+//nolint:funlen
+func ResourceRepositoryConnected() *schema.Resource {
+	return &schema.Resource{
+		Description: "The repository connected resource allows the management of connections between two Cloudsmith repositories within the same organization. A connection links a source repository to a target repository so that requests to the source can be resolved against the target as well, according to a configurable lookup priority.\n\n" +
+			"By default, each source repository has a soft limit of 35 connected repositories. Contact Cloudsmith support if you need this limit increased.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com) for full Connected Repositories documentation.",
+
+		Create: resourceRepositoryConnectedCreate,
+		Read:   resourceRepositoryConnectedRead,
+		Update: resourceRepositoryConnectedUpdate,
+		Delete: resourceRepositoryConnectedDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepositoryConnected,
+		},
+
+		Schema: map[string]*schema.Schema{
+			Namespace: {
+				Type:         schema.TypeString,
+				Description:  "Organization to which the source repository belongs.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			Repository: {
+				Type:         schema.TypeString,
+				Description:  "Source repository from which to add the connection.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			TargetRepository: {
+				Type:         schema.TypeString,
+				Description:  "The slug of the target repository to connect to.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			IsActive: {
+				Type:        schema.TypeBool,
+				Description: "Whether the connection is active.",
+				Optional:    true,
+				Default:     true,
+			},
+			Priority: {
+				Type:         schema.TypeInt,
+				Description:  "Order in which connected repositories are checked (ascending, starting at 1). Ties are broken by age (oldest first).",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.IntBetween(1, 32767),
+			},
+			SlugPerm: {
+				Type:        schema.TypeString,
+				Description: "The immutable slug identifier of the connection.",
+				Computed:    true,
+			},
+			CreatedAt: {
+				Type:        schema.TypeString,
+				Description: "The date and time when the connection was created (RFC 3339).",
+				Computed:    true,
+			},
+		},
+	}
+}

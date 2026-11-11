@@ -1,0 +1,251 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package repository_geo_ip_rules
+
+import (
+	"context"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"strings"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+const Namespace string = "namespace"
+const Repository string = "repository"
+const CidrAllow string = "cidr_allow"
+const CidrDeny string = "cidr_deny"
+const CountryCodeAllow string = "country_code_allow"
+const CountryCodeDeny string = "country_code_deny"
+
+func importRepositoryGeoIpRules(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.Set("repository", idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
+
+func resourceRepositoryGeoIpRulesCreate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	// Ensure that Geo/IP rules are enabled for the Repository
+	req := pc.APIClient.ReposApi.ReposGeoipEnable(pc.Auth, namespace, repository)
+	_, err := pc.APIClient.ReposApi.ReposGeoipEnableExecute(req)
+	if err != nil {
+		return err
+	}
+
+	// The actual "create" is just the same as "update" for this resource.
+	return resourceRepositoryGeoIpRulesUpdate(d, m)
+}
+
+func resourceRepositoryGeoIpRulesRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	req := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, namespace, repository)
+
+	geoIpRules, resp, err := pc.APIClient.ReposApi.ReposGeoipReadExecute(req)
+	if err != nil {
+		if util.Is404(resp) {
+			d.SetId("")
+			return nil
+		}
+
+		return err
+	}
+
+	cidr := geoIpRules.GetCidr()
+	countryCode := geoIpRules.GetCountryCode()
+
+	_ = d.Set(CidrAllow, util.FlattenStrings(cidr.GetAllow()))
+	_ = d.Set(CidrDeny, util.FlattenStrings(cidr.GetDeny()))
+	_ = d.Set(CountryCodeAllow, util.FlattenStrings(countryCode.GetAllow()))
+	_ = d.Set(CountryCodeDeny, util.FlattenStrings(countryCode.GetDeny()))
+
+	// namespace and repository are not returned from the read
+	// endpoint, so we can use the values stored in resource state. We rely on
+	// ForceNew to ensure if either changes a new resource is created.
+	_ = d.Set(Namespace, namespace)
+	_ = d.Set(Repository, repository)
+
+	return nil
+}
+
+func resourceRepositoryGeoIpRulesUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+
+	updateData := cloudsmith.RepositoryGeoIpRulesRequest{
+		CountryCode: cloudsmith.RepositoryGeoIpCountryCode{
+			Allow: util.ExpandStrings(d, CountryCodeAllow),
+			Deny:  util.ExpandStrings(d, CountryCodeDeny),
+		},
+		Cidr: cloudsmith.RepositoryGeoIpCidr{
+			Allow: util.ExpandStrings(d, CidrAllow),
+			Deny:  util.ExpandStrings(d, CidrDeny),
+		},
+	}
+
+	updateRequest := pc.APIClient.ReposApi.ReposGeoipUpdate(pc.Auth, namespace, repository)
+	updateRequest = updateRequest.Data(updateData)
+
+	_, _, updateErr := pc.APIClient.ReposApi.ReposGeoipUpdateExecute(updateRequest)
+	if updateErr != nil {
+		return updateErr
+	}
+
+	d.SetId(fmt.Sprintf("%s.%s", namespace, repository))
+
+	// Workaround for replication lag
+	checkerFunc := func() error {
+		// Call the read endpoint
+		readRequest := pc.APIClient.ReposApi.ReposGeoipRead(pc.Auth, namespace, repository)
+		readData, _, readErr := pc.APIClient.ReposApi.ReposGeoipReadExecute(readRequest)
+		if readErr != nil {
+			return readErr
+		}
+
+		// Check that the read response data matches our earlier update request data
+		readCidr := readData.GetCidr()
+		updateCidr := updateData.GetCidr()
+
+		if !util.StringSlicesAreEqual(readCidr.GetAllow(), updateCidr.GetAllow(), true) {
+			return util.ErrKeepWaiting
+		}
+		if !util.StringSlicesAreEqual(readCidr.GetDeny(), updateCidr.GetDeny(), true) {
+			return util.ErrKeepWaiting
+		}
+
+		readCountryCode := readData.GetCountryCode()
+		updateCountryCode := updateData.GetCountryCode()
+
+		if !util.StringSlicesAreEqual(readCountryCode.GetAllow(), updateCountryCode.GetAllow(), true) {
+			return util.ErrKeepWaiting
+		}
+		if !util.StringSlicesAreEqual(readCountryCode.GetDeny(), updateCountryCode.GetDeny(), true) {
+			return util.ErrKeepWaiting
+		}
+
+		return nil
+	}
+
+	waitErr := util.Waiter(checkerFunc, util.DefaultUpdateTimeout, util.DefaultUpdateInterval)
+	if waitErr != nil {
+		return waitErr
+	}
+
+	return resourceRepositoryGeoIpRulesRead(d, m)
+}
+
+func resourceRepositoryGeoIpRulesDelete(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+	repository := util.RequiredString(d, "repository")
+
+	// There isn't a DELETE endpoint, so just update the rules to be empty.
+	req := pc.APIClient.ReposApi.ReposGeoipUpdate(pc.Auth, namespace, repository)
+	req = req.Data(cloudsmith.RepositoryGeoIpRulesRequest{
+		CountryCode: cloudsmith.RepositoryGeoIpCountryCode{
+			Allow: []string{},
+			Deny:  []string{},
+		},
+		Cidr: cloudsmith.RepositoryGeoIpCidr{
+			Allow: []string{},
+			Deny:  []string{},
+		},
+	})
+	_, _, err := pc.APIClient.ReposApi.ReposGeoipUpdateExecute(req)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//nolint:funlen
+func ResourceRepositoryGeoIpRules() *schema.Resource {
+	return &schema.Resource{
+		Description: "The repository geo/ip rules resource allows the management of geo/ip rules for a given Cloudsmith repository. Using this resource it is possible to allow and/or deny access to a repository using CIDR notation, two-character ISO 3166-1 country codes or a combination thereof.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/policy-management/geoip-rules) for full geo/ip rules documentation.",
+
+		Create: resourceRepositoryGeoIpRulesCreate,
+		Read:   resourceRepositoryGeoIpRulesRead,
+		Update: resourceRepositoryGeoIpRulesUpdate,
+		Delete: resourceRepositoryGeoIpRulesDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepositoryGeoIpRules,
+		},
+
+		Schema: map[string]*schema.Schema{
+			CidrAllow: {
+				Type:        schema.TypeSet,
+				Description: "The list of IP Addresses for which to allow access, expressed in CIDR notation.",
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringIsNotEmpty,
+				},
+			},
+			CidrDeny: {
+				Type:        schema.TypeSet,
+				Description: "The list of IP Addresses for which to deny access, expressed in CIDR notation.",
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringIsNotEmpty,
+				},
+			},
+			CountryCodeAllow: {
+				Type:        schema.TypeSet,
+				Description: "The list of countries for which to allow access, expressed in ISO 3166-1 country codes.",
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringIsNotEmpty,
+				},
+			},
+			CountryCodeDeny: {
+				Type:        schema.TypeSet,
+				Description: "The list of countries for which to deny access, expressed in ISO 3166-1 country codes.",
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringIsNotEmpty,
+				},
+			},
+			Namespace: {
+				Type:         schema.TypeString,
+				Description:  "Organization to which the Repository belongs.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			Repository: {
+				Type:         schema.TypeString,
+				Description:  "Repository to which these Geo/IP rules belong.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+		},
+	}
+}

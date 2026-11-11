@@ -1,0 +1,1699 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package repository_upstream
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+// upstream types
+const (
+	Alpine      = "alpine"
+	Cargo       = "cargo"
+	Composer    = "composer"
+	Conda       = "conda"
+	Cran        = "cran"
+	Dart        = "dart"
+	Deb         = "deb"
+	Docker      = "docker"
+	Generic     = "generic"
+	Go          = "go"
+	Helm        = "helm"
+	Hex         = "hex"
+	HuggingFace = "huggingface"
+	Maven       = "maven"
+	Nix         = "nix"
+	Npm         = "npm"
+	NuGet       = "nuget"
+	Python      = "python"
+	Rpm         = "rpm"
+	Ruby        = "ruby"
+	Swift       = "swift"
+)
+
+// tf state prop names
+const (
+	AuthMode             = "auth_mode"
+	AuthSecret           = "auth_secret"
+	AuthUsername         = "auth_username"
+	Component            = "component"
+	DistroVersion        = "distro_version"
+	DistroVersions       = "distro_versions"
+	ExtraHeader1         = "extra_header_1"
+	ExtraHeader2         = "extra_header_2"
+	ExtraValue1          = "extra_value_1"
+	ExtraValue2          = "extra_value_2"
+	IsActive             = "is_active"
+	IncludeSources       = "include_sources"
+	Mode                 = "mode"
+	Priority             = "priority"
+	TrustLevel           = "trust_level"
+	UpstreamDistribution = "upstream_distribution"
+	UpstreamPrefix       = "upstream_prefix"
+	UpstreamType         = "upstream_type"
+	UpstreamUrl          = "upstream_url"
+	VerifySsl            = "verify_ssl"
+	AuthCertificateKey   = "auth_certificate_key"
+	AuthCertificate      = "auth_certificate"
+)
+
+var (
+	authModes = []string{
+		"None",
+		"Username and Password",
+		"Token",
+		"Certificate and Key",
+	}
+	upstreamModes = []string{
+		"Proxy Only",
+		"Cache and Proxy",
+		"Cache Only",
+	}
+	upstreamTrustLevels = []string{
+		"Trusted",
+		"Untrusted",
+	}
+	upstreamTypes = []string{
+		Alpine,
+		Cargo,
+		Composer,
+		Conda,
+		Cran,
+		Dart,
+		Deb,
+		Docker,
+		Generic,
+		Go,
+		Helm,
+		Hex,
+		HuggingFace,
+		Maven,
+		Nix,
+		Npm,
+		NuGet,
+		Python,
+		Rpm,
+		Ruby,
+		Swift,
+	}
+)
+
+type Upstream interface {
+	GetAuthMode() string
+	GetAuthSecret() string
+	GetAuthUsername() string
+	GetExtraHeader1() string
+	GetExtraHeader2() string
+	GetExtraValue1() string
+	GetExtraValue2() string
+	GetDisableReason() string
+	GetDisableReasonText() string
+	GetCreatedAt() time.Time
+	GetIsActive() bool
+	GetMode() string
+	GetName() string
+	GetPriority() int64
+	GetSlugPerm() string
+	GetUpdatedAt() time.Time
+	GetUpstreamUrl() string
+	GetVerifySsl() bool
+	GetPendingValidation() bool
+}
+
+func importUpstream(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 4 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <namespace_slug>.<repository_slug>.<upstream_type>.<upsteam_slug_perm>, got: %s", d.Id(),
+		)
+	}
+
+	_ = d.Set(Namespace, idParts[0])
+	_ = d.Set(Repository, idParts[1])
+	_ = d.Set(UpstreamType, idParts[2])
+	d.SetId(idParts[3])
+	return []*schema.ResourceData{d}, nil
+}
+
+type upstreamActivationDisabledError struct {
+	slug   string
+	reason string
+}
+
+func (e upstreamActivationDisabledError) Error() string {
+	return fmt.Sprintf(
+		"upstream (%s) was disabled during activation: %s. Check the upstream status in the Cloudsmith UI.",
+		e.slug,
+		e.reason,
+	)
+}
+
+func actionableUpstreamDisableReason(disableReasonText, disableReason string) string {
+	if reason := normalizeUpstreamDisableReason(disableReasonText); reason != "" {
+		return reason
+	}
+	return normalizeUpstreamDisableReason(disableReason)
+}
+
+func normalizeUpstreamDisableReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	if reason == "" || strings.EqualFold(reason, "N/A") {
+		return ""
+	}
+	return reason
+}
+
+func checkUpstreamActivation(upstream Upstream, slug string) error {
+	if upstream.GetIsActive() {
+		return nil
+	}
+	if upstream.GetPendingValidation() {
+		return util.ErrKeepWaiting
+	}
+	if reason := actionableUpstreamDisableReason(upstream.GetDisableReasonText(), upstream.GetDisableReason()); reason != "" {
+		return upstreamActivationDisabledError{
+			slug:   slug,
+			reason: reason,
+		}
+	}
+	return util.ErrKeepWaiting
+}
+
+// readCertificateContent reads and validates certificate content
+func readCertificateContent(content string) error {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "-----BEGIN CERTIFICATE-----") {
+		return fmt.Errorf("invalid certificate format: must be a PEM encoded certificate")
+	}
+	return nil
+}
+
+// readPrivateKeyContent reads and validates private key content
+func readPrivateKeyContent(content string) error {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "-----BEGIN") || !strings.Contains(content, "PRIVATE KEY-----") {
+		return fmt.Errorf("invalid private key format: must be a PEM encoded private key")
+	}
+	return nil
+}
+
+// readCertificateFiles reads the certificate files and returns their contents
+func readCertificateFiles(d *schema.ResourceData) (cert, key *string, err error) {
+	if certContent := util.OptionalString(d, AuthCertificate); certContent != nil {
+		if err := readCertificateContent(*certContent); err != nil {
+			return nil, nil, err
+		}
+		cert = certContent
+	}
+
+	if keyContent := util.OptionalString(d, AuthCertificateKey); keyContent != nil {
+		if err := readPrivateKeyContent(*keyContent); err != nil {
+			return nil, nil, err
+		}
+		key = keyContent
+	}
+
+	// Both certificate and key must be provided together
+	if (cert != nil && key == nil) || (cert == nil && key != nil) {
+		return nil, nil, fmt.Errorf("both auth_certificate and auth_certificate_key must be provided when using Certificate and Key authentication")
+	}
+
+	return cert, key, nil
+}
+
+func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+	upstreamType := util.RequiredString(d, UpstreamType)
+
+	authMode := util.OptionalString(d, AuthMode)
+	authSecret := util.NullableString(d, AuthSecret)
+	authUsername := util.NullableString(d, AuthUsername)
+	extraHeader1 := util.NullableString(d, ExtraHeader1)
+	extraHeader2 := util.NullableString(d, ExtraHeader2)
+	extraValue1 := util.NullableString(d, ExtraValue1)
+	extraValue2 := util.NullableString(d, ExtraValue2)
+	isActive := util.OptionalBool(d, IsActive)
+	mode := util.OptionalString(d, Mode)
+	name := util.RequiredString(d, Name)
+	priority := util.OptionalInt64(d, Priority)
+	trustLevel := util.OptionalString(d, TrustLevel)
+	upstreamUrl := util.RequiredString(d, UpstreamUrl)
+	verifySsl := util.OptionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
+
+	var upstream Upstream
+	var resp *http.Response
+	var err error
+
+	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.AlpineUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamAlpineCreateExecute(req)
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CargoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoCreateExecute(req)
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.ComposerUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerCreateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaCreateExecute(req)
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.CranUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranCreateExecute(req)
+	case Dart:
+		req := pc.APIClient.ReposApi.ReposUpstreamDartCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.DartUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartCreateExecute(req)
+	case Deb:
+		req := pc.APIClient.ReposApi.ReposUpstreamDebCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.DebUpstreamRequest{
+			AuthMode:             authMode,
+			AuthSecret:           authSecret,
+			AuthUsername:         authUsername,
+			Component:            util.OptionalString(d, Component),
+			DistroVersions:       util.ExpandStrings(d, DistroVersions),
+			ExtraHeader1:         extraHeader1,
+			ExtraHeader2:         extraHeader2,
+			ExtraValue1:          extraValue1,
+			ExtraValue2:          extraValue2,
+			IncludeSources:       util.OptionalBool(d, IncludeSources),
+			IsActive:             isActive,
+			Mode:                 mode,
+			Name:                 name,
+			Priority:             priority,
+			UpstreamDistribution: util.NullableString(d, UpstreamDistribution),
+			UpstreamUrl:          upstreamUrl,
+			VerifySsl:            verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDebCreateExecute(req)
+	case Docker:
+		req := pc.APIClient.ReposApi.ReposUpstreamDockerCreate(pc.Auth, namespace, repository)
+
+		// Read certificate files for mTLS authentication (Docker only for now)
+		authCert, authCertKey, certErr := readCertificateFiles(d)
+		if certErr != nil {
+			return certErr
+		}
+
+		req = req.Data(cloudsmith.DockerUpstreamRequest{
+			AuthMode:           authMode,
+			AuthSecret:         authSecret,
+			AuthUsername:       authUsername,
+			AuthCertificate:    authCert,
+			AuthCertificateKey: authCertKey,
+			ExtraHeader1:       extraHeader1,
+			ExtraHeader2:       extraHeader2,
+			ExtraValue1:        extraValue1,
+			ExtraValue2:        extraValue2,
+			IsActive:           isActive,
+			Mode:               mode,
+			Name:               name,
+			Priority:           priority,
+			UpstreamUrl:        upstreamUrl,
+			VerifySsl:          verifySsl,
+		})
+		var execErr error
+		upstream, resp, execErr = pc.APIClient.ReposApi.ReposUpstreamDockerCreateExecute(req)
+		if execErr != nil {
+			if resp != nil && resp.StatusCode == http.StatusInternalServerError {
+				// Until we handle this better in API response we have to assume that this is the issue
+				return fmt.Errorf("this `upstream_url` might be already configured for this repository. %w", execErr)
+			}
+			return execErr
+		}
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.GenericUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamPrefix: util.OptionalString(d, UpstreamPrefix),
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericCreateExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoCreateExecute(req)
+	case Helm:
+		req := pc.APIClient.ReposApi.ReposUpstreamHelmCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HelmUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmCreateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexCreateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceCreateExecute(req)
+	case Maven:
+		req := pc.APIClient.ReposApi.ReposUpstreamMavenCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.MavenUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenCreateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixCreateExecute(req)
+	case Npm:
+		req := pc.APIClient.ReposApi.ReposUpstreamNpmCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.NpmUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmCreateExecute(req)
+	case NuGet:
+		req := pc.APIClient.ReposApi.ReposUpstreamNugetCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.NugetUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNugetCreateExecute(req)
+	case Python:
+		req := pc.APIClient.ReposApi.ReposUpstreamPythonCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.PythonUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamPythonCreateExecute(req)
+	case Rpm:
+		req := pc.APIClient.ReposApi.ReposUpstreamRpmCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.RpmUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			DistroVersion:  util.RequiredString(d, DistroVersion),
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IncludeSources: util.OptionalBool(d, IncludeSources),
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRpmCreateExecute(req)
+	case Ruby:
+		req := pc.APIClient.ReposApi.ReposUpstreamRubyCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.RubyUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyCreateExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.SwiftUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftCreateExecute(req)
+	default:
+		err = fmt.Errorf("invalid upstream type: '%s'", upstreamType)
+	}
+
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusInternalServerError {
+			// Until we handle this better in API response we have to assume that this is the issue
+			return fmt.Errorf("this `upstream_url` might be already configured for this repository. %w", err)
+		}
+		return err
+	}
+
+	d.SetId(upstream.GetSlugPerm())
+
+	if err := util.WaitForCreation(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
+		return err
+	}
+
+	// Wait for is_active to become true when expected (nil defaults to true, or explicitly set true).
+	// Some upstream types (e.g. deb) can take several minutes to activate after creation.
+	if isActive == nil || *isActive {
+		activeChecker := func() error {
+			var resp *http.Response
+			if upstream, resp, err = getUpstream(d, m); err != nil {
+				if util.Is404(resp) {
+					return util.ErrKeepWaiting
+				}
+				return err
+			}
+			return checkUpstreamActivation(upstream, d.Id())
+		}
+		if err := util.Waiter(activeChecker, 5*time.Minute, 10*time.Second); err != nil {
+			var disabledErr upstreamActivationDisabledError
+			if errors.As(err, &disabledErr) {
+				return disabledErr
+			}
+			return fmt.Errorf("error waiting for upstream (%s) to become active: %w", d.Id(), err)
+		}
+	}
+
+	return resourceRepositoryUpstreamRead(d, m)
+}
+
+// upstreamReadFunc returns a function suitable for util.WaitForCreation/util.WaitForDeletion
+// that checks whether the upstream resource exists.
+func upstreamReadFunc(d *schema.ResourceData, m interface{}) func() (*http.Response, error) {
+	return func() (*http.Response, error) {
+		_, resp, err := getUpstream(d, m)
+		return resp, err
+	}
+}
+
+func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Response, error) {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+	upstreamType := util.RequiredString(d, UpstreamType)
+
+	var err error
+	var resp *http.Response
+	var upstream Upstream
+
+	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamAlpineReadExecute(req)
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCargoReadExecute(req)
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamComposerReadExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCondaReadExecute(req)
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamCranReadExecute(req)
+	case Dart:
+		req := pc.APIClient.ReposApi.ReposUpstreamDartRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDartReadExecute(req)
+	case Deb:
+		req := pc.APIClient.ReposApi.ReposUpstreamDebRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDebReadExecute(req)
+	case Docker:
+		req := pc.APIClient.ReposApi.ReposUpstreamDockerRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamDockerReadExecute(req)
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGenericReadExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamGoReadExecute(req)
+	case Helm:
+		req := pc.APIClient.ReposApi.ReposUpstreamHelmRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHelmReadExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHexReadExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceReadExecute(req)
+	case Maven:
+		req := pc.APIClient.ReposApi.ReposUpstreamMavenRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamMavenReadExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNixReadExecute(req)
+	case Npm:
+		req := pc.APIClient.ReposApi.ReposUpstreamNpmRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNpmReadExecute(req)
+	case NuGet:
+		req := pc.APIClient.ReposApi.ReposUpstreamNugetRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamNugetReadExecute(req)
+	case Python:
+		req := pc.APIClient.ReposApi.ReposUpstreamPythonRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamPythonReadExecute(req)
+	case Rpm:
+		req := pc.APIClient.ReposApi.ReposUpstreamRpmRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRpmReadExecute(req)
+	case Ruby:
+		req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
+	default:
+		err = fmt.Errorf("invalid upstream_type '%s'", upstreamType)
+	}
+
+	return upstream, resp, err
+}
+
+func resourceRepositoryUpstreamRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+	ctx, cancel := context.WithTimeout(pc.Auth, util.DefaultUpdateTimeout)
+	defer cancel()
+	readConfig := *pc
+	readConfig.Auth = ctx
+	previousUpdatedAt := util.StringToTime(d.Get(UpdatedAt).(string))
+	readError := func(err error) error {
+		return fmt.Errorf("error waiting for upstream (%s) to reach the last observed revision: %w", d.Id(), err)
+	}
+
+	absentThroughout := true
+	notFoundReads := 0
+	for {
+		upstream, resp, err := getUpstream(d, &readConfig)
+		// An in-flight request deadline is not evidence of remote absence.
+		if ctx.Err() != nil {
+			return readError(ctx.Err())
+		}
+		if err != nil {
+			if !util.Is404(resp) {
+				return readError(err)
+			}
+			notFoundReads++
+		} else {
+			// Even an older snapshot proves presence during this window.
+			absentThroughout = false
+			if !upstream.GetUpdatedAt().Before(previousUpdatedAt) {
+				return setRepositoryUpstreamState(d, upstream)
+			}
+		}
+
+		timer := time.NewTimer(util.DefaultUpdateInterval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+		case <-timer.C:
+			if ctx.Err() == nil {
+				continue
+			}
+		}
+		if pc.Auth.Err() != nil {
+			return readError(pc.Auth.Err())
+		}
+		// Only expiry between completed 404 reads confirms absence over
+		// the entire window. A single response cannot confirm deletion.
+		if absentThroughout && notFoundReads > 1 {
+			d.SetId("")
+			return nil
+		}
+		return readError(util.ErrTimedOut)
+	}
+}
+
+func setRepositoryUpstreamState(d *schema.ResourceData, upstream Upstream) error {
+	_ = d.Set(AuthMode, upstream.GetAuthMode())
+
+	// The API no longer returns plaintext secrets for security reasons
+	// So we need to maintain the existing auth_secret value in state
+	// Only set it from API if non-empty (which won't happen anymore)
+	authSecret := upstream.GetAuthSecret()
+	if authSecret == "" {
+		// Don't modify the auth_secret that's already in state
+		// This prevents Terraform from detecting a change when there isn't one
+	} else {
+		_ = d.Set(AuthSecret, authSecret)
+	}
+
+	_ = d.Set(AuthUsername, upstream.GetAuthUsername())
+	_ = d.Set(CreatedAt, util.TimeToString(upstream.GetCreatedAt()))
+	_ = d.Set(ExtraHeader1, upstream.GetExtraHeader1())
+	_ = d.Set(ExtraHeader2, upstream.GetExtraHeader2())
+	_ = d.Set(ExtraValue1, upstream.GetExtraValue1())
+	_ = d.Set(ExtraValue2, upstream.GetExtraValue2())
+	_ = d.Set(IsActive, upstream.GetIsActive())
+	_ = d.Set(Mode, upstream.GetMode())
+	_ = d.Set(Name, upstream.GetName())
+	_ = d.Set(Priority, upstream.GetPriority())
+	_ = d.Set(SlugPerm, upstream.GetSlugPerm())
+	updatedAt := ""
+	if timestamp := upstream.GetUpdatedAt(); !timestamp.IsZero() {
+		updatedAt = timestamp.Format(time.RFC3339Nano)
+	}
+	_ = d.Set(UpdatedAt, updatedAt)
+	_ = d.Set(UpstreamUrl, upstream.GetUpstreamUrl())
+	_ = d.Set(VerifySsl, upstream.GetVerifySsl())
+	if trustedUpstream, ok := upstream.(interface{ GetTrustLevel() string }); ok {
+		_ = d.Set(TrustLevel, trustedUpstream.GetTrustLevel())
+	}
+
+	switch u := upstream.(type) {
+	case *cloudsmith.DebUpstream:
+		_ = d.Set(Component, u.GetComponent())
+		_ = d.Set(DistroVersions, util.FlattenStrings(u.GetDistroVersions()))
+		_ = d.Set(IncludeSources, u.GetIncludeSources())
+		_ = d.Set(UpstreamDistribution, u.GetUpstreamDistribution())
+	case *cloudsmith.GenericUpstream:
+		_ = d.Set(UpstreamPrefix, u.GetUpstreamPrefix())
+	case *cloudsmith.RpmUpstream:
+		_ = d.Set(DistroVersion, u.GetDistroVersion())
+		_ = d.Set(IncludeSources, u.GetIncludeSources())
+	}
+
+	// namespace, repository and upstream_type are not returned from the read
+	// endpoint, so we can use the values stored in resource state. We rely on
+	// ForceNew to ensure that if any of these change then a new resource is created.
+	_ = d.Set(Namespace, util.RequiredString(d, Namespace))
+	_ = d.Set(Repository, util.RequiredString(d, Repository))
+	_ = d.Set(UpstreamType, util.RequiredString(d, UpstreamType))
+
+	return nil
+}
+
+func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+	upstreamType := util.RequiredString(d, UpstreamType)
+	slugPerm := d.Id()
+
+	authMode := util.OptionalString(d, AuthMode)
+	authSecret := util.NullableString(d, AuthSecret)
+	authUsername := util.NullableString(d, AuthUsername)
+	extraHeader1 := util.NullableString(d, ExtraHeader1)
+	extraHeader2 := util.NullableString(d, ExtraHeader2)
+	extraValue1 := util.NullableString(d, ExtraValue1)
+	extraValue2 := util.NullableString(d, ExtraValue2)
+	isActive := util.OptionalBool(d, IsActive)
+	mode := util.OptionalString(d, Mode)
+	name := util.RequiredString(d, Name)
+	priority := util.OptionalInt64(d, Priority)
+	trustLevel := util.OptionalString(d, TrustLevel)
+	upstreamUrl := util.RequiredString(d, UpstreamUrl)
+	verifySsl := util.OptionalBool(d, VerifySsl)
+	if err := validateUpstreamTrustLevel(upstreamType, trustLevel); err != nil {
+		return err
+	}
+
+	var upstream Upstream
+	var err error
+
+	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.AlpineUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamAlpineUpdateExecute(req)
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CargoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCargoUpdateExecute(req)
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.ComposerUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamComposerUpdateExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CondaUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCondaUpdateExecute(req)
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.CranUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamCranUpdateExecute(req)
+	case Dart:
+		req := pc.APIClient.ReposApi.ReposUpstreamDartUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.DartUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamDartUpdateExecute(req)
+	case Deb:
+		req := pc.APIClient.ReposApi.ReposUpstreamDebUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.DebUpstreamRequest{
+			AuthMode:             authMode,
+			AuthSecret:           authSecret,
+			AuthUsername:         authUsername,
+			Component:            util.OptionalString(d, Component),
+			DistroVersions:       util.ExpandStrings(d, DistroVersions),
+			ExtraHeader1:         extraHeader1,
+			ExtraHeader2:         extraHeader2,
+			ExtraValue1:          extraValue1,
+			ExtraValue2:          extraValue2,
+			IncludeSources:       util.OptionalBool(d, IncludeSources),
+			IsActive:             isActive,
+			Mode:                 mode,
+			Name:                 name,
+			Priority:             priority,
+			UpstreamDistribution: util.NullableString(d, UpstreamDistribution),
+			UpstreamUrl:          upstreamUrl,
+			VerifySsl:            verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamDebUpdateExecute(req)
+	case Docker:
+		req := pc.APIClient.ReposApi.ReposUpstreamDockerUpdate(pc.Auth, namespace, repository, slugPerm)
+
+		// Read certificate files for mTLS authentication (Docker only for now)
+		authCert, authCertKey, certErr := readCertificateFiles(d)
+		if certErr != nil {
+			return certErr
+		}
+
+		req = req.Data(cloudsmith.DockerUpstreamRequest{
+			AuthMode:           authMode,
+			AuthSecret:         authSecret,
+			AuthUsername:       authUsername,
+			AuthCertificate:    authCert,
+			AuthCertificateKey: authCertKey,
+			ExtraHeader1:       extraHeader1,
+			ExtraHeader2:       extraHeader2,
+			ExtraValue1:        extraValue1,
+			ExtraValue2:        extraValue2,
+			IsActive:           isActive,
+			Mode:               mode,
+			Name:               name,
+			Priority:           priority,
+			UpstreamUrl:        upstreamUrl,
+			VerifySsl:          verifySsl,
+		})
+		var execErr error
+		upstream, _, execErr = pc.APIClient.ReposApi.ReposUpstreamDockerUpdateExecute(req)
+		if execErr != nil {
+			return execErr
+		}
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.GenericUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamPrefix: util.OptionalString(d, UpstreamPrefix),
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamGenericUpdateExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.GoUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamGoUpdateExecute(req)
+	case Helm:
+		req := pc.APIClient.ReposApi.ReposUpstreamHelmUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HelmUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHelmUpdateExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HexUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHexUpdateExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.HuggingfaceUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceUpdateExecute(req)
+	case Maven:
+		req := pc.APIClient.ReposApi.ReposUpstreamMavenUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.MavenUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamMavenUpdateExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.NixUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamNixUpdateExecute(req)
+	case Npm:
+		req := pc.APIClient.ReposApi.ReposUpstreamNpmUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.NpmUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamNpmUpdateExecute(req)
+	case NuGet:
+		req := pc.APIClient.ReposApi.ReposUpstreamNugetUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.NugetUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamNugetUpdateExecute(req)
+	case Python:
+		req := pc.APIClient.ReposApi.ReposUpstreamPythonUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.PythonUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			TrustLevel:   trustLevel,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamPythonUpdateExecute(req)
+	case Rpm:
+		req := pc.APIClient.ReposApi.ReposUpstreamRpmUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.RpmUpstreamRequest{
+			AuthMode:       authMode,
+			AuthSecret:     authSecret,
+			AuthUsername:   authUsername,
+			DistroVersion:  util.RequiredString(d, DistroVersion),
+			ExtraHeader1:   extraHeader1,
+			ExtraHeader2:   extraHeader2,
+			ExtraValue1:    extraValue1,
+			ExtraValue2:    extraValue2,
+			IncludeSources: util.OptionalBool(d, IncludeSources),
+			IsActive:       isActive,
+			Mode:           mode,
+			Name:           name,
+			Priority:       priority,
+			UpstreamUrl:    upstreamUrl,
+			VerifySsl:      verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamRpmUpdateExecute(req)
+	case Ruby:
+		req := pc.APIClient.ReposApi.ReposUpstreamRubyUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.RubyUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamRubyUpdateExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.SwiftUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamSwiftUpdateExecute(req)
+	default:
+		err = fmt.Errorf("invalid upstream type: '%s'", upstreamType)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	d.SetId(upstream.GetSlugPerm())
+
+	// Older state timestamps have only second precision. Even an unchanged GET
+	// with fractional seconds can look newer, so also require the PUT revision.
+	previousUpdatedAt := util.StringToTime(d.Get(UpdatedAt).(string))
+	updatedAt := upstream.GetUpdatedAt()
+	checkerFunc := func() error {
+		if upstream, _, err = getUpstream(d, m); err != nil {
+			return err
+		}
+		if upstream.GetUpdatedAt().Before(updatedAt) || !previousUpdatedAt.Before(upstream.GetUpdatedAt()) {
+			return util.ErrKeepWaiting
+		}
+		return nil
+	}
+	if err := util.Waiter(checkerFunc, util.DefaultUpdateTimeout, util.DefaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for upstream (%s) to be updated: %w", d.Id(), err)
+	}
+
+	// Persist the GET that passed the util.Waiter; another read may hit a stale replica.
+	return setRepositoryUpstreamState(d, upstream)
+}
+
+func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, Namespace)
+	repository := util.RequiredString(d, Repository)
+	upstreamType := util.RequiredString(d, UpstreamType)
+
+	var err error
+
+	switch upstreamType {
+	case Alpine:
+		req := pc.APIClient.ReposApi.ReposUpstreamAlpineDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamAlpineDeleteExecute(req)
+	case Cargo:
+		req := pc.APIClient.ReposApi.ReposUpstreamCargoDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCargoDeleteExecute(req)
+	case Composer:
+		req := pc.APIClient.ReposApi.ReposUpstreamComposerDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamComposerDeleteExecute(req)
+	case Conda:
+		req := pc.APIClient.ReposApi.ReposUpstreamCondaDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCondaDeleteExecute(req)
+	case Cran:
+		req := pc.APIClient.ReposApi.ReposUpstreamCranDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamCranDeleteExecute(req)
+	case Dart:
+		req := pc.APIClient.ReposApi.ReposUpstreamDartDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamDartDeleteExecute(req)
+	case Deb:
+		req := pc.APIClient.ReposApi.ReposUpstreamDebDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamDebDeleteExecute(req)
+	case Docker:
+		req := pc.APIClient.ReposApi.ReposUpstreamDockerDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamDockerDeleteExecute(req)
+	case Generic:
+		req := pc.APIClient.ReposApi.ReposUpstreamGenericDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamGenericDeleteExecute(req)
+	case Go:
+		req := pc.APIClient.ReposApi.ReposUpstreamGoDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamGoDeleteExecute(req)
+	case Helm:
+		req := pc.APIClient.ReposApi.ReposUpstreamHelmDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHelmDeleteExecute(req)
+	case Hex:
+		req := pc.APIClient.ReposApi.ReposUpstreamHexDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHexDeleteExecute(req)
+	case HuggingFace:
+		req := pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamHuggingfaceDeleteExecute(req)
+	case Maven:
+		req := pc.APIClient.ReposApi.ReposUpstreamMavenDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamMavenDeleteExecute(req)
+	case Nix:
+		req := pc.APIClient.ReposApi.ReposUpstreamNixDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamNixDeleteExecute(req)
+	case Npm:
+		req := pc.APIClient.ReposApi.ReposUpstreamNpmDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamNpmDeleteExecute(req)
+	case NuGet:
+		req := pc.APIClient.ReposApi.ReposUpstreamNugetDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamNugetDeleteExecute(req)
+	case Python:
+		req := pc.APIClient.ReposApi.ReposUpstreamPythonDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamPythonDeleteExecute(req)
+	case Rpm:
+		req := pc.APIClient.ReposApi.ReposUpstreamRpmDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamRpmDeleteExecute(req)
+	case Ruby:
+		req := pc.APIClient.ReposApi.ReposUpstreamRubyDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamRubyDeleteExecute(req)
+	case Swift:
+		req := pc.APIClient.ReposApi.ReposUpstreamSwiftDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamSwiftDeleteExecute(req)
+	default:
+		err = fmt.Errorf("invalid upstream_type: '%s'", upstreamType)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := util.WaitForDeletion(upstreamReadFunc(d, m), "upstream", d.Id()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateUpstreamUrl(v interface{}, k string) (warnings []string, errors []error) {
+	valueStr := v.(string)
+	if len(valueStr) > 0 && valueStr[len(valueStr)-1] == '/' {
+		errors = append(errors, fmt.Errorf("%q cannot end with a trailing slash", k))
+	}
+	return
+}
+
+func validateUpstreamTrustLevel(upstreamType string, trustLevel *string) error {
+	if trustLevel == nil || upstreamType == Maven || upstreamType == Npm || upstreamType == Python {
+		return nil
+	}
+
+	return fmt.Errorf("%s is only supported for maven, npm, and python upstreams", TrustLevel)
+}
+
+func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.NewValueKnown(UpstreamType) || !d.NewValueKnown(TrustLevel) {
+		return nil
+	}
+
+	value, ok := d.GetOk(TrustLevel)
+	if !ok {
+		return nil
+	}
+
+	trustLevel := value.(string)
+	return validateUpstreamTrustLevel(d.Get(UpstreamType).(string), &trustLevel)
+}
+
+func ResourceRepositoryUpstream() *schema.Resource {
+	return &schema.Resource{
+		Description: "The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.",
+
+		Create: resourceRepositoryUpstreamCreate,
+		Read:   resourceRepositoryUpstreamRead,
+		Update: resourceRepositoryUpstreamUpdate,
+		Delete: resourceRepositoryUpstreamDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importUpstream,
+		},
+		CustomizeDiff: customizeDiffRepositoryUpstream,
+
+		Schema: map[string]*schema.Schema{
+			AuthMode: {
+				Type:         schema.TypeString,
+				Description:  "The authentication mode to use when accessing this upstream.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(authModes, false),
+			},
+			AuthSecret: {
+				Type:         schema.TypeString,
+				Description:  "Secret to provide with requests to upstream.",
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			AuthUsername: {
+				Type:         schema.TypeString,
+				Description:  "Username to provide with requests to upstream.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			AuthCertificate: {
+				Type:         schema.TypeString,
+				Description:  "The X.509 Certificate (PEM encoded) to use for mTLS authentication against the upstream (Docker only). Use the file() function to read this from a file.",
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validation.StringIsNotEmpty,
+				ForceNew:     true,
+			},
+			AuthCertificateKey: {
+				Type:         schema.TypeString,
+				Description:  "The Certificate private key (PEM encoded) to use for mTLS authentication against the upstream (Docker only). Use the file() function to read this from a file.",
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validation.StringIsNotEmpty,
+				ForceNew:     true,
+			},
+			Component: {
+				Type:         schema.TypeString,
+				Description:  "(deb only) The component to fetch from the upstream.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			CreatedAt: {
+				Type:        schema.TypeString,
+				Description: "ISO 8601 timestamp at which the Upstream was created.",
+				Computed:    true,
+			},
+			DistroVersion: {
+				Type:         schema.TypeString,
+				Description:  "(rpm only) The distribution version that packages found on this upstream will be associated with.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			DistroVersions: {
+				Type:        schema.TypeSet,
+				Description: "(deb only) The distribution versions that packages found on this upstream will be associated with.",
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type:         schema.TypeString,
+					ValidateFunc: validation.StringIsNotEmpty,
+				},
+			},
+			ExtraHeader1: {
+				Type:         schema.TypeString,
+				Description:  "The key for extra header #1 to send to upstream.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			ExtraHeader2: {
+				Type:         schema.TypeString,
+				Description:  "The key for extra header #2 to send to upstream.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			ExtraValue1: {
+				Type:         schema.TypeString,
+				Description:  "The value for extra header #1 to send to upstream. This is stored as plaintext, and is NOT encrypted.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			ExtraValue2: {
+				Type:         schema.TypeString,
+				Description:  "The value for extra header #2 to send to upstream. This is stored as plaintext, and is NOT encrypted.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			IncludeSources: {
+				Type:        schema.TypeBool,
+				Description: "(deb/rpm only) When true, source packages will be available from this upstream.",
+				Optional:    true,
+				Computed:    true,
+			},
+			IsActive: {
+				Type:        schema.TypeBool,
+				Description: "Whether or not this upstream is active and ready for requests.",
+				Optional:    true,
+				Computed:    true,
+			},
+			Mode: {
+				Type:         schema.TypeString,
+				Description:  "The mode that this upstream should operate in. Upstream sources can be used to proxy resolved packages, as well as operate in a proxy/cache or cache only mode.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(upstreamModes, false),
+			},
+			Name: {
+				Type:         schema.TypeString,
+				Description:  "A descriptive name for this upstream source. A shortened version of this name will be used for tagging cached packages retrieved from this upstream.",
+				Required:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			Namespace: {
+				Type:         schema.TypeString,
+				Description:  "The Organization to which the Upstream belongs.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			Priority: {
+				Type:         schema.TypeInt,
+				Description:  "Upstream sources are selected for resolving requests by sequential order (1..n), followed by creation date.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.IntBetween(1, 32767),
+			},
+			TrustLevel: {
+				Type:         schema.TypeString,
+				Description:  "The trust level for this upstream. Supported for Maven, npm, and Python upstreams.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(upstreamTrustLevels, false),
+			},
+			Repository: {
+				Type:         schema.TypeString,
+				Description:  "The Repository to which the Upstream belongs.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			SlugPerm: {
+				Type:        schema.TypeString,
+				Description: "The unique identifier for this Upstream.",
+				Computed:    true,
+			},
+			UpdatedAt: {
+				Type:        schema.TypeString,
+				Description: "ISO 8601 timestamp at which the Upstream was updated.",
+				Computed:    true,
+			},
+			UpstreamDistribution: {
+				Type:         schema.TypeString,
+				Description:  "(deb only) The distribution to fetch from the upstream.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			UpstreamPrefix: {
+				Type:        schema.TypeString,
+				Description: "(generic only) A unique prefix used to distinguish this upstream source within the repository. Requests including this prefix are routed to this upstream.",
+				Optional:    true,
+				Computed:    true,
+			},
+			UpstreamType: {
+				Type:         schema.TypeString,
+				Description:  "The type of Upstream (docker, nuget, python, ...)",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringInSlice(upstreamTypes, false),
+			},
+			UpstreamUrl: {
+				Type:        schema.TypeString,
+				Description: "The URL for this upstream source. This must be a fully qualified URL including any path elements required to reach the root of the repository.",
+				Required:    true,
+				ValidateFunc: validation.All(
+					validation.StringIsNotEmpty,
+					validateUpstreamUrl,
+				),
+			},
+			VerifySsl: {
+				Type:        schema.TypeBool,
+				Description: "If enabled, SSL certificates are verified when requests are made to this upstream. It's recommended to leave this enabled for all public sources to help mitigate Man-In-The-Middle (MITM) attacks. Please note this only applies to HTTPS upstreams.",
+				Optional:    true,
+				Computed:    true,
+			},
+		},
+	}
+}

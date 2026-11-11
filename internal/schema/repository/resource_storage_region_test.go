@@ -1,0 +1,78 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+//nolint:testpackage
+package repository_test
+
+import (
+	"context"
+	. "github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/schema/repository"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	cloudsmithapi "github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+)
+
+func TestResourceRepositoryStorageRegionUpdate_UsesResourceID(t *testing.T) {
+	t.Parallel()
+
+	var (
+		requestPath string
+		requestBody string
+	)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestPath = r.URL.Path
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read request body", http.StatusInternalServerError)
+			return
+		}
+		requestBody = string(body)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	config := cloudsmithapi.NewConfiguration()
+	config.Servers = cloudsmithapi.ServerConfigurations{{URL: server.URL}}
+	config.HTTPClient = server.Client()
+
+	pc := &util.ProviderConfig{
+		APIClient: cloudsmithapi.NewAPIClient(config),
+		Auth: context.WithValue(
+			context.Background(),
+			cloudsmithapi.ContextAPIKeys,
+			map[string]cloudsmithapi.APIKey{
+				"apikey": {Key: "test-api-key"},
+			},
+		),
+	}
+
+	rd := schema.TestResourceDataRaw(t, ResourceRepository().Schema, map[string]interface{}{
+		"namespace":      "example-org",
+		"name":           "display-name-should-not-be-used",
+		"storage_region": "us-ohio",
+	})
+	rd.SetId("repo-id-fixture")
+
+	if err := ResourceRepositoryStorageRegionUpdate(rd, pc); err != nil {
+		t.Fatalf("ResourceRepositoryStorageRegionUpdate() error = %v", err)
+	}
+
+	expectedPath := "/repos/example-org/repo-id-fixture/transfer-region/"
+	if requestPath != expectedPath {
+		t.Fatalf("unexpected request path %q, expected %q", requestPath, expectedPath)
+	}
+	if !strings.Contains(requestBody, `"storage_region":"us-ohio"`) {
+		t.Fatalf("unexpected request body %q", requestBody)
+	}
+}

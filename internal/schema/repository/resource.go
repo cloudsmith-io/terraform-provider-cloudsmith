@@ -1,0 +1,943 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package repository
+
+import (
+	"context"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"net/http"
+	"strings"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+)
+
+func importRepository(ctx context.Context, d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
+	idParts := strings.Split(d.Id(), ".")
+	if len(idParts) != 2 {
+		return nil, fmt.Errorf(
+			"invalid import ID, must be of the form <organization_slug>.<repository_slug>, got: %s", d.Id(),
+		)
+	}
+
+	d.Set("namespace", idParts[0])
+	d.SetId(idParts[1])
+	return []*schema.ResourceData{d}, nil
+}
+
+func resourceRepositoryStorageRegionUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	req := pc.APIClient.ReposApi.ReposTransferRegion(pc.Auth, d.Get("namespace").(string), d.Id())
+	req = req.Data(cloudsmith.RepositoryTransferRegionRequest{
+		StorageRegion: util.OptionalString(d, "storage_region"),
+	})
+	_, err := pc.APIClient.ReposApi.ReposTransferRegionExecute(req)
+	if err != nil {
+		return fmt.Errorf("error updating repository: %w", err)
+	}
+
+	return nil
+}
+
+func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+
+	req := pc.APIClient.ReposApi.ReposCreate(pc.Auth, namespace)
+	req = req.Data(cloudsmith.RepositoryCreateRequest{
+		BroadcastState:                   util.OptionalString(d, "broadcast_state"),
+		ContextualAuthRealm:              util.OptionalBool(d, "contextual_auth_realm"),
+		CopyOwn:                          util.OptionalBool(d, "copy_own"),
+		CopyPackages:                     util.OptionalString(d, "copy_packages"),
+		CosignSigningEnabled:             util.OptionalBool(d, "cosign_signing_enabled"),
+		DefaultPrivilege:                 util.OptionalString(d, "default_privilege"),
+		DeleteOwn:                        util.OptionalBool(d, "delete_own"),
+		DeletePackages:                   util.OptionalString(d, "delete_packages"),
+		Description:                      util.OptionalString(d, "description"),
+		DockerRefreshTokensEnabled:       util.OptionalBool(d, "docker_refresh_tokens_enabled"),
+		IndexFiles:                       util.OptionalBool(d, "index_files"),
+		MoveOwn:                          util.OptionalBool(d, "move_own"),
+		MovePackages:                     util.OptionalString(d, "move_packages"),
+		Name:                             util.RequiredString(d, "name"),
+		NpmUpstreamTagsTakePrecedence:    util.OptionalBool(d, "npm_upstream_tags_take_precedence"),
+		NugetNativeSigningEnabled:        util.OptionalBool(d, "nuget_native_signing_enabled"),
+		ProxyNpmjs:                       util.OptionalBool(d, "proxy_npmjs"),
+		ProxyPypi:                        util.OptionalBool(d, "proxy_pypi"),
+		RawPackageIndexEnabled:           util.OptionalBool(d, "raw_package_index_enabled"),
+		RawPackageIndexSignaturesEnabled: util.OptionalBool(d, "raw_package_index_signatures_enabled"),
+		ReplacePackages:                  util.OptionalString(d, "replace_packages"),
+		ReplacePackagesByDefault:         util.OptionalBool(d, "replace_packages_by_default"),
+		RepositoryTypeStr:                util.OptionalString(d, "repository_type"),
+		ResyncOwn:                        util.OptionalBool(d, "resync_own"),
+		ResyncPackages:                   util.OptionalString(d, "resync_packages"),
+		ScanOwn:                          util.OptionalBool(d, "scan_own"),
+		ScanPackages:                     util.OptionalString(d, "scan_packages"),
+		ShowSetupAll:                     util.OptionalBool(d, "show_setup_all"),
+		Slug:                             util.OptionalString(d, "slug"),
+		StorageRegion:                    util.OptionalString(d, "storage_region"),
+		StrictNpmValidation:              util.OptionalBool(d, "strict_npm_validation"),
+		TagPreReleasesAsLatest:           util.OptionalBool(d, "tag_pre_releases_as_latest"),
+		UseDebianLabels:                  util.OptionalBool(d, "use_debian_labels"),
+		ManageEntitlementsPrivilege:      util.OptionalString(d, "manage_entitlements_privilege"),
+		UseEntitlementsPrivilege:         util.OptionalString(d, "use_entitlements_privilege"),
+		UseDefaultCargoUpstream:          util.OptionalBool(d, "use_default_cargo_upstream"),
+		UseNoarchPackages:                util.OptionalBool(d, "use_noarch_packages"),
+		UseSourcePackages:                util.OptionalBool(d, "use_source_packages"),
+		UseVulnerabilityScanning:         util.OptionalBool(d, "use_vulnerability_scanning"),
+		UserEntitlementsEnabled:          util.OptionalBool(d, "user_entitlements_enabled"),
+		ViewStatistics:                   util.OptionalString(d, "view_statistics"),
+	})
+
+	repository, _, err := pc.APIClient.ReposApi.ReposCreateExecute(req)
+	if err != nil {
+		return fmt.Errorf("error creating repository: %w", err)
+	}
+
+	d.SetId(repository.GetSlugPerm())
+
+	if err := util.WaitForCreation(func() (*http.Response, error) {
+		req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+		_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+		return resp, err
+	}, "repository", d.Id()); err != nil {
+		return err
+	}
+
+	if len(d.Get("retention_rule").([]interface{})) > 0 {
+		if err := resourceRepositoryRetentionRuleUpdate(d, m); err != nil {
+			return err
+		}
+	}
+
+	return resourceRepositoryRead(d, m)
+}
+
+// resourceRepositoryRetentionRuleUpdate applies the `retention_rule` block (if
+// any) to the repository. A repository has at most one retention rule, which
+// the API exposes as a set of repository settings managed via a partial update
+// (PATCH), so the block is limited to a single item and removing it disables
+// retention rather than deleting anything.
+func resourceRepositoryRetentionRuleUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+	repo := d.Id()
+
+	rules := d.Get("retention_rule").([]interface{})
+	if len(rules) == 0 {
+		req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo).Data(
+			cloudsmith.RepositoryRetentionRulesRequestPatch{
+				RetentionEnabled: cloudsmith.PtrBool(false),
+			},
+		)
+		if _, httpResp, err := req.Execute(); err != nil {
+			if util.Is404(httpResp) {
+				return nil
+			}
+			return fmt.Errorf("error disabling repository retention rule: %w", util.FormatAPIError(err))
+		}
+		checkerFunc := func() error {
+			resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+			if err != nil {
+				if util.Is404(httpResp) {
+					return util.ErrKeepWaiting
+				}
+				return err
+			}
+			if resp.GetRetentionEnabled() {
+				return util.ErrKeepWaiting
+			}
+			return nil
+		}
+		if err := util.Waiter(checkerFunc, util.DefaultUpdateTimeout, util.DefaultUpdateInterval); err != nil {
+			return fmt.Errorf("error waiting for repository retention rule %s/%s to be disabled: %w", namespace, repo, err)
+		}
+		return nil
+	}
+
+	rule, ok := rules[0].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid retention_rule block for repository %s/%s", namespace, repo)
+	}
+
+	// All values are sent unconditionally: the integer fields have defaults, so
+	// omitting them when a user explicitly sets them to 0 would be
+	// indistinguishable from "not set".
+	retentionCountLimit := int64(rule["retention_count_limit"].(int))
+	retentionDaysLimit := int64(rule["retention_days_limit"].(int))
+	retentionSizeLimit := int64(rule["retention_size_limit"].(int))
+	retentionQueryString := rule["retention_package_query_string"].(string)
+
+	req := pc.APIClient.ReposApi.RepoRetentionPartialUpdate(pc.Auth, namespace, repo)
+	req = req.Data(cloudsmith.RepositoryRetentionRulesRequestPatch{
+		RetentionEnabled:            cloudsmith.PtrBool(rule["retention_enabled"].(bool)),
+		RetentionGroupByName:        cloudsmith.PtrBool(rule["retention_group_by_name"].(bool)),
+		RetentionGroupByFormat:      cloudsmith.PtrBool(rule["retention_group_by_format"].(bool)),
+		RetentionGroupByPackageType: cloudsmith.PtrBool(rule["retention_group_by_package_type"].(bool)),
+		RetentionPackageQueryString: *cloudsmith.NewNullableString(&retentionQueryString),
+		RetentionCountLimit:         &retentionCountLimit,
+		RetentionDaysLimit:          &retentionDaysLimit,
+		RetentionSizeLimit:          &retentionSizeLimit,
+	})
+
+	if _, _, err := req.Execute(); err != nil {
+		return fmt.Errorf("error updating repository retention rule: %w", util.FormatAPIError(err))
+	}
+
+	// Wait for the API to reflect the updated retention rule values. The
+	// Cloudsmith API is eventually consistent, so a read immediately after a
+	// write may return stale values. We poll until the count limit and query
+	// string match what was submitted.
+	checkerFunc := func() error {
+		resp, httpResp, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, repo).Execute()
+		if err != nil {
+			// Only treat expected eventual-consistency cases (e.g., 404) as transient.
+			if util.Is404(httpResp) {
+				return util.ErrKeepWaiting
+			}
+			// For all other errors, return the original error so the caller sees the real cause.
+			return err
+		}
+		if resp.GetRetentionCountLimit() != retentionCountLimit {
+			return util.ErrKeepWaiting
+		}
+		gotQuery := ""
+		if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+			gotQuery = *resp.RetentionPackageQueryString.Get()
+		}
+		if gotQuery != retentionQueryString {
+			return util.ErrKeepWaiting
+		}
+		return nil
+	}
+	if err := util.Waiter(checkerFunc, util.DefaultUpdateTimeout, util.DefaultUpdateInterval); err != nil {
+		return fmt.Errorf("error waiting for repository retention rule %s/%s to be updated: %w", namespace, repo, err)
+	}
+
+	return nil
+}
+
+// resourceRepositoryRetentionRuleRead refreshes the `retention_rule` block from
+// the API. Retention settings always exist for a repository, so we only track
+// them when the user has opted in by declaring the block; otherwise every
+// repository without one would permanently show a diff.
+func resourceRepositoryRetentionRuleRead(d *schema.ResourceData, m interface{}) error {
+	if len(d.Get("retention_rule").([]interface{})) == 0 {
+		return nil
+	}
+
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+
+	resp, _, err := pc.APIClient.ReposApi.RepoRetentionRead(pc.Auth, namespace, d.Id()).Execute()
+	if err != nil {
+		return fmt.Errorf("error reading repository retention rule: %w", util.FormatAPIError(err))
+	}
+
+	retentionQueryString := ""
+	if resp.RetentionPackageQueryString.IsSet() && resp.RetentionPackageQueryString.Get() != nil {
+		retentionQueryString = *resp.RetentionPackageQueryString.Get()
+	}
+
+	return d.Set("retention_rule", []interface{}{
+		map[string]interface{}{
+			"retention_count_limit":           int(resp.GetRetentionCountLimit()),
+			"retention_days_limit":            int(resp.GetRetentionDaysLimit()),
+			"retention_enabled":               resp.GetRetentionEnabled(),
+			"retention_group_by_format":       resp.GetRetentionGroupByFormat(),
+			"retention_group_by_name":         resp.GetRetentionGroupByName(),
+			"retention_group_by_package_type": resp.GetRetentionGroupByPackageType(),
+			"retention_size_limit":            int(resp.GetRetentionSizeLimit()),
+			"retention_package_query_string":  retentionQueryString,
+		},
+	})
+}
+
+func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+
+	req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+	repository, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+	if err != nil {
+		if util.Is404(resp) {
+			d.SetId("")
+			return nil
+		}
+
+		return fmt.Errorf("error reading repository: %w", err)
+	}
+
+	d.Set("cdn_url", repository.GetCdnUrl())
+	d.Set("broadcast_state", repository.GetBroadcastState())
+	d.Set("contextual_auth_realm", repository.GetContextualAuthRealm())
+	d.Set("copy_own", repository.GetCopyOwn())
+	d.Set("copy_packages", repository.GetCopyPackages())
+	d.Set("cosign_signing_enabled", repository.GetCosignSigningEnabled())
+	d.Set("created_at", util.TimeToString(repository.GetCreatedAt()))
+	d.Set("default_privilege", repository.GetDefaultPrivilege())
+	d.Set("delete_own", repository.GetDeleteOwn())
+	d.Set("delete_packages", repository.GetDeletePackages())
+	d.Set("docker_refresh_tokens_enabled", repository.GetDockerRefreshTokensEnabled())
+	d.Set("deleted_at", util.TimeToString(repository.GetDeletedAt()))
+	d.Set("description", repository.GetDescription())
+	d.Set("index_files", repository.GetIndexFiles())
+	d.Set("is_open_source", repository.GetIsOpenSource())
+	d.Set("is_private", repository.GetIsPrivate())
+	d.Set("is_public", repository.GetIsPublic())
+	d.Set("move_own", repository.GetMoveOwn())
+	d.Set("move_packages", repository.GetMovePackages())
+	d.Set("name", repository.GetName())
+	d.Set("namespace_url", repository.GetNamespaceUrl())
+	d.Set("npm_upstream_tags_take_precedence", repository.GetNpmUpstreamTagsTakePrecedence())
+	d.Set("nuget_native_signing_enabled", repository.GetNugetNativeSigningEnabled())
+	d.Set("proxy_npmjs", repository.GetProxyNpmjs())
+	d.Set("proxy_pypi", repository.GetProxyPypi())
+	d.Set("raw_package_index_enabled", repository.GetRawPackageIndexEnabled())
+	d.Set("raw_package_index_signatures_enabled", repository.GetRawPackageIndexSignaturesEnabled())
+	d.Set("replace_packages", repository.GetReplacePackages())
+	d.Set("replace_packages_by_default", repository.GetReplacePackagesByDefault())
+	d.Set("repository_type", repository.GetRepositoryTypeStr())
+	d.Set("resync_own", repository.GetResyncOwn())
+	d.Set("resync_packages", repository.GetResyncPackages())
+	d.Set("scan_own", repository.GetScanOwn())
+	d.Set("scan_packages", repository.GetScanPackages())
+	d.Set("self_html_url", repository.GetSelfHtmlUrl())
+	d.Set("self_url", repository.GetSelfUrl())
+	d.Set("show_setup_all", repository.GetShowSetupAll())
+	d.Set("slug", repository.GetSlug())
+	d.Set("slug_perm", repository.GetSlugPerm())
+	d.Set("storage_region", repository.GetStorageRegion())
+	d.Set("strict_npm_validation", repository.GetStrictNpmValidation())
+	d.Set("tag_pre_releases_as_latest", repository.GetTagPreReleasesAsLatest())
+	d.Set("use_debian_labels", repository.GetUseDebianLabels())
+	d.Set("manage_entitlements_privilege", repository.GetManageEntitlementsPrivilege())
+	d.Set("use_entitlements_privilege", repository.GetUseEntitlementsPrivilege())
+	d.Set("use_default_cargo_upstream", repository.GetUseDefaultCargoUpstream())
+	d.Set("use_noarch_packages", repository.GetUseNoarchPackages())
+	d.Set("use_source_packages", repository.GetUseSourcePackages())
+	d.Set("use_vulnerability_scanning", repository.GetUseVulnerabilityScanning())
+	d.Set("user_entitlements_enabled", repository.GetUserEntitlementsEnabled())
+	d.Set("view_statistics", repository.GetViewStatistics())
+
+	// namespace returned from the API is always the user-facing slug, but the
+	// resource may have been created in terraform with the slug_perm instead,
+	// so we don't want to overwrite it with the value from the API ever,
+	// instead we rely on ForceNew to ensure if it changes a new resource is
+	// created.
+	d.Set("namespace", namespace)
+
+	// since we allow import using either the slug or the slug_perm, we want to
+	// normalize the ID and always use the slug_perm when we can. This reset
+	// allows us to set the ID unconditionally, regardless of what the user
+	// passed.
+	d.SetId(repository.GetSlugPerm())
+
+	return resourceRepositoryRetentionRuleRead(d, m)
+}
+
+func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+
+	// Check if storage_region has changed
+	if d.HasChange("storage_region") {
+		if err := resourceRepositoryStorageRegionUpdate(d, m); err != nil {
+			return err
+		}
+	}
+
+	req := pc.APIClient.ReposApi.ReposPartialUpdate(pc.Auth, namespace, d.Id())
+	req = req.Data(cloudsmith.RepositoryRequestPatch{
+		BroadcastState:                   util.OptionalString(d, "broadcast_state"),
+		ContextualAuthRealm:              util.OptionalBool(d, "contextual_auth_realm"),
+		CopyOwn:                          util.OptionalBool(d, "copy_own"),
+		CopyPackages:                     util.OptionalString(d, "copy_packages"),
+		CosignSigningEnabled:             util.OptionalBool(d, "cosign_signing_enabled"),
+		DefaultPrivilege:                 util.OptionalString(d, "default_privilege"),
+		DeleteOwn:                        util.OptionalBool(d, "delete_own"),
+		DeletePackages:                   util.OptionalString(d, "delete_packages"),
+		Description:                      util.OptionalString(d, "description"),
+		DockerRefreshTokensEnabled:       util.OptionalBool(d, "docker_refresh_tokens_enabled"),
+		IndexFiles:                       util.OptionalBool(d, "index_files"),
+		MoveOwn:                          util.OptionalBool(d, "move_own"),
+		MovePackages:                     util.OptionalString(d, "move_packages"),
+		Name:                             util.OptionalString(d, "name"),
+		NpmUpstreamTagsTakePrecedence:    util.OptionalBool(d, "npm_upstream_tags_take_precedence"),
+		NugetNativeSigningEnabled:        util.OptionalBool(d, "nuget_native_signing_enabled"),
+		ProxyNpmjs:                       util.OptionalBool(d, "proxy_npmjs"),
+		ProxyPypi:                        util.OptionalBool(d, "proxy_pypi"),
+		RawPackageIndexEnabled:           util.OptionalBool(d, "raw_package_index_enabled"),
+		RawPackageIndexSignaturesEnabled: util.OptionalBool(d, "raw_package_index_signatures_enabled"),
+		ReplacePackages:                  util.OptionalString(d, "replace_packages"),
+		ReplacePackagesByDefault:         util.OptionalBool(d, "replace_packages_by_default"),
+		ResyncOwn:                        util.OptionalBool(d, "resync_own"),
+		ResyncPackages:                   util.OptionalString(d, "resync_packages"),
+		ScanOwn:                          util.OptionalBool(d, "scan_own"),
+		ScanPackages:                     util.OptionalString(d, "scan_packages"),
+		ShowSetupAll:                     util.OptionalBool(d, "show_setup_all"),
+		TagPreReleasesAsLatest:           util.OptionalBool(d, "tag_pre_releases_as_latest"),
+		RepositoryTypeStr:                util.OptionalString(d, "repository_type"),
+		Slug:                             util.OptionalString(d, "slug"),
+		StrictNpmValidation:              util.OptionalBool(d, "strict_npm_validation"),
+		UseDebianLabels:                  util.OptionalBool(d, "use_debian_labels"),
+		ManageEntitlementsPrivilege:      util.OptionalString(d, "manage_entitlements_privilege"),
+		UseEntitlementsPrivilege:         util.OptionalString(d, "use_entitlements_privilege"),
+		UseDefaultCargoUpstream:          util.OptionalBool(d, "use_default_cargo_upstream"),
+		UseNoarchPackages:                util.OptionalBool(d, "use_noarch_packages"),
+		UseSourcePackages:                util.OptionalBool(d, "use_source_packages"),
+		UseVulnerabilityScanning:         util.OptionalBool(d, "use_vulnerability_scanning"),
+		UserEntitlementsEnabled:          util.OptionalBool(d, "user_entitlements_enabled"),
+		ViewStatistics:                   util.OptionalString(d, "view_statistics"),
+	})
+	repository, _, err := pc.APIClient.ReposApi.ReposPartialUpdateExecute(req)
+	if err != nil {
+		return fmt.Errorf("error updating repository: %w", err)
+	}
+
+	d.SetId(repository.GetSlugPerm())
+
+	if err := util.WaitForUpdate("repository", d.Id()); err != nil {
+		return err
+	}
+
+	if d.HasChange("retention_rule") {
+		if err := resourceRepositoryRetentionRuleUpdate(d, m); err != nil {
+			return err
+		}
+	}
+
+	return resourceRepositoryRead(d, m)
+}
+
+func resourceRepositoryDelete(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	namespace := util.RequiredString(d, "namespace")
+
+	req := pc.APIClient.ReposApi.ReposDelete(pc.Auth, namespace, d.Id())
+	_, err := pc.APIClient.ReposApi.ReposDeleteExecute(req)
+	if err != nil {
+		return fmt.Errorf("error deleting repository: %w", err)
+	}
+
+	if util.RequiredBool(d, "wait_for_deletion") {
+		if err := util.WaitForDeletion(func() (*http.Response, error) {
+			req := pc.APIClient.ReposApi.ReposRead(pc.Auth, namespace, d.Id())
+			_, resp, err := pc.APIClient.ReposApi.ReposReadExecute(req)
+			return resp, err
+		}, "repository", d.Id()); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateNoSpaces(val interface{}, key string) (warns []string, errs []error) {
+	v := val.(string)
+	if strings.Contains(v, " ") {
+		errs = append(errs, fmt.Errorf("%q must not contain spaces: %s", key, v))
+	}
+	return
+}
+
+//nolint:funlen
+func ResourceRepository() *schema.Resource {
+	return &schema.Resource{
+		Description: "The repository resource allows creation and management of package repositories within a Cloudsmith namespace. Repositories store packages and are the main entities with which Cloudsmith users interact.\n\n" +
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories) for full repository documentation.",
+
+		Create: resourceRepositoryCreate,
+		Read:   resourceRepositoryRead,
+		Update: resourceRepositoryUpdate,
+		Delete: resourceRepositoryDelete,
+
+		Importer: &schema.ResourceImporter{
+			StateContext: importRepository,
+		},
+
+		Schema: map[string]*schema.Schema{
+			"cdn_url": {
+				Type:        schema.TypeString,
+				Description: "Base URL from which packages and other artifacts are downloaded.",
+				Computed:    true,
+			},
+			"broadcast_state": {
+				Type: schema.TypeString,
+				Description: "The broadcast state of the repository. Controls repository visibility " +
+					"and access level for broadcasts. " +
+					"Valid values include: `Off`, `Private`, `Internal`, `Public`, `Open-Source`. Defaults to `Off`.",
+				Optional:     true,
+				Default:      "Off",
+				ValidateFunc: validation.StringInSlice([]string{"Off", "Private", "Internal", "Public", "Open-Source"}, false),
+			},
+			"contextual_auth_realm": {
+				Type: schema.TypeBool,
+				Description: "If checked, missing credentials for this repository where basic authentication " +
+					"is required shall present an enriched value in the 'WWW-Authenticate' header containing " +
+					"the namespace and repository. This can be useful for tooling such as SBT where the " +
+					"authentication realm is used to distinguish and disambiguate credentials.",
+				Optional: true,
+				Computed: true,
+			},
+			"copy_own": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can copy any of their own packages that they have uploaded, " +
+					"assuming that they still have write privilege for the repository. This takes precedence " +
+					"over privileges configured in the 'Access Controls' section of the repository, and any " +
+					"inherited from the org.",
+				Optional: true,
+				Computed: true,
+			},
+			"copy_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to copy packages. " +
+					"Unless the package was uploaded by that user, in which the permission may be overridden by " +
+					"the user-specific copy setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write"}, false),
+			},
+			"cosign_signing_enabled": {
+				Type: schema.TypeBool,
+				Description: "When enabled, all pushed (or pulled from upstream) OCI packages and artifacts will be signed " +
+					"using cosign with the repository's ECDSA key. This generates a distinct cosign signature artifact " +
+					"per artifact.",
+				Optional: true,
+				Computed: true,
+			},
+			"created_at": {
+				Type:        schema.TypeString,
+				Description: "ISO 8601 timestamp at which the repository was created.",
+				Computed:    true,
+			},
+			"default_privilege": {
+				Type: schema.TypeString,
+				Description: "This defines the default level of privilege that all of your organization members " +
+					"have for this repository. This does not include collaborators, but applies to any member of the " +
+					"org regardless of their own membership role (i.e. it applies to owners, managers and members). " +
+					"Be careful if setting this to admin, because any member will be able to change settings." +
+					"Valid values include: `Admin`, `Read`, `Write`, `None`.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write", "None"}, false),
+			},
+			"delete_own": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can delete any of their own packages that they have uploaded, " +
+					"assuming that they still have write privilege for the repository. This takes precedence over " +
+					"privileges configured in the 'Access Controls' section of the repository, and any inherited " +
+					"from the org.",
+				Optional: true,
+				Computed: true,
+			},
+			"delete_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to delete packages. " +
+					"Unless the package was uploaded by that user, in which the permission may be overridden by the " +
+					"user-specific delete setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
+			},
+			"deleted_at": {
+				Type: schema.TypeString,
+				Description: "ISO 8601 timestamp at which the repository was deleted " +
+					"(repositories are soft deleted temporarily to allow cancelling).",
+				Computed: true,
+			},
+			"description": {
+				Type:         schema.TypeString,
+				Description:  "A description of the repository's purpose/contents.",
+				Optional:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"docker_refresh_tokens_enabled": {
+				Type: schema.TypeBool,
+				Description: "If checked, refresh tokens will be issued in addition to access tokens for Docker " +
+					"authentication. This allows unlimited extension of the lifetime of access tokens.",
+				Optional: true,
+				Computed: true,
+			},
+			"index_files": {
+				Type: schema.TypeBool,
+				Description: "If checked, files contained in packages will be indexed, which increase the " +
+					"synchronisation time required for packages. Note that it is recommended you keep this " +
+					"enabled unless the synchronisation time is significantly impacted.",
+				Optional: true,
+				Computed: true,
+			},
+			"is_open_source": {
+				Type:        schema.TypeBool,
+				Description: "True if this repository is open source.",
+				Computed:    true,
+			},
+			"is_private": {
+				Type:        schema.TypeBool,
+				Description: "True if this repository is private.",
+				Computed:    true,
+			},
+			"is_public": {
+				Type:        schema.TypeBool,
+				Description: "True if this repository is public.",
+				Computed:    true,
+			},
+			"move_own": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can move any of their own packages that they have uploaded, assuming " +
+					"that they still have write privilege for the repository. This takes precedence over privileges " +
+					"configured in the 'Access Controls' section of the repository, and any inherited from the org.",
+				Optional: true,
+				Computed: true,
+			},
+			"move_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to move packages. Unless " +
+					"the package was uploaded by that user, in which the permission may be overridden by the " +
+					"user-specific move setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
+			},
+			"name": {
+				Type:         schema.TypeString,
+				Description:  "A descriptive name for the repository.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"namespace": {
+				Type:         schema.TypeString,
+				Description:  "Namespace to which this repository belongs.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			"namespace_url": {
+				Type:        schema.TypeString,
+				Description: "API endpoint where data about this namespace can be retrieved.",
+				Computed:    true,
+			},
+			"npm_upstream_tags_take_precedence": {
+				Type: schema.TypeBool,
+				Description: "If checked, npm distribution tags from configured upstreams will take precedence over matching " +
+					"local tags. When both upstream and local repositories have the same tag name (e.g., 'latest'), the " +
+					"upstream tag will be used instead of the local one, even if the local repository has a semantically " +
+					"higher version.",
+				Optional: true,
+				Computed: true,
+			},
+			"nuget_native_signing_enabled": {
+				Type: schema.TypeBool,
+				Description: "When enabled, all pushed (or pulled from upstream) nuget packages and artifacts will be signed " +
+					"using the repository's X.509 RSA certificate. Additionally, the nuget RepositorySignature index will " +
+					"list all of the repository's signing certificates including the ones from configured upstreams.",
+				Optional: true,
+				Computed: true,
+			},
+			"proxy_npmjs": {
+				Type: schema.TypeBool,
+				Description: "If checked, Npm packages that are not in the repository when requested by clients will " +
+					"automatically be proxied from the public npmjs.org registry. If there is at least one version for " +
+					"a package, others will not be proxied.",
+				Optional: true,
+				Computed: true,
+			},
+			"proxy_pypi": {
+				Type: schema.TypeBool,
+				Description: "If checked, Python packages that are not in the repository when requested by clients will " +
+					"automatically be proxied from the public pypi.python.org registry. If there is at least one version " +
+					"for a package, others will not be proxied.",
+				Optional: true,
+				Computed: true,
+			},
+			"raw_package_index_enabled": {
+				Type: schema.TypeBool,
+				Description: "If checked, HTML and JSON indexes will be generated that list all available raw packages in " +
+					"the repository.",
+				Optional: true,
+				Computed: true,
+			},
+			"raw_package_index_signatures_enabled": {
+				Type: schema.TypeBool,
+				Description: "If checked, the HTML and JSON indexes will display raw package GPG signatures alongside the " +
+					"index packages.",
+				Optional: true,
+				Computed: true,
+			},
+			"replace_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to republish packages. " +
+					"Unless the package was uploaded by that user, in which the permission may be overridden by the " +
+					"user-specific republish setting. Please note that the user still requires the privilege to delete " +
+					"packages that will be replaced by the new package; otherwise the republish will fail.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
+			},
+			"replace_packages_by_default": {
+				Type: schema.TypeBool,
+				Description: "If checked, uploaded packages will overwrite/replace any others with the same attributes " +
+					"(e.g. same version) by default. This only applies if the user has the required privilege for the " +
+					"republishing AND has the required privilege to delete existing packages that they don't own.",
+				Optional: true,
+				Computed: true,
+			},
+			"repository_type": {
+				Type: schema.TypeString,
+				Description: "The repository type changes how it is accessed and billed. Private repositories " +
+					"can only be used on paid plans, but are visible only to you or authorised delegates. Public " +
+					"repositories are free to use on all plans and visible to all Cloudsmith users." +
+					"Valid values include: `Private` or `Public`.",
+				Optional:     true,
+				Default:      "Private",
+				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
+			},
+			"retention_rule": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Description: "The retention rule for the repository. A repository has at most one retention " +
+					"rule, which controls how packages are retained based on count, age, size and grouping. " +
+					"Removing the block disables retention for the repository.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"retention_count_limit": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							Default:      100,
+							Description:  "The maximum number of packages to retain. Must be between 0 and 10000.",
+							ValidateFunc: validation.IntBetween(0, 10000),
+						},
+						"retention_days_limit": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  28,
+							Description: "The number of days of packages to retain. Must be between 0 and 180. " +
+								"Defaults to 28 days.",
+							ValidateFunc: validation.IntBetween(0, 180),
+						},
+						"retention_enabled": {
+							Type:     schema.TypeBool,
+							Required: true,
+							Description: "If true, the retention lifecycle rules will be activated for the " +
+								"repository and settings will be updated.",
+						},
+						"retention_group_by_format": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to packages by package formats rather " +
+								"than across all package formats.",
+						},
+						"retention_group_by_name": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to groups of packages by name rather " +
+								"than all packages.",
+						},
+						"retention_group_by_package_type": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Default:  false,
+							Description: "If true, retention will apply to packages by package type rather than " +
+								"across all package types for one or more formats.",
+						},
+						"retention_size_limit": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Default:  0,
+							Description: "The maximum total size (in bytes) of packages to retain. Must be " +
+								"between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+							ValidateDiagFunc: util.Int64AtMost(util.RetentionMaxBytes),
+						},
+						"retention_package_query_string": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Default:  "",
+							Description: "A package search expression which, if provided, filters the packages " +
+								"to be deleted.",
+						},
+					},
+				},
+			},
+			"resync_own": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can resync any of their own packages that they have uploaded, assuming " +
+					"that they still have write privilege for the repository. This takes precedence over privileges " +
+					"configured in the 'Access Controls' section of the repository, and any inherited from the org.",
+				Optional: true,
+				Computed: true,
+			},
+			"resync_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to resync packages. Unless " +
+					"the package was uploaded by that user, in which the permission may be overridden by the user-specific " +
+					"resync setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
+			},
+			"scan_own": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can scan any of their own packages that they have uploaded, assuming that " +
+					"they still have write privilege for the repository. This takes precedence over privileges configured " +
+					"in the 'Access Controls' section of the repository, and any inherited from the org.",
+				Optional: true,
+				Computed: true,
+			},
+			"scan_packages": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to scan packages. Unless the " +
+					"package was uploaded by that user, in which the permission may be overridden by the user-specific " +
+					"scan setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
+			},
+			"self_html_url": {
+				Type:        schema.TypeString,
+				Description: "Website URL for this repository.",
+				Computed:    true,
+			},
+			"self_url": {
+				Type:        schema.TypeString,
+				Description: "API endpoint where data about this repository can be retrieved.",
+				Computed:    true,
+			},
+			"show_setup_all": {
+				Type: schema.TypeBool,
+				Description: "If checked, the Set Me Up help for all formats will always be shown, even if you don't have " +
+					"packages of that type uploaded. Otherwise, help will only be shown for packages that are in the " +
+					"repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet " +
+					"packages will be shown only.",
+				Optional: true,
+				Computed: true,
+			},
+			"slug": {
+				Type:         schema.TypeString,
+				Description:  "The slug identifies the repository in URIs.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.All(validation.StringIsNotEmpty, validateNoSpaces),
+			},
+			"slug_perm": {
+				Type: schema.TypeString,
+				Description: "The slug_perm immutably identifies the repository. " +
+					"It will never change once a repository has been created.",
+				Computed: true,
+			},
+			"storage_region": {
+				Type: schema.TypeString,
+				Description: "The Cloudsmith region in which package files are stored." +
+					"Supported regions include: Sydney, Australia (au-sydney)," +
+					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon," +
+					"United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin) (default)",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "jp-tokyo", "gb-london", "ie-dublin", "default"}, false),
+			},
+			"strict_npm_validation": {
+				Type: schema.TypeBool,
+				Description: "If checked, npm packages will be validated strictly to ensure the package matches " +
+					"specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, " +
+					"but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at " +
+					"your own risk!",
+				Optional: true,
+				Computed: true,
+			},
+			"tag_pre_releases_as_latest": {
+				Type:        schema.TypeBool,
+				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
+				Optional:    true,
+				Default:     false,
+			},
+			"use_debian_labels": {
+				Type: schema.TypeBool,
+				Description: "If checked, a 'Label' field will be present in Debian-based repositories. It will contain a " +
+					"string that identifies the entitlement token used to authenticate the repository, in the form of " +
+					"'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.",
+				Optional: true,
+				Computed: true,
+			},
+			"manage_entitlements_privilege": {
+				Type:         schema.TypeString,
+				Description:  "This defines the minimum level of privilege required for a user to manage entitlement tokens with private repositories. Management is the ability to create, alter, enable, disable or delete all tokens within a repository. Possible values: Read, Write, Admin.",
+				Computed:     true,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
+			},
+			"use_entitlements_privilege": {
+				Type:         schema.TypeString,
+				Description:  "This defines the minimum level of privilege required for a user to see/use entitlement tokens with private repositories. If a user does not have the permission, they will only be able to download packages using other credentials, such as email/password via basic authentication. Use this if you want to force users to only use their user-based token, which is tied to their access (if removed, they can't use it). Possible values: Read, Write, Admin.",
+				Computed:     true,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
+			},
+			"use_default_cargo_upstream": {
+				Type: schema.TypeBool,
+				Description: "If checked, dependencies of uploaded Cargo crates which do not set an explicit value for " +
+					"\"registry\" will be assumed to be available from crates.io. If unchecked, dependencies with " +
+					"unspecified \"registry\" values will be assumed to be available in the registry being uploaded to. " +
+					"Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless " +
+					"explicitly specified as belong to another registry.",
+				Optional: true,
+				Computed: true,
+			},
+			"use_noarch_packages": {
+				Type: schema.TypeBool,
+				Description: "If checked, noarch packages (if supported) are enabled in installations/configurations. A " +
+					"noarch package is one that is not tied to specific system architecture (like i686).",
+				Optional: true,
+				Computed: true,
+			},
+			"use_source_packages": {
+				Type: schema.TypeBool,
+				Description: "If checked, source packages (if supported) are enabled in installations/configurations. A " +
+					"source package is one that util.Contains source code rather than built binaries.",
+				Optional: true,
+				Computed: true,
+			},
+			"use_vulnerability_scanning": {
+				Type: schema.TypeBool,
+				Description: "If checked, vulnerability scanning will be enabled for all supported packages within " +
+					"this repository.",
+				Optional: true,
+				Computed: true,
+			},
+			"user_entitlements_enabled": {
+				Type: schema.TypeBool,
+				Description: "If checked, users can use and manage their own user-specific entitlement token for the " +
+					"repository (if private). Otherwise, user-specific entitlements are disabled for all users.",
+				Optional: true,
+				Computed: true,
+			},
+			"view_statistics": {
+				Type: schema.TypeString,
+				Description: "This defines the minimum level of privilege required for a user to view repository statistics, " +
+					"to include entitlement-based usage, if applicable. If a user does not have the permission, they won't be " +
+					"able to view any statistics, either via the UI, API or CLI." +
+					"Valid values include: `Admin`, `Write`, `Read`.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
+			},
+			"wait_for_deletion": {
+				Type:        schema.TypeBool,
+				Description: "If true, terraform will wait for a repository to be permanently deleted before finishing.",
+				Optional:    true,
+				Default:     true,
+			},
+		},
+	}
+}
