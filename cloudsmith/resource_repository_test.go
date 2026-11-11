@@ -14,6 +14,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func TestRepositoryForceNewOnNameChange(t *testing.T) {
+	if !resourceRepository().Schema["name"].ForceNew {
+		t.Fatal("repository.name.forceNew must be true")
+	}
+}
+
 // TestAccRepository_basic spins up a repository with all default options,
 // verifies it exists and checks the name is set correctly. Then it changes the
 // name, and verifies it's been set correctly before tearing down the resource
