@@ -127,6 +127,7 @@ type Upstream interface {
 	GetUpdatedAt() time.Time
 	GetUpstreamUrl() string
 	GetVerifySsl() bool
+	GetPendingValidation() bool
 }
 
 func importUpstream(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
@@ -175,6 +176,9 @@ func normalizeUpstreamDisableReason(reason string) string {
 func checkUpstreamActivation(upstream Upstream, slug string) error {
 	if upstream.GetIsActive() {
 		return nil
+	}
+	if upstream.GetPendingValidation() {
+		return errKeepWaiting
 	}
 	if reason := actionableUpstreamDisableReason(upstream.GetDisableReasonText(), upstream.GetDisableReason()); reason != "" {
 		return upstreamActivationDisabledError{
