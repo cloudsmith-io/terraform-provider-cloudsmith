@@ -1,0 +1,16 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package usagelimits
+
+var DataSourceUsageLimitsRead = dataSourceUsageLimitsRead
+var ResourceUsageLimitsCreate = resourceUsageLimitsCreate
+var ResourceUsageLimitsDelete = resourceUsageLimitsDelete
+var ResourceUsageLimitsImport = resourceUsageLimitsImport
+
+const UsageLimitsAllowOpenSourceOverage = usageLimitsAllowOpenSourceOverage
+const UsageLimitsBandwidthMaximum = usageLimitsBandwidthMaximum
+const UsageLimitsBandwidthOverageLimit = usageLimitsBandwidthOverageLimit
+const UsageLimitsOrganization = usageLimitsOrganization
+const UsageLimitsStorageMaximum = usageLimitsStorageMaximum
+const UsageLimitsStorageOverageLimit = usageLimitsStorageOverageLimit

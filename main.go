@@ -6,7 +6,7 @@ package main
 import (
 	"flag"
 
-	"github.com/cloudsmith-io/terraform-provider-cloudsmith/cloudsmith"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/provider"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 
@@ -17,7 +17,7 @@ func main() {
 	flag.Parse()
 
 	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: cloudsmith.Provider,
+		ProviderFunc: provider.Provider,
 		ProviderAddr: "registry.terraform.io/cloudsmith-io/cloudsmith",
 		Debug:        debugMode,
 	})

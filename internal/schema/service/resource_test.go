@@ -1,0 +1,329 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+//nolint:testpackage
+package service_test
+
+import (
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"os"
+	"regexp"
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+)
+
+// TestAccService_basic spins up a service with all default options, verifies it
+// exists and checks the attributes. Then it performs some updates and verifies
+// them before tearing down the resources and verifying deletion.
+//
+// NOTE: It is not necessary to check properties that have been explicitly set
+// as Terraform performs a drift/plan check after every step anyway. Only
+// computed properties need explicitly checked.
+// TestAccService_basic runs a series of tests for the cloudsmith_service resource.
+func TestAccService_basic(t *testing.T) {
+	t.Parallel()
+
+	var rotatedKey string
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { acctest.TestAccPreCheck(t) },
+		Providers:    acctest.TestAccProviders,
+		CheckDestroy: testAccServiceCheckDestroy("cloudsmith_service.test"),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccServiceConfigBasic,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					// check a sample of computed properties have been set correctly
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "description", ""),
+					resource.TestMatchResourceAttr("cloudsmith_service.test", "slug", regexp.MustCompile("^tf-test-service.*$")),
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "role", "Member"),
+					resource.TestCheckNoResourceAttr("cloudsmith_service.test", "team.#"),
+				),
+			},
+			{
+				Config: testAccServiceConfigBasicUpdateName,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+				),
+			},
+			{
+				Config: testAccServiceConfigBasicAddToTeam,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
+						"role": regexp.MustCompile("^Member$"),
+					}),
+				),
+			},
+			{
+				Config: testAccServiceConfigBasicAddAnotherToTeam,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "team.#"),
+
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc(-[^2].*)?$"),
+						"role": regexp.MustCompile("^Member$"),
+					}),
+
+					resource.TestMatchTypeSetElemNestedAttrs("cloudsmith_service.test", "team.*", map[string]*regexp.Regexp{
+						"slug": regexp.MustCompile("^tf-test-team-svc-2.*$"),
+						"role": regexp.MustCompile("^Manager$"),
+					}),
+				),
+			},
+			{
+				Config: testAccServiceConfigBasicRemoveAllTeams,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "team.#", "0"),
+				),
+			},
+			{
+				Config: testAccServiceConfigNoAPIKey,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					// check that the key attribute is explicitly an empty string
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "**redacted**"),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyFirst,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					// key should be present in state when store_api_key is true
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeySecond,
+				Check: resource.ComposeTestCheckFunc(
+					// ensure the resource still exists after rotation
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					// key should still be set after rotation; we don't assert the exact value
+					resource.TestCheckResourceAttrSet("cloudsmith_service.test", "key"),
+					testAccServiceRememberAttr("cloudsmith_service.test", "key", &rotatedKey),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyDecrement,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					testAccServiceCheckResourceAttrMatches("cloudsmith_service.test", "key", &rotatedKey),
+				),
+			},
+			{
+				Config: testAccServiceConfigRotateAPIKeyStoreFalse,
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccServiceCheckExists("cloudsmith_service.test"),
+					// when rotating with store_api_key = false, the key must be redacted in state
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "store_api_key", "false"),
+					resource.TestCheckResourceAttr("cloudsmith_service.test", "key", "**redacted**"),
+				),
+			},
+			{
+				ResourceName: "cloudsmith_service.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_service.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["organization"],
+						resourceState.Primary.Attributes["slug"],
+					), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"key", "store_api_key", "rotate_api_key"},
+			},
+		},
+	})
+}
+
+//nolint:err113
+func testAccServiceCheckDestroy(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		if resourceState.Primary.ID == "" {
+			return fmt.Errorf("resource id not set")
+		}
+
+		pc := acctest.TestAccProvider.Meta().(*util.ProviderConfig)
+
+		req := pc.APIClient.OrgsApi.OrgsServicesRead(pc.Auth, os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		_, resp, err := pc.APIClient.OrgsApi.OrgsServicesReadExecute(req)
+		if err != nil && !util.Is404(resp) {
+			return fmt.Errorf("unable to verify service deletion: %w", err)
+		} else if util.Is200(resp) {
+			return fmt.Errorf("unable to verify service deletion: still exists: %s/%s", os.Getenv("CLOUDSMITH_NAMESPACE"), resourceState.Primary.ID)
+		}
+		defer resp.Body.Close()
+
+		return nil
+	}
+}
+
+func testAccServiceRememberAttr(resourceName, attribute string, value *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		attr, ok := resourceState.Primary.Attributes[attribute]
+		if !ok {
+			return fmt.Errorf("attribute not found: %s", attribute)
+		}
+
+		*value = attr
+		return nil
+	}
+}
+
+func testAccServiceCheckResourceAttrMatches(resourceName, attribute string, expected *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resourceState, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		attr, ok := resourceState.Primary.Attributes[attribute]
+		if !ok {
+			return fmt.Errorf("attribute not found: %s", attribute)
+		}
+
+		if attr != *expected {
+			return fmt.Errorf("expected %s to remain %q, got %q", attribute, *expected, attr)
+		}
+
+		return nil
+	}
+}
+
+var testAccServiceConfigNoAPIKey = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name            = "TF Test Service No API Key"
+	organization    = "%s"
+	store_api_key  = false
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasic = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service cs"
+	organization = "%s"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicUpdateName = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service Updated"
+	organization = "%s"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyFirst = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name          = "TF Test Service cs"
+	organization  = "%s"
+	rotate_api_key = 1
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeySecond = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name          = "TF Test Service cs"
+	organization  = "%s"
+	rotate_api_key = 2
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyDecrement = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name           = "TF Test Service cs"
+	organization   = "%s"
+	rotate_api_key = 1
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigRotateAPIKeyStoreFalse = fmt.Sprintf(`
+resource "cloudsmith_service" "test" {
+	name           = "TF Test Service cs"
+	organization   = "%s"
+	store_api_key  = false
+	rotate_api_key = 3
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicAddToTeam = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	name         = "TF Test Team Svc"
+	organization = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service cs"
+	organization = "%s"
+	role         = "Manager"
+
+	team {
+		slug = cloudsmith_team.test.slug
+	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicAddAnotherToTeam = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	name         = "TF Test Team Svc"
+	organization = "%s"
+}
+
+resource "cloudsmith_team" "test2" {
+	name         = "TF Test Team Svc 2"
+	organization = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service cs"
+	organization = "%s"
+	role         = "Manager"
+
+	team {
+		slug = cloudsmith_team.test.slug
+	}
+
+	team {
+		role = "Manager"
+		slug = cloudsmith_team.test2.slug
+	}
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+var testAccServiceConfigBasicRemoveAllTeams = fmt.Sprintf(`
+resource "cloudsmith_team" "test" {
+	name         = "TF Test Team Svc"
+	organization = "%s"
+}
+
+resource "cloudsmith_team" "test2" {
+	name         = "TF Test Team Svc 2"
+	organization = "%s"
+}
+
+resource "cloudsmith_service" "test" {
+	name         = "TF Test Service cs"
+	organization = "%s"
+	role         = "Manager"
+}
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))

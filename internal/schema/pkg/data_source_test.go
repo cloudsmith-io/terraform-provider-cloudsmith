@@ -1,0 +1,289 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package pkg_test
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+)
+
+var (
+	dsPackageTestNamespace = os.Getenv("CLOUDSMITH_NAMESPACE")
+)
+
+func TestAccPackage_data(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := acctest.TestAccUniqueRepositoryName("terraform-acc-test-package")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPackageDataSetup(repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "name", repositoryName),
+					// Custom TestCheckFunc to upload the package and wait for sync after repository creation
+					func(s *terraform.State) error {
+						return uploadPackage(acctest.TestAccProvider.Meta().(*util.ProviderConfig), repositoryName, false)
+					},
+				),
+			},
+			{
+				Config: testAccPackageDataReadPackage(dsPackageTestNamespace, repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
+				),
+			},
+			{
+				Config: testAccPackageDataReadPackageDownload(dsPackageTestNamespace, repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
+					// Custom TestCheckFunc to check if the file exists at the output path
+					func(s *terraform.State) error {
+						filePath := filepath.Join(os.TempDir(), "hello.txt")
+						if _, err := os.Stat(filePath); os.IsNotExist(err) {
+							return fmt.Errorf("file does not exist at path: %s", filePath)
+						}
+						defer func() {
+							// Remove the file after the check is done
+							if err := os.Remove(filePath); err != nil {
+								fmt.Printf("Error removing file: %s\n", err)
+							}
+						}()
+						expectedContent := "Hello world"
+						if err := checkFileContent(filePath, expectedContent); err != nil {
+							return fmt.Errorf("file content check failed: %w", err)
+						}
+						return nil
+					},
+					func(s *terraform.State) error {
+						return uploadPackage(acctest.TestAccProvider.Meta().(*util.ProviderConfig), repositoryName, true)
+					},
+				),
+			},
+			{
+				Config: testAccPackageDataReadPackageDownloadRepublish(dsPackageTestNamespace, repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "namespace", dsPackageTestNamespace),
+					resource.TestCheckResourceAttr("data.cloudsmith_package.test", "repository", repositoryName),
+					func(s *terraform.State) error {
+						filePath := filepath.Join(os.TempDir(), "hello.txt")
+						if _, err := os.Stat(filePath); os.IsNotExist(err) {
+							return fmt.Errorf("file does not exist at path: %s", filePath)
+						}
+
+						expectedContent := "Hello world updated content"
+						if err := checkFileContent(filePath, expectedContent); err != nil {
+							return fmt.Errorf("file content check failed: %w", err)
+						}
+
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+func checkFileContent(filePath string, expectedContent string) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	if string(content) != expectedContent {
+		return fmt.Errorf("file content does not match expected. Got: %s, Expected: %s", content, expectedContent)
+	}
+
+	return nil
+}
+
+func uploadPackage(pc *util.ProviderConfig, repository string, republish bool) error {
+
+	var (
+		fileContent []byte
+	)
+
+	if republish {
+		fileContent = []byte("Hello world updated content")
+	} else {
+		fileContent = []byte("Hello world")
+	}
+
+	initPayload := cloudsmith.PackageFileUploadRequest{
+		Filename:       "hello.txt",
+		Method:         cloudsmith.PtrString("put"),
+		Sha256Checksum: cloudsmith.PtrString(fmt.Sprintf("%x", sha256.Sum256(fileContent))),
+	}
+
+	initRequest := pc.APIClient.FilesApi.FilesCreate(pc.Auth, dsPackageTestNamespace, repository)
+	initRequest = initRequest.Data(initPayload)
+	initResponse, _, err := initRequest.Execute()
+	if err != nil {
+		return fmt.Errorf("failed to initialize file upload: %w", err)
+	}
+
+	// Step 1: PUT (upload) the file
+	request, err := http.NewRequest("PUT", initResponse.GetUploadUrl(), bytes.NewReader(fileContent))
+	if err != nil {
+		return err
+	}
+
+	apiKey, err := pc.GetAPIKey()
+	if err != nil {
+		return err
+	}
+	request.SetBasicAuth("token", apiKey)
+	for k, v := range initResponse.GetUploadHeaders() {
+		request.Header.Set(k, v.(string))
+	}
+
+	response, err := pc.APIClient.GetConfig().HTTPClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return errors.New("Unable to upload file")
+	}
+
+	var rbodyStruct struct {
+		Identifier string `json:"identifier"`
+	}
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, response.Body)
+	if err != nil {
+		return err
+	}
+
+	if err := json.Unmarshal(buf.Bytes(), &rbodyStruct); err != nil {
+		return err
+	}
+
+	// Step 2: finalize file upload and kick off package sync
+	finalizePayload := cloudsmith.RawPackageUploadRequest{
+		PackageFile: rbodyStruct.Identifier,
+	}
+
+	finalizeRequest := pc.APIClient.PackagesApi.PackagesUploadRaw(pc.Auth, dsPackageTestNamespace, repository)
+	finalizeRequest = finalizeRequest.Data(finalizePayload)
+	finalizeResponse, _, err := finalizeRequest.Execute()
+	if err != nil {
+		return fmt.Errorf("failed to finalize file upload: %w", err)
+	}
+
+	// Step 3: wait for package sync
+	for {
+		statusRequest := pc.APIClient.PackagesApi.PackagesStatus(
+			pc.Auth, dsPackageTestNamespace, repository, finalizeResponse.GetSlugPerm(),
+		)
+		status, _, err := statusRequest.Execute()
+		if err != nil {
+			return err
+		}
+		if status.GetIsSyncFailed() {
+			return errors.New("package sync failed")
+		}
+		if status.GetIsSyncCompleted() {
+			return nil
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func testAccPackageDataSetup(repository string) string {
+	return fmt.Sprintf(`
+		resource "cloudsmith_repository" "test" {
+			name                        = "%s"
+			namespace                   = "%s"
+			replace_packages_by_default = true
+		}
+		`, repository, dsPackageTestNamespace)
+}
+
+func testAccPackageDataReadPackage(namespace, repository string) string {
+	return fmt.Sprintf(`
+		resource "cloudsmith_repository" "test" {
+			name                        = "%s"
+			namespace                   = "%s"
+			replace_packages_by_default = true
+		}
+
+		data "cloudsmith_package_list" "test" {
+			repository       = "%s"
+			namespace        = "%s"
+		}
+
+		data "cloudsmith_package" "test" {
+			repository       = "%s"
+			namespace        = "%s"
+			identifier       = data.cloudsmith_package_list.test.packages[0].slug_perm
+		}
+		`, repository, namespace, repository, namespace, repository, namespace)
+}
+
+func testAccPackageDataReadPackageDownload(namespace, repository string) string {
+	return fmt.Sprintf(`
+		resource "cloudsmith_repository" "test" {
+			name                        = "%s"
+			namespace                   = "%s"
+			replace_packages_by_default = true
+		}
+
+		data "cloudsmith_package_list" "test" {
+			repository = "%s"
+			namespace  = "%s"
+		}
+
+		data "cloudsmith_package" "test" {
+			repository = "%s"
+			namespace  = "%s"
+			identifier = data.cloudsmith_package_list.test.packages[0].slug_perm
+			download   = true
+		}
+		`, repository, namespace, repository, namespace, repository, namespace)
+}
+
+func testAccPackageDataReadPackageDownloadRepublish(namespace, repository string) string {
+	return fmt.Sprintf(`
+		resource "cloudsmith_repository" "test" {
+			name                        = "%s"
+			namespace                   = "%s"
+			replace_packages_by_default = true
+		}
+
+		data "cloudsmith_package_list" "test" {
+			repository = "%s"
+			namespace  = "%s"
+		}
+
+		data "cloudsmith_package" "test" {
+			repository = "%s"
+			namespace  = "%s"
+			identifier = data.cloudsmith_package_list.test.packages[0].slug_perm
+			download   = true
+		}
+		`, repository, namespace, repository, namespace, repository, namespace)
+}
