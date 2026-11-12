@@ -29,7 +29,7 @@ jobs:
     name: Generate tests
     runs-on: ubuntu-latest
     outputs:
-      tests: ${{ steps.list.outputs.tests }}
+      pkgs: ${{ steps.list.outputs.pkgs }}
     timeout-minutes: 60
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,31 +40,38 @@ jobs:
       with:
         go-version-file: 'go.mod'
       id: go
-    - name: Create test batches
+    - name: Create test matrix
       id: list
       run: |
         #!/usr/bin/env bash
-        tests=$(go test -list '^Test' -json ./... | \
-        jq -nc '[inputs | select((.Output // "")
-        | startswith("Test"))
-        | {pkg: .Package, test: (.Output | rtrimstr("\n"))}]')
-        echo tests="$tests" > "$GITHUB_OUTPUT"
-    - name: Compile test binary
+        set -euo pipefail
+        pkgs=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | \
+        jq -Rnc --arg mod "$(go list -m)" '[inputs | select(length > 0)
+        | (ltrimstr($mod) | ltrimstr("/")) as $dir
+        | {pkg: ., dir: (if $dir == "" then "." else $dir end), name: (if $dir == "" then "root" else $dir | gsub("/"; "-") end)}]')
+        echo pkgs="$pkgs" >> "$GITHUB_OUTPUT"
+    - name: Compile test binaries
       id: compile
-      run: CGO_ENABLED=0 go test -c -o cloudsmith.test ./...
+      run: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        mkdir -p testbin
+        for row in $(echo '${{ steps.list.outputs.pkgs }}' | jq -r '.[] | "\(.pkg)=\(.name)"'); do
+          CGO_ENABLED=0 go test -c -o "testbin/${row#*=}.test" "${row%%=*}"
+        done
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.1.0
       with:
         name: testbin
-        path: cloudsmith.test
+        path: testbin
   test:
     needs: generate
     runs-on: ubuntu-slim
-    name: ${{ matrix.test }}
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false # don't cancel siblings when one flakes
       max-parallel: 32
       matrix:
-        include: ${{ fromJSON(needs.generate.outputs.tests) }}
+        include: ${{ fromJSON(needs.generate.outputs.pkgs) }}
     steps:
      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
        with:
@@ -72,12 +79,24 @@ jobs:
      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
        with:
          name: testbin
+         path: testbin
      - name: Install Terraform
        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
        with:
          terraform_wrapper: false
-     - run: chmod +x cloudsmith.test
-     - run: TF_ACC=1 TF_ACC_TERRAFORM_PATH=$(which terraform) ./cloudsmith.test -test.v -test.run '^${{ matrix.test }}$'
+     - run: chmod +x "testbin/${MATRIX_NAME}.test"
        env:
+         MATRIX_NAME: ${{ matrix.name }}
+     - name: Run ${{ matrix.pkg }}
+       run: |
+         #!/usr/bin/env bash
+         set -euo pipefail
+         # run from the package directory, as go test does, so relative testdata paths resolve
+         bin="$PWD/testbin/${MATRIX_NAME}.test"
+         cd "$MATRIX_DIR"
+         TF_ACC=1 TF_ACC_TERRAFORM_PATH=$(which terraform) "$bin" -test.v
+       env:
+         MATRIX_NAME: ${{ matrix.name }}
+         MATRIX_DIR: ${{ matrix.dir }}
          CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
          CLOUDSMITH_NAMESPACE: terraform-provider-testing
