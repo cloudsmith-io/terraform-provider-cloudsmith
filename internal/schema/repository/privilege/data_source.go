@@ -1,0 +1,105 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package privilege
+
+import (
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+)
+
+// dataSourceRepositoryPrivileges returns the data source schema and read function.
+func DataSourceRepositoryPrivileges() *schema.Resource {
+	return &schema.Resource{
+		Description: "The `cloudsmith_repository_privileges` data source allows you to retrieve information about repository privileges, including service accounts, teams, and users, for a specific repository.",
+
+		Read: dataSourceRepositoryPrivilegesRead,
+
+		Schema: map[string]*schema.Schema{
+			"organization": {
+				Type:        schema.TypeString,
+				Description: "Organization to which this repository belongs.",
+				Required:    true,
+			},
+			"repository": {
+				Type:        schema.TypeString,
+				Description: "Repository to fetch privileges information.",
+				Required:    true,
+			},
+			"service": {
+				Type:     schema.TypeSet,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"privilege": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"slug": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
+			"team": {
+				Type:     schema.TypeSet,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"privilege": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"slug": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
+			"user": {
+				Type:     schema.TypeSet,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"privilege": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"slug": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func dataSourceRepositoryPrivilegesRead(d *schema.ResourceData, m interface{}) error {
+	pc := m.(*util.ProviderConfig)
+
+	organization := d.Get("organization").(string)
+	repository := d.Get("repository").(string)
+
+	all, notFound, err := retrieveRepositoryPrivilegePages(pc, organization, repository)
+	if err != nil {
+		return err
+	}
+	if notFound {
+		d.SetId("")
+		return nil
+	}
+
+	d.Set("service", flattenRepositoryPrivilegeServices(all))
+	d.Set("team", flattenRepositoryPrivilegeTeams(all))
+	d.Set("user", flattenRepositoryPrivilegeUsers(all))
+
+	d.SetId(fmt.Sprintf("%s/%s", organization, repository))
+
+	return nil
+}

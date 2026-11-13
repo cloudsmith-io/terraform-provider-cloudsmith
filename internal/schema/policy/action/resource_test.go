@@ -1,0 +1,362 @@
+// Copyright Cloudsmith Ltd 2026
+// SPDX-License-Identifier: MPL-2.0
+
+package action_test
+
+import (
+	"context"
+	"fmt"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/cloudsmith-io/cloudsmith-go-v2/models/apierrors"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+)
+
+func TestAccPolicyAction_setPackageState(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For SetState")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigSetPackageState(parentName, "QUARANTINED"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_policy_action.test", "slug_perm"),
+					resource.TestCheckResourceAttrSet("cloudsmith_policy_action.test", "created_at"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "set_package_state.0.package_state", "QUARANTINED"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigSetPackageState(parentName, "DELETED"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "set_package_state.0.package_state", "DELETED"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_setPackageStateAvailable(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For Available")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigSetPackageState(parentName, "AVAILABLE"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "set_package_state.0.package_state", "AVAILABLE"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_addPackageTags(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For AddTags")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigAddPackageTags(parentName, []string{"needs-review", "imported"}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.0.tags.#", "2"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigAddPackageTags(parentName, []string{"needs-review"}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.0.tags.#", "1"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_removePackageTags(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For RemoveTags")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigRemovePackageTags(parentName, []string{"needs-review"}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "remove_package_tags.0.tags.#", "1"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_blockPackage(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For Block")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 10),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttrSet("cloudsmith_policy_action.test", "slug_perm"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "block_package.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "precedence", "10"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 20),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "precedence", "20"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_typeSwitchForcesReplace(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For TypeSwitch")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigSetPackageState(parentName, "QUARANTINED"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "set_package_state.0.package_state", "QUARANTINED"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigAddPackageTags(parentName, []string{"needs-review", "imported"}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.0.tags.#", "2"),
+				),
+			},
+			{
+				Config: testAccPolicyActionConfigBlockPackage(parentName, 0),
+				Check: resource.ComposeTestCheckFunc(
+					testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "block_package.#", "1"),
+					resource.TestCheckResourceAttr("cloudsmith_policy_action.test", "add_package_tags.#", "0"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccPolicyAction_import(t *testing.T) {
+	t.Parallel()
+
+	parentName := acctest.TestAccUniquePolicyName("TF Acc Policy For Import")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { acctest.TestAccPreCheck(t) },
+		Providers: acctest.TestAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccPolicyActionCheckDestroy("cloudsmith_policy_action.test"),
+			acctest.TestAccPolicyCheckDestroy("cloudsmith_policy.parent"),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccPolicyActionConfigSetPackageState(parentName, "QUARANTINED"),
+				Check:  testAccPolicyActionCheckExists("cloudsmith_policy_action.test"),
+			},
+			{
+				ResourceName: "cloudsmith_policy_action.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					rs := s.RootModule().Resources["cloudsmith_policy_action.test"]
+					return fmt.Sprintf(
+						"%s.%s.%s",
+						rs.Primary.Attributes["workspace"],
+						rs.Primary.Attributes["policy_slug_perm"],
+						rs.Primary.Attributes["slug_perm"],
+					), nil
+				},
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccPolicyActionCheckDestroy(resourceName string) resource.TestCheckFunc {
+	return acctest.TestAccRetry(10*time.Second, 500*time.Millisecond, func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("resource id not set")
+		}
+		pc := acctest.TestAccProvider.Meta().(*util.ProviderConfig)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		resp, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsRetrieve(
+			ctx,
+			rs.Primary.ID,
+			rs.Primary.Attributes["policy_slug_perm"],
+			rs.Primary.Attributes["workspace"],
+		)
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("verifying policy action deletion: %w", err)
+		}
+		if resp != nil && resp.PolicyAction != nil {
+			return fmt.Errorf("policy action still exists: %s", rs.Primary.ID)
+		}
+		return nil
+	})
+}
+
+func testAccPolicyActionCheckExists(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("resource id not set")
+		}
+		pc := acctest.TestAccProvider.Meta().(*util.ProviderConfig)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_, err := pc.V2ApiClient.Workspaces.WorkspacesPoliciesActionsRetrieve(
+			ctx,
+			rs.Primary.ID,
+			rs.Primary.Attributes["policy_slug_perm"],
+			acctest.TestAccNamespace(),
+		)
+		return err
+	}
+}
+
+func testAccPolicyActionConfigParentBlock(name string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_policy" "parent" {
+    workspace = "%s"
+    name      = "%s"
+    rego      = <<-EOT
+        package cloudsmith.policy
+        default allow := true
+    EOT
+}
+`, acctest.TestAccNamespace(), name)
+}
+
+func testAccPolicyActionConfigSetPackageState(parentName, state string) string {
+	return testAccPolicyActionConfigParentBlock(parentName) + fmt.Sprintf(`
+resource "cloudsmith_policy_action" "test" {
+    workspace        = "%s"
+    policy_slug_perm = cloudsmith_policy.parent.slug_perm
+
+    set_package_state {
+        package_state = "%s"
+    }
+}
+`, acctest.TestAccNamespace(), state)
+}
+
+func testAccPolicyActionConfigAddPackageTags(parentName string, tags []string) string {
+	return testAccPolicyActionConfigParentBlock(parentName) + fmt.Sprintf(`
+resource "cloudsmith_policy_action" "test" {
+    workspace        = "%s"
+    policy_slug_perm = cloudsmith_policy.parent.slug_perm
+
+    add_package_tags {
+        tags = %s
+    }
+}
+`, acctest.TestAccNamespace(), hclStringList(tags))
+}
+
+func testAccPolicyActionConfigRemovePackageTags(parentName string, tags []string) string {
+	return testAccPolicyActionConfigParentBlock(parentName) + fmt.Sprintf(`
+resource "cloudsmith_policy_action" "test" {
+    workspace        = "%s"
+    policy_slug_perm = cloudsmith_policy.parent.slug_perm
+
+    remove_package_tags {
+        tags = %s
+    }
+}
+`, acctest.TestAccNamespace(), hclStringList(tags))
+}
+
+func testAccPolicyActionConfigBlockPackage(parentName string, precedence int) string {
+	return testAccPolicyActionConfigParentBlock(parentName) + fmt.Sprintf(`
+resource "cloudsmith_policy_action" "test" {
+    workspace        = "%s"
+    policy_slug_perm = cloudsmith_policy.parent.slug_perm
+    precedence       = %d
+
+    block_package {}
+}
+`, acctest.TestAccNamespace(), precedence)
+}
+
+func hclStringList(items []string) string {
+	quoted := make([]string, len(items))
+	for i, item := range items {
+		quoted[i] = fmt.Sprintf("%q", item)
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
+}
