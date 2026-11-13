@@ -210,3 +210,29 @@ func TestAPIKeyTransportDoesNotRetryNonReplayableBody(t *testing.T) {
 		t.Errorf("invalidated tokens = %q, want %q", got, want)
 	}
 }
+
+func TestAPIKeyTransportSendsJWTAsBearer(t *testing.T) {
+	const jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.signature"
+	transport := &apiKeyTransport{
+		tokens:      staticToken(jwt),
+		apiEndpoint: credentialEndpoint{scheme: "https", host: "api.example.com"},
+		rt: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got := req.Header.Get("X-Api-Key"); got != "" {
+				t.Errorf("X-Api-Key = %q, want empty", got)
+			}
+			if got, want := req.Header.Get("Authorization"), "Bearer "+jwt; got != want {
+				t.Errorf("Authorization = %q, want %q", got, want)
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		}),
+	}
+	req, err := http.NewRequest(http.MethodGet, "https://api.example.com/v1/user/self/", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("X-Api-Key", jwt)
+
+	if _, err := transport.RoundTrip(req); err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+}
