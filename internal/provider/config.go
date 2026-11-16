@@ -14,6 +14,7 @@ import (
 	"github.com/cloudsmith-io/cloudsmith-api-go"
 	cloudsmithv2 "github.com/cloudsmith-io/cloudsmith-go-v2"
 	"github.com/cloudsmith-io/cloudsmith-go-v2/models/components"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 
@@ -43,18 +44,17 @@ func newProviderConfig(ctx context.Context, apiHost string, tokens tokenSource, 
 	}
 
 	httpClient := &http.Client{
-		Transport: logging.NewSubsystemLoggingHTTPTransport("Cloudsmith", &headerTransport{
+		Transport: &credentialMaskingTransport{rt: logging.NewSubsystemLoggingHTTPTransport(httpLogSubsystem, &headerTransport{
 			headers: headers,
 			rt: &apiKeyTransport{
 				tokens:      tokens,
 				apiEndpoint: credEndpoint,
 				rt:          http.DefaultTransport,
 			},
-		}),
+		})},
 	}
 
 	config := newCloudsmithAPIConfiguration(apiHost, userAgent, httpClient)
-	config.Debug = logging.IsDebugOrHigher()
 	apiClient := cloudsmith.NewAPIClient(config)
 
 	auth := context.WithValue(
@@ -98,6 +98,19 @@ func newCloudsmithAPIConfiguration(apiHost, userAgent string, httpClient *http.C
 	config.Servers = cloudsmith.ServerConfigurations{{URL: apiHost}}
 	config.UserAgent = userAgent
 	return config
+}
+
+const httpLogSubsystem = "Cloudsmith"
+
+// The generated SDKs set X-Api-Key before the request reaches the logging
+// transport, so mask the credential headers in the HTTP debug log.
+type credentialMaskingTransport struct {
+	rt http.RoundTripper
+}
+
+func (t *credentialMaskingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx := tflog.SubsystemMaskFieldValuesWithFieldKeys(req.Context(), httpLogSubsystem, "X-Api-Key", "Authorization")
+	return t.rt.RoundTrip(req.WithContext(ctx))
 }
 
 type headerTransport struct {

@@ -5,8 +5,10 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cloudsmith-io/cloudsmith-go-v2/models/operations"
+	"github.com/hashicorp/terraform-plugin-log/tflogtest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -177,6 +180,60 @@ func TestProviderConfig_V2UsesAPIKeyAndHost(t *testing.T) {
 	}
 	if v2APIKey != "valid-token" {
 		t.Fatalf("expected v2 request to use configured api_key, got %q", v2APIKey)
+	}
+}
+
+const debugLogTestAPIKey = "debug-log-secret-key"
+
+func newDebugLogTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/user/self/" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintln(w, `{"email": "test@example.com", "name": "Test User", "slug": "test-user", "slug_perm": "test-user"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestProviderConfig_DebugLogOmitsAPIKey(t *testing.T) {
+	t.Setenv("TF_LOG", "DEBUG")
+	var logOutput bytes.Buffer
+	log.SetOutput(&logOutput)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	server := newDebugLogTestServer(t)
+
+	if _, diags := newProviderConfig(context.Background(), server.URL, staticToken(debugLogTestAPIKey), map[string]interface{}{}, "test-agent"); diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	if strings.Contains(logOutput.String(), debugLogTestAPIKey) {
+		t.Fatalf("expected debug log to omit the API key, got:\n%s", logOutput.String())
+	}
+}
+
+func TestProviderConfig_HTTPSubsystemLogOmitsAPIKey(t *testing.T) {
+	server := newDebugLogTestServer(t)
+	pc, diags := newProviderConfig(context.Background(), server.URL, staticToken(debugLogTestAPIKey), map[string]interface{}{}, "test-agent")
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	var logOutput bytes.Buffer
+	ctx := tflogtest.RootLogger(context.Background(), &logOutput)
+
+	_, _ = pc.V2ApiClient.Metadata.MetadataPackagesList(
+		ctx,
+		operations.MetadataPackagesListRequest{PackageSlugPerm: "test-pkg"},
+	)
+
+	if !strings.Contains(logOutput.String(), "Sending HTTP Request") {
+		t.Fatalf("expected the HTTP request to be logged, got:\n%s", logOutput.String())
+	}
+	if strings.Contains(logOutput.String(), debugLogTestAPIKey) {
+		t.Fatalf("expected HTTP log to omit the API key, got:\n%s", logOutput.String())
 	}
 }
 
