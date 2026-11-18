@@ -14,4 +14,7 @@ resource "cloudsmith_repository" "my_repository" {
   name        = "My Repository"
   namespace   = data.cloudsmith_organization.my_organization.slug_perm
   slug        = "my-repository"
+
+  # Only offer GitHub skills that declare a semantic version.
+  skills_versioning = "STRICT_SEMANTIC_VERSION"
 }

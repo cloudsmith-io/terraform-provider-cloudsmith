@@ -78,6 +78,7 @@ func resourceRepositoryCreate(d *schema.ResourceData, m interface{}) error {
 		ScanOwn:                          util.OptionalBool(d, "scan_own"),
 		ScanPackages:                     util.OptionalString(d, "scan_packages"),
 		ShowSetupAll:                     util.OptionalBool(d, "show_setup_all"),
+		SkillsVersioning:                 util.OptionalString(d, "skills_versioning"),
 		Slug:                             util.OptionalString(d, "slug"),
 		StorageRegion:                    util.OptionalString(d, "storage_region"),
 		StrictNpmValidation:              util.OptionalBool(d, "strict_npm_validation"),
@@ -312,6 +313,7 @@ func resourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("self_html_url", repository.GetSelfHtmlUrl())
 	d.Set("self_url", repository.GetSelfUrl())
 	d.Set("show_setup_all", repository.GetShowSetupAll())
+	d.Set("skills_versioning", repository.GetSkillsVersioning())
 	d.Set("slug", repository.GetSlug())
 	d.Set("slug_perm", repository.GetSlugPerm())
 	d.Set("storage_region", repository.GetStorageRegion())
@@ -384,6 +386,7 @@ func resourceRepositoryUpdate(d *schema.ResourceData, m interface{}) error {
 		ScanOwn:                          util.OptionalBool(d, "scan_own"),
 		ScanPackages:                     util.OptionalString(d, "scan_packages"),
 		ShowSetupAll:                     util.OptionalBool(d, "show_setup_all"),
+		SkillsVersioning:                 util.OptionalString(d, "skills_versioning"),
 		TagPreReleasesAsLatest:           util.OptionalBool(d, "tag_pre_releases_as_latest"),
 		RepositoryTypeStr:                util.OptionalString(d, "repository_type"),
 		Slug:                             util.OptionalString(d, "slug"),
@@ -823,6 +826,17 @@ func ResourceRepository() *schema.Resource {
 					"packages will be shown only.",
 				Optional: true,
 				Computed: true,
+			},
+			"skills_versioning": {
+				Type: schema.TypeString,
+				Description: "How Cloudsmith versions skills from GitHub upstreams. Valid values are " +
+					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. " +
+					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, " +
+					"or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that " +
+					"declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK", "STRICT_SEMANTIC_VERSION"}, false),
 			},
 			"slug": {
 				Type:         schema.TypeString,
