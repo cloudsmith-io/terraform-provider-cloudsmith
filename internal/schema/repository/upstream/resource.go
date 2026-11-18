@@ -39,6 +39,7 @@ const (
 	Python      = "python"
 	Rpm         = "rpm"
 	Ruby        = "ruby"
+	Skills      = "skills"
 	Swift       = "swift"
 )
 
@@ -48,6 +49,7 @@ const (
 	AuthSecret           = "auth_secret"
 	AuthUsername         = "auth_username"
 	Component            = "component"
+	Contents             = "contents"
 	DistroVersion        = "distro_version"
 	DistroVersions       = "distro_versions"
 	ExtraHeader1         = "extra_header_1"
@@ -105,7 +107,13 @@ var (
 		Python,
 		Rpm,
 		Ruby,
+		Skills,
 		Swift,
+	}
+	skillsContents = []string{
+		"Skills",
+		"Plugins",
+		"Skills and plugins",
 	}
 )
 
@@ -649,6 +657,25 @@ func resourceRepositoryUpstreamCreate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyCreateExecute(req)
+	case Skills:
+		req := pc.APIClient.ReposApi.ReposUpstreamSkillsCreate(pc.Auth, namespace, repository)
+		req = req.Data(cloudsmith.SkillsUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			Contents:     util.OptionalString(d, Contents),
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSkillsCreateExecute(req)
 	case Swift:
 		req := pc.APIClient.ReposApi.ReposUpstreamSwiftCreate(pc.Auth, namespace, repository)
 		req = req.Data(cloudsmith.SwiftUpstreamRequest{
@@ -791,6 +818,9 @@ func getUpstream(d *schema.ResourceData, m interface{}) (Upstream, *http.Respons
 	case Ruby:
 		req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+	case Skills:
+		req := pc.APIClient.ReposApi.ReposUpstreamSkillsRead(pc.Auth, namespace, repository, d.Id())
+		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSkillsReadExecute(req)
 	case Swift:
 		req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, d.Id())
 		upstream, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)
@@ -902,6 +932,8 @@ func setRepositoryUpstreamState(d *schema.ResourceData, upstream Upstream) error
 	case *cloudsmith.RpmUpstream:
 		_ = d.Set(DistroVersion, u.GetDistroVersion())
 		_ = d.Set(IncludeSources, u.GetIncludeSources())
+	case *cloudsmith.SkillsUpstream:
+		_ = d.Set(Contents, u.GetContents())
 	}
 
 	// namespace, repository and upstream_type are not returned from the read
@@ -1327,6 +1359,25 @@ func resourceRepositoryUpstreamUpdate(d *schema.ResourceData, m interface{}) err
 			VerifySsl:    verifySsl,
 		})
 		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamRubyUpdateExecute(req)
+	case Skills:
+		req := pc.APIClient.ReposApi.ReposUpstreamSkillsUpdate(pc.Auth, namespace, repository, slugPerm)
+		req = req.Data(cloudsmith.SkillsUpstreamRequest{
+			AuthMode:     authMode,
+			AuthSecret:   authSecret,
+			AuthUsername: authUsername,
+			Contents:     util.OptionalString(d, Contents),
+			ExtraHeader1: extraHeader1,
+			ExtraHeader2: extraHeader2,
+			ExtraValue1:  extraValue1,
+			ExtraValue2:  extraValue2,
+			IsActive:     isActive,
+			Mode:         mode,
+			Name:         name,
+			Priority:     priority,
+			UpstreamUrl:  upstreamUrl,
+			VerifySsl:    verifySsl,
+		})
+		upstream, _, err = pc.APIClient.ReposApi.ReposUpstreamSkillsUpdateExecute(req)
 	case Swift:
 		req := pc.APIClient.ReposApi.ReposUpstreamSwiftUpdate(pc.Auth, namespace, repository, slugPerm)
 		req = req.Data(cloudsmith.SwiftUpstreamRequest{
@@ -1446,6 +1497,9 @@ func resourceRepositoryUpstreamDelete(d *schema.ResourceData, m interface{}) err
 	case Ruby:
 		req := pc.APIClient.ReposApi.ReposUpstreamRubyDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamRubyDeleteExecute(req)
+	case Skills:
+		req := pc.APIClient.ReposApi.ReposUpstreamSkillsDelete(pc.Auth, namespace, repository, d.Id())
+		_, err = pc.APIClient.ReposApi.ReposUpstreamSkillsDeleteExecute(req)
 	case Swift:
 		req := pc.APIClient.ReposApi.ReposUpstreamSwiftDelete(pc.Auth, namespace, repository, d.Id())
 		_, err = pc.APIClient.ReposApi.ReposUpstreamSwiftDeleteExecute(req)
@@ -1552,6 +1606,14 @@ func ResourceRepositoryUpstream() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringIsNotEmpty,
+			},
+			Contents: {
+				Type: schema.TypeString,
+				Description: "(skills only) The package types that the upstream indexes. Valid values are `Skills`, `Plugins`, and `Skills and plugins`. " +
+					"If you leave it unset, Cloudsmith uses `Skills and plugins`, which is the only value that GitHub upstreams accept.",
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice(skillsContents, false),
 			},
 			CreatedAt: {
 				Type:        schema.TypeString,
