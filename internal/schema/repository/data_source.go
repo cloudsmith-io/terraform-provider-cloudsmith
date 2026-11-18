@@ -59,6 +59,7 @@ func dataSourceRepositoryRead(d *schema.ResourceData, m interface{}) error {
 	d.Set("self_html_url", repository.GetSelfHtmlUrl())
 	d.Set("self_url", repository.GetSelfUrl())
 	d.Set("show_setup_all", repository.GetShowSetupAll())
+	d.Set("skills_versioning", repository.GetSkillsVersioning())
 	d.Set("slug", repository.GetSlug())
 	d.Set("slug_perm", repository.GetSlugPerm())
 	d.Set("storage_region", repository.GetStorageRegion())
@@ -337,6 +338,15 @@ func DataSourceRepository() *schema.Resource {
 					"packages of that type uploaded. Otherwise, help will only be shown for packages that are in the " +
 					"repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet " +
 					"packages will be shown only.",
+				Computed: true,
+			},
+			"skills_versioning": {
+				Type: schema.TypeString,
+				Description: "How Cloudsmith versions skills from GitHub upstreams. Valid values are " +
+					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. " +
+					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, " +
+					"or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that " +
+					"declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.",
 				Computed: true,
 			},
 			"slug": {

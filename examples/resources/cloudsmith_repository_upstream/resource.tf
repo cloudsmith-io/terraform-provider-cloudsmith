@@ -18,3 +18,20 @@ resource "cloudsmith_repository_upstream" "gradle_distributions" {
   upstream_url    = "https://services.gradle.org"
   upstream_prefix = "distributions"
 }
+
+# GitHub skills upstreams require a GitHub access token and Cache Only mode.
+variable "github_token" {
+  type      = string
+  sensitive = true
+}
+
+resource "cloudsmith_repository_upstream" "github_skills" {
+  name          = "Official Claude plugins"
+  namespace     = data.cloudsmith_organization.my_organization.slug_perm
+  repository    = data.cloudsmith_repository.my_repository.slug_perm
+  upstream_type = "skills"
+  upstream_url  = "https://github.com/anthropics/claude-plugins-official"
+  mode          = "Cache Only"
+  auth_mode     = "Token"
+  auth_secret   = var.github_token
+}

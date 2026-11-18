@@ -32,6 +32,9 @@ resource "cloudsmith_repository" "my_repository" {
   name        = "My Repository"
   namespace   = data.cloudsmith_organization.my_organization.slug_perm
   slug        = "my-repository"
+
+  # Only offer GitHub skills that declare a semantic version.
+  skills_versioning = "STRICT_SEMANTIC_VERSION"
 }
 ```
 
@@ -74,6 +77,7 @@ resource "cloudsmith_repository" "my_repository" {
 - `scan_own` (Boolean) If checked, users can scan any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org.
 - `scan_packages` (String) This defines the minimum level of privilege required for a user to scan packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific scan setting.
 - `show_setup_all` (Boolean) If checked, the Set Me Up help for all formats will always be shown, even if you don't have packages of that type uploaded. Otherwise, help will only be shown for packages that are in the repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet packages will be shown only.
+- `skills_versioning` (String) How Cloudsmith versions skills from GitHub upstreams. Valid values are `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.
 - `slug` (String) The slug identifies the repository in URIs.
 - `storage_region` (String) The Cloudsmith region in which package files are stored.Supported regions include: Sydney, Australia (au-sydney),Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon,United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin) (default)
 - `strict_npm_validation` (Boolean) If checked, npm packages will be validated strictly to ensure the package matches specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at your own risk!
