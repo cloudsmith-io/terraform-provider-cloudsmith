@@ -441,7 +441,30 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 }
 `, repositoryName, namespace)
 
+	// Only change fields outside the upstream source key here, so the upstream
+	// stays on the shared conda-forge source and nothing new gets indexed.
 	testAccRepositoryCondaUpstreamConfigUpdate := fmt.Sprintf(`
+	resource "cloudsmith_repository" "test" {
+		name      = "%s"
+		namespace = "%s"
+	}
+
+	resource "cloudsmith_repository_upstream" "conda_forge" {
+	    namespace     = cloudsmith_repository.test.namespace
+	    repository    = cloudsmith_repository.test.slug
+		name          = cloudsmith_repository.test.name
+	    priority      = 2
+	    upstream_type = "conda"
+	    upstream_url  = "https://conda.anaconda.org/conda-forge"
+	}
+	`, repositoryName, namespace)
+
+	// Extra headers and verify_ssl are part of the upstream source key. On a real
+	// channel they create a source only this test uses, which indexes all of
+	// conda-forge (~3.5M rows) and is deleted again minutes later. A .invalid
+	// host never resolves, so indexing fetches nothing. Validation disables an
+	// unreachable upstream, so keep it inactive.
+	testAccRepositoryCondaUpstreamConfigHeaders := fmt.Sprintf(`
 	resource "cloudsmith_repository" "test" {
 		name      = "%s"
 		namespace = "%s"
@@ -452,11 +475,13 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 	    extra_header_2 = "Access-Control-Allow-Origin"
 	    extra_value_1  = "custom-value"
 	    extra_value_2  = "*"
+	    is_active      = false
 	    namespace      = cloudsmith_repository.test.namespace
 	    repository     = cloudsmith_repository.test.slug
 		name           = cloudsmith_repository.test.name
 	    upstream_type  = "conda"
-	    upstream_url   = "https://conda.anaconda.org/conda-forge"
+	    upstream_url   = "https://conda.example.invalid/channel"
+	    verify_ssl     = false
 	}
 	`, repositoryName, namespace)
 
@@ -488,11 +513,22 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 			{
 				Config: testAccRepositoryCondaUpstreamConfigUpdate,
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, Priority, "2"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader1, ""),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, UpstreamUrl, "https://conda.anaconda.org/conda-forge"),
+				),
+			},
+			{
+				Config: testAccRepositoryCondaUpstreamConfigHeaders,
+				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader1, "X-Custom-Header"),
 					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraHeader2, "Access-Control-Allow-Origin"),
 					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue1, "custom-value"),
 					resource.TestCheckResourceAttr(condaUpstreamResourceName, ExtraValue2, "*"),
-					resource.TestCheckResourceAttr(condaUpstreamResourceName, IsActive, "true"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, IsActive, "false"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, UpstreamUrl, "https://conda.example.invalid/channel"),
+					resource.TestCheckResourceAttr(condaUpstreamResourceName, VerifySsl, "false"),
 				),
 			},
 			{
