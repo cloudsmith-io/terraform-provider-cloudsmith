@@ -441,8 +441,8 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 }
 `, repositoryName, namespace)
 
-	// Only change fields outside the upstream source key here, so the upstream
-	// stays on the shared conda-forge source and nothing new gets indexed.
+	// Only change fields that keep this upstream's configuration the same as a
+	// plain conda-forge upstream.
 	testAccRepositoryCondaUpstreamConfigUpdate := fmt.Sprintf(`
 	resource "cloudsmith_repository" "test" {
 		name      = "%s"
@@ -459,11 +459,9 @@ resource "cloudsmith_repository_upstream" "conda_forge" {
 	}
 	`, repositoryName, namespace)
 
-	// Extra headers and verify_ssl are part of the upstream source key. On a real
-	// channel they create a source only this test uses, which indexes all of
-	// conda-forge (~3.5M rows) and is deleted again minutes later. A .invalid
-	// host never resolves, so indexing fetches nothing. Validation disables an
-	// unreachable upstream, so keep it inactive.
+	// Extra headers and verify_ssl are tested against a host that never resolves,
+	// rather than a real public channel. Validation disables an unreachable
+	// upstream, so keep it inactive.
 	testAccRepositoryCondaUpstreamConfigHeaders := fmt.Sprintf(`
 	resource "cloudsmith_repository" "test" {
 		name      = "%s"
