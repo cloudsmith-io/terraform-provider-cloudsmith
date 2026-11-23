@@ -2355,6 +2355,72 @@ resource "cloudsmith_repository_upstream" "nix_channels" {
 	})
 }
 
+func TestAccRepositoryUpstreamSkills_basic(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := acctest.TestAccUniqueRepositoryName("terraform-acc-test-upstream-skills")
+	namespace := acctest.TestAccNamespace()
+
+	const skillsUpstreamResourceName = "cloudsmith_repository_upstream.claude_plugins"
+
+	testAccRepositorySkillsUpstreamConfig := func(priority int) string {
+		return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+}
+
+resource "cloudsmith_repository_upstream" "claude_plugins" {
+	auth_mode     = "Token"
+	auth_secret   = "%s"
+	mode          = "Cache Only"
+	name          = cloudsmith_repository.test.name
+	namespace     = cloudsmith_repository.test.namespace
+	priority      = %d
+	repository    = cloudsmith_repository.test.slug
+	upstream_type = "skills"
+	upstream_url  = "https://github.com/anthropics/claude-plugins-official"
+}
+`, repositoryName, namespace, os.Getenv("CLOUDSMITH_ACC_GITHUB_TOKEN"), priority)
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { acctest.TestAccPreCheck(t) },
+		Providers:    acctest.TestAccProviders,
+		CheckDestroy: testAccRepositoryUpstreamCheckDestroy(skillsUpstreamResourceName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositorySkillsUpstreamConfig(1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(skillsUpstreamResourceName, Contents, "Skills and plugins"),
+					resource.TestCheckResourceAttr(skillsUpstreamResourceName, Mode, "Cache Only"),
+					resource.TestCheckResourceAttrSet(skillsUpstreamResourceName, SlugPerm),
+				),
+			},
+			{
+				Config: testAccRepositorySkillsUpstreamConfig(5),
+				Check:  resource.TestCheckResourceAttr(skillsUpstreamResourceName, Priority, "5"),
+			},
+			{
+				ResourceName: skillsUpstreamResourceName,
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources[skillsUpstreamResourceName]
+					return fmt.Sprintf(
+						"%s.%s.%s.%s",
+						resourceState.Primary.Attributes[Namespace],
+						resourceState.Primary.Attributes[Repository],
+						resourceState.Primary.Attributes[UpstreamType],
+						resourceState.Primary.Attributes[SlugPerm],
+					), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{AuthSecret},
+			},
+		},
+	})
+}
+
 func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		resourceState, ok := s.RootModule().Resources[resourceName]
@@ -2437,6 +2503,9 @@ func testAccRepositoryUpstreamCheckDestroy(resourceName string) resource.TestChe
 		case Ruby:
 			req := pc.APIClient.ReposApi.ReposUpstreamRubyRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamRubyReadExecute(req)
+		case Skills:
+			req := pc.APIClient.ReposApi.ReposUpstreamSkillsRead(pc.Auth, namespace, repository, slugPerm)
+			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamSkillsReadExecute(req)
 		case Swift:
 			req := pc.APIClient.ReposApi.ReposUpstreamSwiftRead(pc.Auth, namespace, repository, slugPerm)
 			_, resp, err = pc.APIClient.ReposApi.ReposUpstreamSwiftReadExecute(req)

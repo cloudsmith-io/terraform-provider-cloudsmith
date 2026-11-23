@@ -308,3 +308,61 @@ resource "cloudsmith_repository" "test-retention" {
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"))
 }
+
+func TestAccRepository_skillsVersioning(t *testing.T) {
+	t.Parallel()
+
+	repositoryName := acctest.TestAccUniqueRepositoryName("terraform-acc-test-skills-versioning")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { acctest.TestAccPreCheck(t) },
+		Providers:    acctest.TestAccProviders,
+		CheckDestroy: acctest.TestAccRepositoryCheckDestroy("cloudsmith_repository.test"),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccRepositoryConfigBasic(repositoryName),
+				Check: resource.ComposeTestCheckFunc(
+					acctest.TestAccRepositoryCheckExists("cloudsmith_repository.test"),
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "skills_versioning", "SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK"),
+				),
+			},
+			{
+				Config: testAccRepositoryConfigSkillsVersioning(repositoryName, "STRICT_SEMANTIC_VERSION"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("cloudsmith_repository.test", "skills_versioning", "STRICT_SEMANTIC_VERSION"),
+					resource.TestCheckResourceAttr("data.cloudsmith_repository.test", "skills_versioning", "STRICT_SEMANTIC_VERSION"),
+				),
+			},
+			{
+				ResourceName: "cloudsmith_repository.test",
+				ImportState:  true,
+				ImportStateIdFunc: func(s *terraform.State) (string, error) {
+					resourceState := s.RootModule().Resources["cloudsmith_repository.test"]
+					return fmt.Sprintf(
+						"%s.%s",
+						resourceState.Primary.Attributes["namespace"],
+						resourceState.Primary.Attributes["slug"],
+					), nil
+				},
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
+			},
+		},
+	})
+}
+
+func testAccRepositoryConfigSkillsVersioning(repositoryName, skillsVersioning string) string {
+	return fmt.Sprintf(`
+resource "cloudsmith_repository" "test" {
+	name      = "%s"
+	namespace = "%s"
+
+	skills_versioning = "%s"
+}
+
+data "cloudsmith_repository" "test" {
+	identifier = cloudsmith_repository.test.slug
+	namespace  = cloudsmith_repository.test.namespace
+}
+`, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), skillsVersioning)
+}

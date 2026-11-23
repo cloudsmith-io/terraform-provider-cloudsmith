@@ -505,6 +505,8 @@ func TestRepositoryUpstreamReadStateFields(t *testing.T) {
 			case Rpm:
 				response[DistroVersion], want[DistroVersion] = "fedora/35", "fedora/35"
 				response[IncludeSources], want[IncludeSources] = true, true
+			case Skills:
+				response[Contents], want[Contents] = "Plugins", "Plugins"
 			}
 			// A cleared nullable field must remove the old value from state.
 			response[ExtraHeader2], want[ExtraHeader2] = nil, ""

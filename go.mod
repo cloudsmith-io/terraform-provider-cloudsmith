@@ -3,7 +3,7 @@ module github.com/cloudsmith-io/terraform-provider-cloudsmith
 go 1.26.10
 
 require (
-	github.com/cloudsmith-io/cloudsmith-api-go v0.0.64
+	github.com/cloudsmith-io/cloudsmith-api-go v0.0.65
 	github.com/cloudsmith-io/cloudsmith-go-v2 v0.0.0-20261109121136-faf252b57156
 	github.com/hashicorp/copywrite v0.25.3
 	github.com/hashicorp/go-cty v1.5.0
