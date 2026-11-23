@@ -8,12 +8,7 @@ description: |-
 
 Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) and evaluated against package events. Effects are attached via [`cloudsmith_policy_action`](https://registry.terraform.io/providers/cloudsmith-io/cloudsmith/latest/docs/resources/policy_action).
 
-!>⚠️ **Cooldown policies**
-
-When you create a cooldown policy, you must:
-
-- Attach a `set_package_state` action with `package_state = \"HIDDEN\"`. A cooldown policy without this action is evaluated and matches packages, but does not hide anything from the index.
-- Set `is_terminal` to `true`. This prevents the evaluation of any further policies if the cooldown policy matches.
+!> **Cooldown policies:** When you create a cooldown policy, you must (1) attach a `set_package_state` action with `package_state = "HIDDEN"`, because a cooldown policy without this action is evaluated and matches packages but does not hide anything from the index; and (2) set `is_terminal` to `true`, which prevents the evaluation of any further policies if the cooldown policy matches.
 
 # Example usage
 ```terraform
