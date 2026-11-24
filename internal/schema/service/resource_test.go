@@ -7,9 +7,11 @@ package service_test
 import (
 	"fmt"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/schema/service"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -145,6 +147,41 @@ func TestAccService_basic(t *testing.T) {
 			},
 		},
 	})
+}
+
+// TestService_nameValidation verifies the name attribute rejects empty names and
+// names longer than 120 characters. It does not need API access.
+func TestService_nameValidation(t *testing.T) {
+	t.Parallel()
+
+	validate := service.ResourceService().Schema["name"].ValidateFunc
+
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{name: "empty", value: "", wantErr: true},
+		{name: "short", value: "TF Test Service", wantErr: false},
+		{name: "exactly 120 characters", value: strings.Repeat("a", 120), wantErr: false},
+		{name: "121 characters", value: strings.Repeat("a", 121), wantErr: true},
+		{name: "far over the limit", value: strings.Repeat("a", 500), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, errs := validate(tt.value, "name")
+			if tt.wantErr && len(errs) == 0 {
+				t.Fatalf("expected a validation error for a name of %d characters, got none", len(tt.value))
+			}
+
+			if !tt.wantErr && len(errs) > 0 {
+				t.Fatalf("unexpected validation errors for a name of %d characters: %v", len(tt.value), errs)
+			}
+		})
+	}
 }
 
 //nolint:err113
