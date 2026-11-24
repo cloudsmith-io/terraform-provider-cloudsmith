@@ -8,12 +8,7 @@ description: |-
 
 {{ .Description }}
 
-!>⚠️ **Cooldown policies**
-
-When you create a cooldown policy, you must:
-
-- Attach a `set_package_state` action with `package_state = \"HIDDEN\"`. A cooldown policy without this action is evaluated and matches packages, but does not hide anything from the index.
-- Set `is_terminal` to `true`. This prevents the evaluation of any further policies if the cooldown policy matches.
+!> **Cooldown policies:** When you create a cooldown policy, you must (1) attach a `set_package_state` action with `package_state = "HIDDEN"`, because a cooldown policy without this action is evaluated and matches packages but does not hide anything from the index; and (2) set `is_terminal` to `true`, which prevents the evaluation of any further policies if the cooldown policy matches.
 
 # Example usage
 {{tffile .ExampleFile}}
