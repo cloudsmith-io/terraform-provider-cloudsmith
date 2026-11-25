@@ -56,6 +56,7 @@ func TestAccRepository_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "replace_packages_by_default", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "broadcast_state", "Off"),
+					testAccRepositoryCheckServerDefaults("cloudsmith_repository.test"),
 				),
 			},
 			{
@@ -101,6 +102,16 @@ func TestAccRepository_basic(t *testing.T) {
 			},
 		},
 	})
+}
+
+// testAccRepositoryCheckServerDefaults checks every documented server default against the live API.
+func testAccRepositoryCheckServerDefaults(resourceName string) resource.TestCheckFunc {
+	checks := []resource.TestCheckFunc{}
+	for name, value := range ServerDefaultValues() {
+		checks = append(checks, resource.TestCheckResourceAttr(resourceName, name, value))
+	}
+
+	return resource.ComposeAggregateTestCheckFunc(checks...)
 }
 
 func testAccRepositoryConfigBasic(repositoryName string) string {

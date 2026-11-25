@@ -6,11 +6,13 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
 	cloudsmith "github.com/cloudsmith-io/cloudsmith-api-go"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 // sdkDefaults returns the defaults the OpenAPI spec (as compiled into the Go SDK) declares
@@ -131,6 +133,45 @@ func TestRepositoryDescriptionsStateDefaults(t *testing.T) {
 		want := util.FormatDefaultSentence(d.Value)
 		if !strings.Contains(attr.Description, want) {
 			t.Errorf("%s: description does not state %q: %q", name, want, attr.Description)
+		}
+	}
+}
+
+// A documented default must be a value that the attribute accepts in configuration.
+func TestServerDefaultsAreValidConfigValues(t *testing.T) {
+	attrs := resourceRepository().Schema
+
+	for name, documented := range serverDefaults {
+		attr, ok := attrs[name]
+		if !ok {
+			continue
+		}
+
+		var configValue interface{} = documented.Value
+
+		switch attr.Type {
+		case schema.TypeBool:
+			parsed, err := strconv.ParseBool(documented.Value)
+			if err != nil || strconv.FormatBool(parsed) != documented.Value {
+				t.Errorf("%s: boolean attribute documents non-canonical default %q", name, documented.Value)
+
+				continue
+			}
+
+			configValue = parsed
+		case schema.TypeString:
+		default:
+			t.Errorf("%s: no check for attribute type %v", name, attr.Type)
+
+			continue
+		}
+
+		if attr.ValidateFunc == nil {
+			continue
+		}
+
+		if _, errs := attr.ValidateFunc(configValue, name); len(errs) > 0 {
+			t.Errorf("%s: documented default %q fails validation: %v", name, documented.Value, errs)
 		}
 	}
 }
