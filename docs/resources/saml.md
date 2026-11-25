@@ -39,7 +39,7 @@ resource "cloudsmith_saml" "my_saml" {
 ### Optional
 
 - `enabled` (Boolean) Whether SAML Group Sync is enabled for the organization.
-- `role` (String)
+- `role` (String) Defaults to `Member`.
 
 ### Read-Only
 
