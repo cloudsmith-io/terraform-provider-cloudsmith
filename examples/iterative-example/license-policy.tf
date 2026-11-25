@@ -1,6 +1,3 @@
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 resource "cloudsmith_license_policy" "agpl-policy" {
   name                    = "Block AGPL"
   description             = "Block AGPL licensed packages"

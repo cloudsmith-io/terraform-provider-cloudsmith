@@ -12,9 +12,6 @@ Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego]
 
 # Example usage
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 resource "cloudsmith_policy" "quarantine_old_packages" {
   workspace   = "my-workspace"
   name        = "Quarantine old packages"
@@ -72,9 +69,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <workspace_slug>.<policy_slug_perm>
 terraform import cloudsmith_policy.my_policy my-workspace.policy-slug-perm
 ```

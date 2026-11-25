@@ -16,9 +16,6 @@ See [docs.cloudsmith.com](https://docs.cloudsmith.com/accounts-and-teams/service
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 provider "cloudsmith" {
   api_key = "my-api-key"
 }
@@ -82,9 +79,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <organization_slug>.<service_slug>
 # The service's API key is not returned by the API; the `key` attribute is unavailable after import.
 terraform import cloudsmith_service.my_service my-org.my-service

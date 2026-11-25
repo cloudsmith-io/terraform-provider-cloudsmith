@@ -16,9 +16,6 @@ The usage limits resource manages the on-demand package delivery and artifact da
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 provider "cloudsmith" {
   api_key = "my-api-key"
 }
@@ -54,9 +51,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <organization_slug>
 terraform import cloudsmith_usage_limits.my_limits my-org
 ```

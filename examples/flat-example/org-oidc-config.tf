@@ -1,6 +1,3 @@
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 resource "cloudsmith_oidc" "devops-oidc" {
   namespace        = data.cloudsmith_organization.org-demo.slug
   name             = "OIDC-DEMO"

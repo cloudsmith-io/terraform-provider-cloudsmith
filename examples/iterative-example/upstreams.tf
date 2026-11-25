@@ -1,6 +1,3 @@
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # Chainguard public repositories, no authentication, affix /chainguard/ to URL when pulling.
 resource "cloudsmith_repository_upstream" "cgr-public" {
   for_each      = var.repositories

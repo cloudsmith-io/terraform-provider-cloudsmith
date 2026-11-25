@@ -13,9 +13,6 @@ The SAML resource allows the creation and management of SAML Group Sync configur
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 resource "cloudsmith_saml" "my_saml" {
   organization = "my-organization"
   idp_key      = "role"
@@ -53,9 +50,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <organization_slug>.<saml_slug_perm>
 terraform import cloudsmith_saml.my_saml my-org.saml-slug-perm
 ```

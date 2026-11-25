@@ -13,9 +13,6 @@ Retrieve all members of a specific team within a Cloudsmith organization.
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 provider "cloudsmith" {
   api_key = "my-api-key"
 }

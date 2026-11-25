@@ -16,9 +16,6 @@ See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 data "cloudsmith_organization" "my_organization" {
   slug = "my-organization"
 }
@@ -104,9 +101,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <organization_slug>.<repository_slug>.<upstream_type>.<upstream_slug_perm>
 terraform import cloudsmith_repository_upstream.my_upstream my-org.my-repo.python.upstream-slug-perm
 ```

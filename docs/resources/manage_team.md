@@ -13,9 +13,6 @@ This resource is used to manage teams in Cloudsmith. It allows you to add, updat
 ## Example Usage
 
 ```terraform
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 resource "cloudsmith_manage_team" "example" {
   organization = "example_org"
   team_name    = "example_team"
@@ -58,9 +55,6 @@ Import is supported using the following syntax:
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# Copyright Cloudsmith Ltd 2026
-# SPDX-License-Identifier: MPL-2.0
-
 # ID format: <organization_slug>.<team_slug>
 terraform import cloudsmith_manage_team.my_team my-org.my-team
 ```
