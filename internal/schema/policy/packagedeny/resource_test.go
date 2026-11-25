@@ -20,19 +20,22 @@ import (
 func TestAccPackageDenyPolicy_basic(t *testing.T) {
 	t.Parallel()
 
+	// The API rejects a second deny policy with the same query, so a leftover policy must not block the next run.
+	packageQuery := "name:" + acctest.TestAccUniqueRepositoryName("tf-acc-deny")
+
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { acctest.TestAccPreCheck(t) },
 		Providers:    acctest.TestAccProviders,
 		CheckDestroy: testAccPackageDenyPolicyCheckDestroy("cloudsmith_package_deny_policy.test"),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccPackageDenyPolicyConfigBasic,
+				Config: testAccPackageDenyPolicyConfigBasic(packageQuery),
 				Check: resource.ComposeTestCheckFunc(
 					testAccPackageDenyPolicyCheckExists("cloudsmith_package_deny_policy.test"),
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "namespace", os.Getenv("CLOUDSMITH_NAMESPACE")),
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "enabled", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "name", "test-package-deny-policy-terraform-provider"),
-					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "package_query", "name:example_new"),
+					resource.TestCheckResourceAttr("cloudsmith_package_deny_policy.test", "package_query", packageQuery),
 				),
 			},
 		},
@@ -41,14 +44,16 @@ func TestAccPackageDenyPolicy_basic(t *testing.T) {
 
 // create a basic package deny policy config
 
-var testAccPackageDenyPolicyConfigBasic = fmt.Sprintf(`
+func testAccPackageDenyPolicyConfigBasic(packageQuery string) string {
+	return fmt.Sprintf(`
 resource "cloudsmith_package_deny_policy" "test" {
   namespace = "%s"
   enabled = true
   name = "test-package-deny-policy-terraform-provider"
-  package_query = "name:example_new"
+  package_query = "%s"
 }
-`, os.Getenv("CLOUDSMITH_NAMESPACE"))
+`, os.Getenv("CLOUDSMITH_NAMESPACE"), packageQuery)
+}
 
 // create a package deny policy check destroy function
 
