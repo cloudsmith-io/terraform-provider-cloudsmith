@@ -206,6 +206,114 @@ func TestRepositoryUpstreamRejectsTrustLevelForUnsupportedType(t *testing.T) {
 	}
 }
 
+const wantCacheOnlyModeErr = `mode "Cache Only" is not supported for nix and swift upstreams; use "Proxy Only" or "Cache and Proxy"`
+
+func testUpstreamModeConfig(upstreamType, mode string) *terraform.ResourceConfig {
+	config := map[string]interface{}{
+		Name:         "upstream",
+		Namespace:    "example",
+		Repository:   "example",
+		UpstreamType: upstreamType,
+		UpstreamUrl:  "https://upstream.example.com",
+	}
+	if mode != "" {
+		config[Mode] = mode
+	}
+	return terraform.NewResourceConfigRaw(config)
+}
+
+func TestRepositoryUpstreamPlanRejectsCacheOnlyModeForUnsupportedTypes(t *testing.T) {
+	for _, upstreamType := range UpstreamTypes {
+		t.Run(upstreamType, func(t *testing.T) {
+			_, err := ResourceRepositoryUpstream().Diff(context.Background(), nil, testUpstreamModeConfig(upstreamType, "Cache Only"), nil)
+			if upstreamType != Nix && upstreamType != Swift {
+				if err != nil {
+					t.Fatalf("Diff() returned unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != wantCacheOnlyModeErr {
+				t.Fatalf("Diff() error = %v, want %q", err, wantCacheOnlyModeErr)
+			}
+		})
+	}
+}
+
+func TestRepositoryUpstreamPlanChecksOnlyPlannedModes(t *testing.T) {
+	tests := []struct {
+		name       string
+		stateType  string
+		stateMode  string
+		configType string
+		configMode string
+		wantErr    bool
+	}{
+		{
+			name:       "changing a swift upstream to Cache Only",
+			stateType:  Swift,
+			stateMode:  "Proxy Only",
+			configType: Swift,
+			configMode: "Cache Only",
+			wantErr:    true,
+		},
+		{
+			name:       "changing a swift upstream to Cache and Proxy",
+			stateType:  Swift,
+			stateMode:  "Proxy Only",
+			configType: Swift,
+			configMode: "Cache and Proxy",
+		},
+		{
+			name:       "replacing a Cache Only npm upstream with a Cache Only nix upstream",
+			stateType:  Npm,
+			stateMode:  "Cache Only",
+			configType: Nix,
+			configMode: "Cache Only",
+			wantErr:    true,
+		},
+		{
+			name:       "replacing a Cache Only npm upstream with a nix upstream that leaves mode unset",
+			stateType:  Npm,
+			stateMode:  "Cache Only",
+			configType: Nix,
+		},
+		{
+			name:       "nix upstream that the API already reports as Cache Only",
+			stateType:  Nix,
+			stateMode:  "Cache Only",
+			configType: Nix,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := &terraform.InstanceState{
+				ID: "upstream-id",
+				Attributes: map[string]string{
+					"id":         "upstream-id",
+					Mode:         tt.stateMode,
+					Name:         "upstream",
+					Namespace:    "example",
+					Repository:   "example",
+					UpstreamType: tt.stateType,
+					UpstreamUrl:  "https://upstream.example.com",
+				},
+			}
+
+			_, err := ResourceRepositoryUpstream().Diff(context.Background(), state, testUpstreamModeConfig(tt.configType, tt.configMode), nil)
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("Diff() returned unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != wantCacheOnlyModeErr {
+				t.Fatalf("Diff() error = %v, want %q", err, wantCacheOnlyModeErr)
+			}
+		})
+	}
+}
+
 func TestAccRepositoryUpstreamAlpine_basic(t *testing.T) {
 	t.Parallel()
 

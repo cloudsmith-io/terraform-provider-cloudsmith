@@ -70,6 +70,13 @@ const (
 	AuthCertificate      = "auth_certificate"
 )
 
+// upstream modes
+const (
+	modeProxyOnly     = "Proxy Only"
+	modeCacheAndProxy = "Cache and Proxy"
+	modeCacheOnly     = "Cache Only"
+)
+
 var (
 	authModes = []string{
 		"None",
@@ -78,9 +85,9 @@ var (
 		"Certificate and Key",
 	}
 	upstreamModes = []string{
-		"Proxy Only",
-		"Cache and Proxy",
-		"Cache Only",
+		modeProxyOnly,
+		modeCacheAndProxy,
+		modeCacheOnly,
 	}
 	upstreamTrustLevels = []string{
 		"Trusted",
@@ -1534,24 +1541,46 @@ func validateUpstreamTrustLevel(upstreamType string, trustLevel *string) error {
 	return fmt.Errorf("%s is only supported for maven, npm, and python upstreams", TrustLevel)
 }
 
+// validateUpstreamMode rejects the Cache Only mode, which strict mode relies
+// on, for the upstream types whose API doesn't accept it.
+func validateUpstreamMode(upstreamType, mode string) error {
+	if mode != modeCacheOnly || (upstreamType != Nix && upstreamType != Swift) {
+		return nil
+	}
+
+	return fmt.Errorf("%s %q is not supported for nix and swift upstreams; use %q or %q", Mode, modeCacheOnly, modeProxyOnly, modeCacheAndProxy)
+}
+
 func customizeDiffRepositoryUpstream(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
-	if !d.NewValueKnown(UpstreamType) || !d.NewValueKnown(TrustLevel) {
+	if !d.NewValueKnown(UpstreamType) {
 		return nil
 	}
+	upstreamType := d.Get(UpstreamType).(string)
 
-	value, ok := d.GetOk(TrustLevel)
-	if !ok {
-		return nil
+	if d.NewValueKnown(TrustLevel) {
+		if value, ok := d.GetOk(TrustLevel); ok {
+			trustLevel := value.(string)
+			if err := validateUpstreamTrustLevel(upstreamType, &trustLevel); err != nil {
+				return err
+			}
+		}
 	}
 
-	trustLevel := value.(string)
-	return validateUpstreamTrustLevel(d.Get(UpstreamType).(string), &trustLevel)
+	// Only check a mode that the plan sets, so a mode the API has already
+	// accepted never blocks a plan.
+	if d.NewValueKnown(Mode) && d.HasChange(Mode) {
+		return validateUpstreamMode(upstreamType, d.Get(Mode).(string))
+	}
+
+	return nil
 }
 
 func ResourceRepositoryUpstream() *schema.Resource {
 	return &schema.Resource{
 		Description: "The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.\n\n" +
-			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.",
+			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.\n\n" +
+			"[Strict mode](https://docs.cloudsmith.com/supply-chain-security/strict-mode) holds packages until security checks are complete and policies have been evaluated, so every download is checked, including the first. " +
+			"Cloudsmith enables strict mode for your workspace. For upstreams, it applies only to those with `mode` set to `Cache Only`.",
 
 		Create: resourceRepositoryUpstreamCreate,
 		Read:   resourceRepositoryUpstreamRead,
@@ -1672,8 +1701,13 @@ func ResourceRepositoryUpstream() *schema.Resource {
 				Computed:    true,
 			},
 			Mode: {
-				Type:         schema.TypeString,
-				Description:  "The mode that this upstream should operate in. Upstream sources can be used to proxy resolved packages, as well as operate in a proxy/cache or cache only mode.",
+				Type: schema.TypeString,
+				Description: "How this upstream delivers packages. Valid values are `Proxy Only`, `Cache and Proxy`, and `Cache Only`. If you leave it unset, Cloudsmith uses `Proxy Only`. " +
+					"`Proxy Only` proxies requests through to the upstream to match packages that aren't in this repository. " +
+					"`Cache and Proxy` proxies the first request for a package through to the upstream, then caches the package in this repository for later requests. " +
+					"`Cache Only` never proxies requests: Cloudsmith holds a request for a package that isn't in this repository yet until the package has been cached and evaluated against your policies, then serves it from this repository. " +
+					"Strict mode applies only to upstreams set to `Cache Only`. Nix and Swift upstreams don't support `Cache Only`. " +
+					"Entitlement tokens with visibility restrictions can't download packages from `Cache Only` upstreams.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice(upstreamModes, false),

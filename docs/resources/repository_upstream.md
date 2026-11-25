@@ -5,6 +5,7 @@ subcategory: ""
 description: |-
   The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.
   See docs.cloudsmith.com https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats for full upstream proxying documentation.
+  Strict mode https://docs.cloudsmith.com/supply-chain-security/strict-mode holds packages until security checks are complete and policies have been evaluated, so every download is checked, including the first. Cloudsmith enables strict mode for your workspace. For upstreams, it applies only to those with mode set to Cache Only.
 ---
 
 # cloudsmith_repository_upstream (Resource)
@@ -12,6 +13,8 @@ description: |-
 The repository upstream resource allows the management of upstreams for a Cloudsmith repository. Using this resource, it is possible to proxy and/or cache packages hosted in one or more third-party package registries through a single Cloudsmith repository.
 
 See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-caching#supported-formats) for full upstream proxying documentation.
+
+[Strict mode](https://docs.cloudsmith.com/supply-chain-security/strict-mode) holds packages until security checks are complete and policies have been evaluated, so every download is checked, including the first. Cloudsmith enables strict mode for your workspace. For upstreams, it applies only to those with `mode` set to `Cache Only`.
 
 ## Example Usage
 
@@ -35,6 +38,17 @@ resource "cloudsmith_repository_upstream" "gradle_distributions" {
   upstream_type   = "generic"
   upstream_url    = "https://services.gradle.org"
   upstream_prefix = "distributions"
+}
+
+# Strict mode applies only to Cache Only upstreams. The first download of each
+# package waits until it has been cached and evaluated against your policies.
+resource "cloudsmith_repository_upstream" "npmjs" {
+  name          = "npmjs"
+  namespace     = data.cloudsmith_organization.my_organization.slug_perm
+  repository    = data.cloudsmith_repository.my_repository.slug_perm
+  upstream_type = "npm"
+  upstream_url  = "https://registry.npmjs.org"
+  mode          = "Cache Only"
 }
 
 # GitHub skills upstreams require a GitHub access token and Cache Only mode.
@@ -83,7 +97,7 @@ resource "cloudsmith_repository_upstream" "github_skills" {
 - `extra_value_2` (String) The value for extra header #2 to send to upstream. This is stored as plaintext, and is NOT encrypted.
 - `include_sources` (Boolean) (deb/rpm only) When true, source packages will be available from this upstream.
 - `is_active` (Boolean) Whether or not this upstream is active and ready for requests.
-- `mode` (String) The mode that this upstream should operate in. Upstream sources can be used to proxy resolved packages, as well as operate in a proxy/cache or cache only mode.
+- `mode` (String) How this upstream delivers packages. Valid values are `Proxy Only`, `Cache and Proxy`, and `Cache Only`. If you leave it unset, Cloudsmith uses `Proxy Only`. `Proxy Only` proxies requests through to the upstream to match packages that aren't in this repository. `Cache and Proxy` proxies the first request for a package through to the upstream, then caches the package in this repository for later requests. `Cache Only` never proxies requests: Cloudsmith holds a request for a package that isn't in this repository yet until the package has been cached and evaluated against your policies, then serves it from this repository. Strict mode applies only to upstreams set to `Cache Only`. Nix and Swift upstreams don't support `Cache Only`. Entitlement tokens with visibility restrictions can't download packages from `Cache Only` upstreams.
 - `priority` (Number) Upstream sources are selected for resolving requests by sequential order (1..n), followed by creation date.
 - `trust_level` (String) The trust level for this upstream. Supported for Maven, npm, and Python upstreams.
 - `upstream_distribution` (String) (deb only) The distribution to fetch from the upstream.
