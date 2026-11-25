@@ -12,12 +12,13 @@
 
 ### Changed
 
-* **docs:** Every resource page now documents its import ID format, and optional arguments state their default values. Defaults are checked in CI against the provider schema, the OpenAPI spec (via the Go SDK) and the Cloudsmith model defaults.
+* **docs:** Every resource page now documents its import ID format. Optional resource arguments that have a provider default now state it. The `cloudsmith_repository` page also states the defaults that Cloudsmith applies when you do not set an argument.
 
 ### Fixed
 
 * **resource:** `cloudsmith_api_key_rule` supports `enforce_refresh` again. Cloudsmith restored automatic API key rotation, so the setting is no longer deprecated, `true` is accepted, and it is sent to the API on create and update. Omitting it leaves the rule's current setting unchanged.
 * **docs:** Add a description and example usage for `cloudsmith_api_key_rule`.
+* **resource:** `terraform import` of `cloudsmith_entitlement_control` now sets `identifier`. Before this fix, the next plan replaced the imported resource.
 
 ## v0.0.90
 

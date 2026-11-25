@@ -13,7 +13,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -39,7 +38,8 @@ func TestSchemaDefaultsDocumented(t *testing.T) {
 			}
 
 			want := fmt.Sprintf("%v", attr.Default)
-			if !util.MentionsDefault(attr.Description) || !strings.Contains(attr.Description, want) {
+			statesDefault := regexp.MustCompile("(?i)(defaults to|default is) `?" + regexp.QuoteMeta(want) + `\b`)
+			if !statesDefault.MatchString(attr.Description) {
 				t.Errorf("%s: description must state the default %q explicitly: %q", path, want, attr.Description)
 			}
 		})

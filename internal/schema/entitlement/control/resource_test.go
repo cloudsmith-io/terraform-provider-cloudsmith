@@ -144,9 +144,6 @@ func testAccEntitlementControlTestCase(ctx context.Context, repositoryName strin
 						resourceState.Primary.ID,
 					), nil
 				},
-				ImportStateVerifyIgnore: []string{
-					"identifier", // Ignore identifier as it's used for creation but not returned in read
-				},
 			},
 		},
 	}

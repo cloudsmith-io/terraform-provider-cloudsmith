@@ -45,6 +45,7 @@ func entitlementControlImport(ctx context.Context, d *schema.ResourceData, m int
 
 	d.Set("namespace", idParts[0])
 	d.Set("repository", idParts[1])
+	d.Set("identifier", idParts[2])
 	d.SetId(idParts[2])
 	return []*schema.ResourceData{d}, nil
 }

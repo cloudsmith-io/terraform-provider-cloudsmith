@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	cloudsmith "github.com/cloudsmith-io/cloudsmith-api-go"
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
 )
 
 // sdkDefaults returns the defaults the OpenAPI spec (as compiled into the Go SDK) declares
@@ -52,8 +53,7 @@ func TestServerDefaultsMatchSDK(t *testing.T) {
 
 			switch d.Source {
 			case sourceSDK:
-				// storage_region is create-only, so a request may legitimately omit a field,
-				// but any value that is present must agree.
+				// A request type can omit a field, but a value that is present must agree.
 				if inSpec && fmt.Sprint(got) != d.Value {
 					t.Errorf("%s (%s): documented default %q, OpenAPI spec says %q", name, req, d.Value, got)
 				}
@@ -106,7 +106,7 @@ func TestEveryOptionalAttributeHasDefaultDecision(t *testing.T) {
 		switch {
 		case documented && exempt:
 			t.Errorf("%s: listed in both serverDefaults and attributesWithoutDefault", name)
-		case !documented && !exempt && attr.Computed && !strings.Contains(name, "retention"):
+		case !documented && !exempt && attr.Computed:
 			t.Errorf("%s: optional+computed attribute has no entry in serverDefaults or attributesWithoutDefault", name)
 		}
 	}
@@ -123,9 +123,14 @@ func TestRepositoryDescriptionsStateDefaults(t *testing.T) {
 	attrs := ResourceRepository().Schema
 
 	for name, d := range serverDefaults {
-		want := fmt.Sprintf("`%s`", d.Value)
-		if desc := attrs[name].Description; !strings.Contains(desc, want) {
-			t.Errorf("%s: description does not mention default %s: %q", name, want, desc)
+		attr, ok := attrs[name]
+		if !ok {
+			continue
+		}
+
+		want := util.FormatDefaultSentence(d.Value)
+		if !strings.Contains(attr.Description, want) {
+			t.Errorf("%s: description does not state %q: %q", name, want, attr.Description)
 		}
 	}
 }

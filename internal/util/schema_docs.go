@@ -34,13 +34,23 @@ func documentDefaults(s map[string]*schema.Schema) {
 			continue
 		}
 
-		attr.Description = strings.TrimSpace(attr.Description) + " " + FormatDefaultSentence(attr.Default)
+		attr.Description = AppendDefaultSentence(attr.Description, attr.Default)
 	}
 }
 
 // FormatDefaultSentence renders the standard "Defaults to `X`." sentence.
 func FormatDefaultSentence(v interface{}) string {
 	return fmt.Sprintf("Defaults to `%v`.", v)
+}
+
+// AppendDefaultSentence ends the description with a full stop and then appends the default sentence.
+func AppendDefaultSentence(description string, v interface{}) string {
+	description = strings.TrimSpace(description)
+	if description != "" && !strings.ContainsAny(description[len(description)-1:], ".!?") {
+		description += "."
+	}
+
+	return strings.TrimSpace(description + " " + FormatDefaultSentence(v))
 }
 
 // MentionsDefault reports whether a description already states a default value.

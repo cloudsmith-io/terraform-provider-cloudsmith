@@ -4,8 +4,6 @@
 package repository
 
 import (
-	"strings"
-
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -86,6 +84,6 @@ func documentServerDefaults(s map[string]*schema.Schema) {
 			continue
 		}
 
-		attr.Description = strings.TrimSpace(attr.Description) + " " + util.FormatDefaultSentence(d.Value)
+		attr.Description = util.AppendDefaultSentence(attr.Description, d.Value)
 	}
 }
