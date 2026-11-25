@@ -13,8 +13,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/util"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+// apiImporters lists resources whose importer reads from the API, so it can't run offline.
+var apiImporters = map[string]bool{"cloudsmith_saml_auth": true}
 
 func walkSchema(prefix string, s map[string]*schema.Schema, fn func(path string, attr *schema.Schema)) {
 	for name, attr := range s {
@@ -34,8 +38,9 @@ func TestSchemaDefaultsDocumented(t *testing.T) {
 				return
 			}
 
-			if want := fmt.Sprintf("%v", attr.Default); !strings.Contains(attr.Description, want) {
-				t.Errorf("%s: description does not mention default %q: %q", path, want, attr.Description)
+			want := fmt.Sprintf("%v", attr.Default)
+			if !util.MentionsDefault(attr.Description) || !strings.Contains(attr.Description, want) {
+				t.Errorf("%s: description must state the default %q explicitly: %q", path, want, attr.Description)
 			}
 		})
 	}
@@ -69,40 +74,36 @@ func TestImportExamples(t *testing.T) {
 
 			id := m[3]
 
-			// Offline importers only parse the ID, so run them with it. Importers
-			// that call the API (nil meta panics) are skipped, shape-checked below.
-			tryImport := func(id string) (err error, ran bool) {
-				defer func() {
-					if recover() != nil {
-						ran = false
-					}
-				}()
-
+			tryImport := func(id string) error {
 				d := res.Data(nil)
 				d.SetId(id)
 
+				var err error
 				if res.Importer.StateContext != nil {
 					_, err = res.Importer.StateContext(context.Background(), d, nil)
 				} else {
 					_, err = res.Importer.State(d, nil) //nolint:staticcheck
 				}
 
-				return err, true
+				return err
 			}
 
-			if err, ran := tryImport(id); ran {
-				if err != nil {
-					t.Fatalf("importer rejected documented ID %q: %v", id, err)
+			if apiImporters[resName] {
+				if strings.Contains(id, ".") {
+					t.Errorf("%s needs the API to import, so its ID should be a single slug, got %q", resName, id)
 				}
 
-				if idx := strings.LastIndex(id, "."); idx >= 0 {
-					if err, _ := tryImport(id[:idx]); err == nil {
-						t.Errorf("importer accepted %q, so documented ID %q has too many segments", id[:idx], id)
-					}
-				}
+				return
+			}
 
-			} else if strings.Count(id, ".") != 0 {
-				t.Errorf("%s needs the API to import, so its ID should be a single slug, got %q", resName, id)
+			if err := tryImport(id); err != nil {
+				t.Fatalf("importer rejected documented ID %q: %v", id, err)
+			}
+
+			if idx := strings.LastIndex(id, "."); idx >= 0 {
+				if err := tryImport(id[:idx]); err == nil {
+					t.Errorf("importer accepted %q, so documented ID %q has too many segments", id[:idx], id)
+				}
 			}
 		})
 	}

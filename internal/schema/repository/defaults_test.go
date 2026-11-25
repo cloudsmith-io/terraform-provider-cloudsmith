@@ -13,71 +13,82 @@ import (
 )
 
 // sdkDefaults returns the defaults the OpenAPI spec (as compiled into the Go SDK) declares
-// for repository create and update requests.
-func sdkDefaults(t *testing.T) map[string]interface{} {
+// for repository create and update requests, keyed by request type.
+func sdkDefaults(t *testing.T) map[string]map[string]interface{} {
 	t.Helper()
 
-	out := map[string]interface{}{}
+	out := map[string]map[string]interface{}{}
 
-	for _, v := range []interface{}{
-		cloudsmith.NewRepositoryCreateWithDefaults(),
-		cloudsmith.NewRepositoryRequestPatchWithDefaults(),
+	for name, v := range map[string]interface{}{
+		"create": cloudsmith.NewRepositoryCreateWithDefaults(),
+		"patch":  cloudsmith.NewRepositoryRequestPatchWithDefaults(),
 	} {
 		b, err := json.Marshal(v)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		var m map[string]interface{}
+		m := map[string]interface{}{}
 		if err := json.Unmarshal(b, &m); err != nil {
 			t.Fatal(err)
 		}
 
-		for k, val := range m {
-			out[k] = val
-		}
+		out[name] = m
 	}
 
 	return out
 }
 
-// Values sourced from the SDK must match the OpenAPI spec exactly, and the spec must not
-// declare a default we have not documented: guards against both typos and API changes
-// arriving with an SDK bump.
+// Values sourced from the SDK must match the OpenAPI spec exactly for both create and
+// update requests, and the spec must not declare a default we have not documented: guards
+// against typos and against API changes arriving with an SDK bump.
 func TestServerDefaultsMatchSDK(t *testing.T) {
 	spec := sdkDefaults(t)
 	attrs := resourceRepository().Schema
 
 	for name, d := range serverDefaults {
-		got, inSpec := spec[name]
+		for req, defaults := range spec {
+			got, inSpec := defaults[name]
 
-		switch d.Source {
-		case sourceSDK:
-			if !inSpec {
+			switch d.Source {
+			case sourceSDK:
+				// storage_region is create-only, so a request may legitimately omit a field,
+				// but any value that is present must agree.
+				if inSpec && fmt.Sprint(got) != d.Value {
+					t.Errorf("%s (%s): documented default %q, OpenAPI spec says %q", name, req, d.Value, got)
+				}
+			case sourceModel:
+				if inSpec {
+					t.Errorf("%s (%s): the OpenAPI spec now declares a default (%v); switch the source to %q", name, req, got, sourceSDK)
+				}
+			default:
+				t.Errorf("%s: unknown source %q", name, d.Source)
+			}
+		}
+
+		if d.Source == sourceSDK {
+			_, inCreate := spec["create"][name]
+			_, inPatch := spec["patch"][name]
+
+			if !inCreate && !inPatch {
 				t.Errorf("%s: marked %q but the OpenAPI spec declares no default", name, sourceSDK)
-			} else if fmt.Sprint(got) != d.Value {
-				t.Errorf("%s: documented default %q, OpenAPI spec says %q", name, d.Value, got)
 			}
-		case sourceModel:
-			if inSpec {
-				t.Errorf("%s: the OpenAPI spec now declares a default (%v); switch the source to %q", name, got, sourceSDK)
-			}
-		default:
-			t.Errorf("%s: unknown source %q", name, d.Source)
 		}
 	}
 
-	for name, got := range spec {
-		attr, ok := attrs[name]
-		if !ok || !attr.Optional || attr.Default != nil {
-			continue
-		}
+	for req, defaults := range spec {
+		for name, got := range defaults {
+			attr, ok := attrs[name]
+			if !ok || !attr.Optional || attr.Default != nil {
+				continue
+			}
 
-		_, documented := serverDefaults[name]
-		_, exempt := attributesWithoutDefault[name]
+			_, documented := serverDefaults[name]
+			_, exempt := attributesWithoutDefault[name]
 
-		if !documented && !exempt {
-			t.Errorf("%s: OpenAPI spec declares default %v but it is not in serverDefaults", name, got)
+			if !documented && !exempt {
+				t.Errorf("%s (%s): OpenAPI spec declares default %v but it is not in serverDefaults", name, req, got)
+			}
 		}
 	}
 }
