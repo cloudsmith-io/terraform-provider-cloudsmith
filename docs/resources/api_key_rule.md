@@ -67,3 +67,17 @@ resource "cloudsmith_api_key_rule" "service_accounts" {
 - `slug` (String) Human-readable identifier, generated from the rule type.
 - `slug_perm` (String) An auto-generated id that uniquely identifies the rule.
 - `updated_at` (String) The time the rule was last updated at.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>.<rule_slug_perm>
+terraform import cloudsmith_api_key_rule.my_rule my-org.rule-slug-perm
+```

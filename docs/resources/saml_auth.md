@@ -58,3 +58,17 @@ resource "cloudsmith_saml_auth" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>
+terraform import cloudsmith_saml_auth.my_saml_auth my-org
+```

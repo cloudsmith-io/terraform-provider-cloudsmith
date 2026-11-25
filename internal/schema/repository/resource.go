@@ -455,6 +455,13 @@ func validateNoSpaces(val interface{}, key string) (warns []string, errs []error
 
 //nolint:funlen
 func ResourceRepository() *schema.Resource {
+	r := resourceRepository()
+	documentServerDefaults(r.Schema)
+
+	return r
+}
+
+func resourceRepository() *schema.Resource {
 	return &schema.Resource{
 		Description: "The repository resource allows creation and management of package repositories within a Cloudsmith namespace. Repositories store packages and are the main entities with which Cloudsmith users interact.\n\n" +
 			"See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories) for full repository documentation.",

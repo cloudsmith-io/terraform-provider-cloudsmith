@@ -10,6 +10,10 @@
 * **resource:** Add an `enabled` toggle to the SAML Group Sync resource.
 * **resource:** Retention rules can now be managed as a `retention_rule` block on `cloudsmith_repository`. A repository accepts at most one block, applied via the retention partial update (PATCH) endpoint, and removing the block disables retention. Use of the standalone `cloudsmith_repository_retention_rule` resource is discouraged, as multiple instances can target the same repository and clobber each other.
 
+### Changed
+
+* **docs:** Every resource page now documents its import ID format, and optional arguments state their default values. Defaults are checked in CI against the provider schema, the OpenAPI spec (via the Go SDK) and the Cloudsmith model defaults.
+
 ### Fixed
 
 * **resource:** `cloudsmith_api_key_rule` supports `enforce_refresh` again. Cloudsmith restored automatic API key rotation, so the setting is no longer deprecated, `true` is accepted, and it is sent to the API on create and update. Omitting it leaves the rule's current setting unchanged.

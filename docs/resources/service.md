@@ -55,7 +55,7 @@ resource "cloudsmith_service" "my_service" {
 - `description` (String) A description of the service's purpose.
 - `role` (String) The service's role in the organization.
 - `rotate_api_key` (Number) Arbitrary integer used to trigger rotation of the service's API key. Only increments rotate the key; decreasing the value does not.
-- `store_api_key` (Boolean) Whether to include the service's API key in Terraform state.
+- `store_api_key` (Boolean) Whether to include the service's API key in Terraform state. Defaults to `true`.
 - `team` (Block Set) (see [below for nested schema](#nestedblock--team))
 
 ### Read-Only
@@ -74,3 +74,18 @@ Required:
 Optional:
 
 - `role` (String) The service's role in the organization.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>.<service_slug>
+# The service's API key is not returned by the API; the `key` attribute is unavailable after import.
+terraform import cloudsmith_service.my_service my-org.my-service
+```

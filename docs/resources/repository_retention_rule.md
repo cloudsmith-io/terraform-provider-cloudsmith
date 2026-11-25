@@ -65,14 +65,28 @@ resource "cloudsmith_repository_retention_rule" "retention_rule" {
 
 ### Optional
 
-- `retention_count_limit` (Number) The maximum number of packages to retain. Must be between 0 and 10000.
+- `retention_count_limit` (Number) The maximum number of packages to retain. Must be between 0 and 10000. Defaults to `100`.
 - `retention_days_limit` (Number) The number of days of packages to retain. Must be between 0 and 180. Defaults to 28 days.
-- `retention_group_by_format` (Boolean) If true, retention will apply to packages by package formats rather than across all package formats.
-- `retention_group_by_name` (Boolean) If true, retention will apply to groups of packages by name rather than all packages.
-- `retention_group_by_package_type` (Boolean) If true, retention will apply to packages by package type rather than across all package types for one or more formats.
+- `retention_group_by_format` (Boolean) If true, retention will apply to packages by package formats rather than across all package formats. Defaults to `false`.
+- `retention_group_by_name` (Boolean) If true, retention will apply to groups of packages by name rather than all packages. Defaults to `false`.
+- `retention_group_by_package_type` (Boolean) If true, retention will apply to packages by package type rather than across all package types for one or more formats. Defaults to `false`.
 - `retention_package_query_string` (String) A package search expression which, if provided, filters the packages to be deleted.
 - `retention_size_limit` (Number) The maximum total size (in bytes) of packages to retain. Must be between 0 and 21474836480 (21.47 GB / 21474.83 MB).
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>.<repository_slug>
+terraform import cloudsmith_repository_retention_rule.my_rule my-org.my-repo
+```

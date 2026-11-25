@@ -141,6 +141,8 @@ func Provider() *schema.Provider {
 		},
 	}
 
+	util.DocumentDefaults(p.ResourcesMap)
+
 	p.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		terraformVersion := p.TerraformVersion
 		if terraformVersion == "" {

@@ -46,3 +46,17 @@ resource "cloudsmith_usage_limits" "example" {
 - `bandwidth_maximum` (Number) The maximum package delivery overage allowed by the organization's plan, in GB.
 - `id` (String) The ID of this resource.
 - `storage_maximum` (Number) The maximum artifact data overage allowed by the organization's plan, in GB.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>
+terraform import cloudsmith_usage_limits.my_limits my-org
+```

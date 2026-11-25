@@ -44,9 +44,23 @@ resource "cloudsmith_package_deny_policy" "my_package_deny_policy" {
 ### Optional
 
 - `description` (String) Description of the package deny policy.
-- `enabled` (Boolean) Whether the package deny policy is enabled.
+- `enabled` (Boolean) Whether the package deny policy is enabled. Defaults to `true`.
 - `name` (String) A descriptive name for the package deny policy.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>.<package_deny_policy_slug_perm>
+terraform import cloudsmith_package_deny_policy.my_policy my-org.policy-slug-perm
+```

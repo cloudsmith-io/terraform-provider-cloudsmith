@@ -59,3 +59,17 @@ resource "cloudsmith_license_policy" "my_license_policy" {
 - `id` (String) The ID of this resource.
 - `slug_perm` (String) Slug-perm of the license policy
 - `updated_at` (String) The time the policy last updated at.
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
+# ID format: <organization_slug>.<policy_slug_perm>
+terraform import cloudsmith_license_policy.my_policy my-org.policy-slug-perm
+```
