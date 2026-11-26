@@ -144,7 +144,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key", "rotate_api_key"},
+				ImportStateVerifyIgnore: []string{"key", "store_api_key", "rotate_api_key"},
 			},
 		},
 	})
