@@ -21,7 +21,7 @@ func TestAccPackageDenyPolicy_basic(t *testing.T) {
 	t.Parallel()
 
 	// The API rejects a second deny policy with the same query, so a leftover policy must not block the next run.
-	packageQuery := "name:" + acctest.TestAccUniqueRepositoryName("tf-acc-deny")
+	packageQuery := fmt.Sprintf("name:%s", acctest.TestAccUniqueRepositoryName("tf-acc-deny"))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { acctest.TestAccPreCheck(t) },
