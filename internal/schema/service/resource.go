@@ -74,6 +74,7 @@ func importService(ctx context.Context, d *schema.ResourceData, m interface{}) (
 	d.Set("key", importSentinel)
 
 	d.Set("organization", idParts[0])
+	d.Set("store_api_key", true)
 	d.SetId(idParts[1])
 	return []*schema.ResourceData{d}, nil
 }

@@ -19,6 +19,7 @@
 * **resource:** `cloudsmith_api_key_rule` supports `enforce_refresh` again. Cloudsmith restored automatic API key rotation, so the setting is no longer deprecated, `true` is accepted, and it is sent to the API on create and update. Omitting it leaves the rule's current setting unchanged.
 * **docs:** Add a description and example usage for `cloudsmith_api_key_rule`.
 * **resource:** `terraform import` of `cloudsmith_entitlement_control` now sets `identifier`. Before this fix, the next plan replaced the imported resource.
+* **resource:** `terraform import` of `cloudsmith_repository` now sets `wait_for_deletion`, and `terraform import` of `cloudsmith_service` now sets `store_api_key`. Before this fix, the first plan after the import showed an update. That update also delayed data sources that read the repository, which could force other resources to be replaced.
 
 ## v0.0.90
 

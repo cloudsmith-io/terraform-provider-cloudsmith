@@ -5,6 +5,7 @@
 package repository_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
 	. "github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/schema/repository"
@@ -98,7 +99,6 @@ func TestAccRepository_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
 			},
 		},
 	})
@@ -356,7 +356,6 @@ func TestAccRepository_skillsVersioning(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
 			},
 		},
 	})
@@ -376,4 +375,19 @@ data "cloudsmith_repository" "test" {
 	namespace  = cloudsmith_repository.test.namespace
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), skillsVersioning)
+}
+
+// The API does not return wait_for_deletion, so import must set its default or the next plan shows a change.
+func TestRepositoryImportSetsWaitForDeletion(t *testing.T) {
+	repositoryResource := ResourceRepository()
+	importData := repositoryResource.Data(&terraform.InstanceState{ID: "my-org.my-repo"})
+
+	imported, err := repositoryResource.Importer.StateContext(context.Background(), importData, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := imported[0].State().Attributes["wait_for_deletion"]; got != "true" {
+		t.Fatalf("wait_for_deletion after import = %q, want %q", got, "true")
+	}
 }

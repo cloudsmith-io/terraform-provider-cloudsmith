@@ -24,6 +24,7 @@ func importRepository(ctx context.Context, d *schema.ResourceData, m interface{}
 	}
 
 	d.Set("namespace", idParts[0])
+	d.Set("wait_for_deletion", true)
 	d.SetId(idParts[1])
 	return []*schema.ResourceData{d}, nil
 }

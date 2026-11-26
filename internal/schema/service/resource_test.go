@@ -5,6 +5,7 @@
 package service_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/schema/service"
@@ -143,7 +144,7 @@ func TestAccService_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"key", "store_api_key", "rotate_api_key"},
+				ImportStateVerifyIgnore: []string{"key", "rotate_api_key"},
 			},
 		},
 	})
@@ -364,3 +365,18 @@ resource "cloudsmith_service" "test" {
 	role         = "Manager"
 }
 `, os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"), os.Getenv("CLOUDSMITH_NAMESPACE"))
+
+// The API does not return store_api_key, so import must set its default or the next plan shows a change.
+func TestServiceImportSetsStoreAPIKey(t *testing.T) {
+	serviceResource := service.ResourceService()
+	importData := serviceResource.Data(&terraform.InstanceState{ID: "my-org.my-service"})
+
+	imported, err := serviceResource.Importer.StateContext(context.Background(), importData, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := imported[0].State().Attributes["store_api_key"]; got != "true" {
+		t.Fatalf("store_api_key after import = %q, want %q", got, "true")
+	}
+}
