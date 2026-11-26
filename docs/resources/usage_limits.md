@@ -48,9 +48,19 @@ resource "cloudsmith_usage_limits" "example" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>
+import {
+  to = cloudsmith_usage_limits.my_limits
+  id = "my-workspace"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>
-terraform import cloudsmith_usage_limits.my_limits my-org
+# ID format: <workspace_slug>
+terraform import cloudsmith_usage_limits.my_limits my-workspace
 ```

@@ -77,9 +77,19 @@ resource "cloudsmith_repository_geo_ip_rules" "my_rules" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>
+import {
+  to = cloudsmith_repository_geo_ip_rules.my_rules
+  id = "my-workspace.my-repo"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<repository_slug>
-terraform import cloudsmith_repository_geo_ip_rules.my_rules my-org.my-repo
+# ID format: <workspace_slug>.<repository_slug>
+terraform import cloudsmith_repository_geo_ip_rules.my_rules my-workspace.my-repo
 ```

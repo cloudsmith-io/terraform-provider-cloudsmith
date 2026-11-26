@@ -53,9 +53,19 @@ resource "cloudsmith_team" "my_team" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<team_slug>
+import {
+  to = cloudsmith_team.my_team
+  id = "my-workspace.my-team"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<team_slug>
-terraform import cloudsmith_team.my_team my-org.my-team
+# ID format: <workspace_slug>.<team_slug>
+terraform import cloudsmith_team.my_team my-workspace.my-team
 ```

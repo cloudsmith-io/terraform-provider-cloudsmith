@@ -72,9 +72,19 @@ resource "cloudsmith_repository_connected" "link" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>.<connected_repository_slug_perm>
+import {
+  to = cloudsmith_repository_connected.my_connected
+  id = "my-workspace.my-repo.connected-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<repository_slug>.<connected_repository_slug_perm>
-terraform import cloudsmith_repository_connected.my_connected my-org.my-repo.connected-slug-perm
+# ID format: <workspace_slug>.<repository_slug>.<connected_repository_slug_perm>
+terraform import cloudsmith_repository_connected.my_connected my-workspace.my-repo.connected-slug-perm
 ```

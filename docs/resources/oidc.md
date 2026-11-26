@@ -79,9 +79,19 @@ Required:
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<oidc_slug_perm>
+import {
+  to = cloudsmith_oidc.my_oidc
+  id = "my-workspace.oidc-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<oidc_slug_perm>
-terraform import cloudsmith_oidc.my_oidc my-org.oidc-slug-perm
+# ID format: <workspace_slug>.<oidc_slug_perm>
+terraform import cloudsmith_oidc.my_oidc my-workspace.oidc-slug-perm
 ```

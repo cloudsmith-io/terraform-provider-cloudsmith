@@ -61,9 +61,19 @@ resource "cloudsmith_license_policy" "my_license_policy" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<policy_slug_perm>
+import {
+  to = cloudsmith_license_policy.my_policy
+  id = "my-workspace.policy-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<policy_slug_perm>
-terraform import cloudsmith_license_policy.my_policy my-org.policy-slug-perm
+# ID format: <workspace_slug>.<policy_slug_perm>
+terraform import cloudsmith_license_policy.my_policy my-workspace.policy-slug-perm
 ```

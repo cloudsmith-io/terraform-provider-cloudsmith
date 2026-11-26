@@ -12,7 +12,7 @@
 
 ### Changed
 
-* **docs:** Every resource page now documents its import ID format. Optional resource arguments that have a provider default now state it. The `cloudsmith_repository` page also states the defaults that Cloudsmith applies when you do not set an argument.
+* **docs:** Every resource page now documents its import ID format, with an `import` block example for Terraform v1.5.0 and later, and a `terraform import` command example. Optional resource arguments that have a provider default now state it. The `cloudsmith_repository` page also states the defaults that Cloudsmith applies when you do not set an argument.
 
 ### Fixed
 

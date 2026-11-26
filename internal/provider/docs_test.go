@@ -65,6 +65,8 @@ func TestDefaultsUseStandardPhrasing(t *testing.T) {
 
 var importCmd = regexp.MustCompile(`(?m)^terraform import (cloudsmith_\w+)\.(\w+) (\S+)$`)
 
+var importBlock = regexp.MustCompile(`(?s)import \{\s*to\s*=\s*(cloudsmith_\w+\.\w+)\s*id\s*=\s*"([^"]+)"\s*\}`)
+
 // Every importable resource must ship an import.sh whose ID the provider's own importer
 // accepts, and which it rejects when a segment is removed (so the documented segment
 // count is exact). Importers that need the API are only checked for shape.
@@ -90,6 +92,20 @@ func TestImportExamples(t *testing.T) {
 			}
 
 			id := m[3]
+
+			blockRaw, err := os.ReadFile(filepath.Join("..", "..", "examples", "resources", resName, "import-by-string-id.tf"))
+			if err != nil {
+				t.Fatalf("missing import block example: %v", err)
+			}
+
+			block := importBlock.FindStringSubmatch(string(blockRaw))
+			if block == nil {
+				t.Fatalf("import-by-string-id.tf has no `import { to = <type>.<name> id = \"<id>\" }` block:\n%s", blockRaw)
+			}
+
+			if block[1] != m[1]+"."+m[2] || block[2] != id {
+				t.Fatalf("import block imports %s with ID %q, want %s.%s with ID %q", block[1], block[2], m[1], m[2], id)
+			}
 
 			tryImport := func(id string) error {
 				d := res.Data(nil)

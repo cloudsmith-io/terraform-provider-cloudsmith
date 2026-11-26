@@ -69,9 +69,19 @@ resource "cloudsmith_api_key_rule" "service_accounts" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<rule_slug_perm>
+import {
+  to = cloudsmith_api_key_rule.my_rule
+  id = "my-workspace.rule-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<rule_slug_perm>
-terraform import cloudsmith_api_key_rule.my_rule my-org.rule-slug-perm
+# ID format: <workspace_slug>.<rule_slug_perm>
+terraform import cloudsmith_api_key_rule.my_rule my-workspace.rule-slug-perm
 ```

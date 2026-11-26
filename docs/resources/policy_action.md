@@ -102,6 +102,16 @@ Required:
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<policy_slug_perm>.<action_slug_perm>
+import {
+  to = cloudsmith_policy_action.my_action
+  id = "my-workspace.policy-slug-perm.action-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell

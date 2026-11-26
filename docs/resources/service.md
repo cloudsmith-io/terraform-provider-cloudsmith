@@ -76,10 +76,21 @@ Optional:
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<service_slug>
+# The API does not return the service's API key, so the `key` attribute is not available after import.
+import {
+  to = cloudsmith_service.my_service
+  id = "my-workspace.my-service"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<service_slug>
-# The service's API key is not returned by the API; the `key` attribute is unavailable after import.
-terraform import cloudsmith_service.my_service my-org.my-service
+# ID format: <workspace_slug>.<service_slug>
+# The API does not return the service's API key, so the `key` attribute is not available after import.
+terraform import cloudsmith_service.my_service my-workspace.my-service
 ```

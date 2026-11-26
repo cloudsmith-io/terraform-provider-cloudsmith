@@ -78,9 +78,19 @@ resource "cloudsmith_repository_retention_rule" "retention_rule" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>
+import {
+  to = cloudsmith_repository_retention_rule.my_rule
+  id = "my-workspace.my-repo"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
-# ID format: <organization_slug>.<repository_slug>
-terraform import cloudsmith_repository_retention_rule.my_rule my-org.my-repo
+# ID format: <workspace_slug>.<repository_slug>
+terraform import cloudsmith_repository_retention_rule.my_rule my-workspace.my-repo
 ```

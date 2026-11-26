@@ -66,6 +66,16 @@ resource "cloudsmith_policy_action" "quarantine" {
 
 Import is supported using the following syntax:
 
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<policy_slug_perm>
+import {
+  to = cloudsmith_policy.my_policy
+  id = "my-workspace.policy-slug-perm"
+}
+```
+
 The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
 
 ```shell
