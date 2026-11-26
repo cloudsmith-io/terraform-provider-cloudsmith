@@ -734,7 +734,7 @@ func resourceRepository() *schema.Resource {
 							Optional: true,
 							Default:  28,
 							Description: "The number of days of packages to retain. Must be between 0 and 180. " +
-								"Defaults to 28 days.",
+								"Defaults to `28`.",
 							ValidateFunc: validation.IntBetween(0, 180),
 						},
 						"retention_enabled": {
@@ -841,7 +841,7 @@ func resourceRepository() *schema.Resource {
 					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. " +
 					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, " +
 					"or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that " +
-					"declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.",
+					"declare a semantic version. Uploaded skills and plugins keep their versions whatever the setting. Defaults to `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK", "STRICT_SEMANTIC_VERSION"}, false),
@@ -861,10 +861,10 @@ func resourceRepository() *schema.Resource {
 			},
 			"storage_region": {
 				Type: schema.TypeString,
-				Description: "The Cloudsmith region in which package files are stored." +
-					"Supported regions include: Sydney, Australia (au-sydney)," +
-					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon," +
-					"United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin) (default)",
+				Description: "The Cloudsmith region in which package files are stored. " +
+					"Supported regions include: Sydney, Australia (au-sydney), " +
+					"Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon, " +
+					"United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin). Defaults to `default`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"au-sydney", "sg-singapore", "ca-montreal", "de-frankfurt", "us-oregon", "us-ohio", "jp-tokyo", "gb-london", "ie-dublin", "default"}, false),

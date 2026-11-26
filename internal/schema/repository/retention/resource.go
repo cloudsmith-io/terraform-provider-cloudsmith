@@ -278,7 +278,7 @@ func ResourceRepoRetentionRule() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				Default:      28,
-				Description:  "The number of days of packages to retain. Must be between 0 and 180. Defaults to 28 days.",
+				Description:  "The number of days of packages to retain. Must be between 0 and 180. Defaults to `28`.",
 				ValidateFunc: validation.IntBetween(0, 180),
 			},
 			"retention_enabled": {

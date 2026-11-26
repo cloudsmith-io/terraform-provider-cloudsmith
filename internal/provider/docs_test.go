@@ -46,6 +46,23 @@ func TestSchemaDefaultsDocumented(t *testing.T) {
 	}
 }
 
+var nonStandardDefault = regexp.MustCompile("(?i)the default is|\\(default\\)|defaults to [^`]")
+
+// Defaults must use the registry convention "Defaults to `X`.", with the value in backticks.
+func TestDefaultsUseStandardPhrasing(t *testing.T) {
+	providerSchema := Provider()
+
+	for _, schemas := range []map[string]*schema.Resource{providerSchema.ResourcesMap, providerSchema.DataSourcesMap} {
+		for resName, res := range schemas {
+			walkSchema(resName+".", res.Schema, func(path string, attr *schema.Schema) {
+				if nonStandardDefault.MatchString(attr.Description) {
+					t.Errorf("%s: state the default as \"Defaults to `X`.\": %q", path, attr.Description)
+				}
+			})
+		}
+	}
+}
+
 var importCmd = regexp.MustCompile(`(?m)^terraform import (cloudsmith_\w+)\.(\w+) (\S+)$`)
 
 // Every importable resource must ship an import.sh whose ID the provider's own importer
