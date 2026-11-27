@@ -1,3 +1,6 @@
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_repository" "oidc_demo" {
   description                = "OIDC repository"
   name                       = "oidc-demo"

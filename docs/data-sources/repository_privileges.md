@@ -13,6 +13,9 @@ The `cloudsmith_repository_privileges` data source allows you to retrieve inform
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 provider "cloudsmith" {
   api_key = "my-api-key"
 }

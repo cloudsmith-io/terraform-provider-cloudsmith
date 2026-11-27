@@ -28,6 +28,9 @@ See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories/repository-se
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 provider "cloudsmith" {
   api_key = "my-api-key"
 }

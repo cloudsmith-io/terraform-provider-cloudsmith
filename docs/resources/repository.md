@@ -16,6 +16,9 @@ See [docs.cloudsmith.com](https://docs.cloudsmith.com/repositories) for full rep
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 provider "cloudsmith" {
   api_key = "my-api-key"
 }
@@ -74,9 +77,9 @@ resource "cloudsmith_repository" "my_repository" {
 - `scan_own` (Boolean) If checked, users can scan any of their own packages that they have uploaded, assuming that they still have write privilege for the repository. This takes precedence over privileges configured in the 'Access Controls' section of the repository, and any inherited from the org. Defaults to `true`.
 - `scan_packages` (String) This defines the minimum level of privilege required for a user to scan packages. Unless the package was uploaded by that user, in which the permission may be overridden by the user-specific scan setting. Defaults to `Read`.
 - `show_setup_all` (Boolean) If checked, the Set Me Up help for all formats will always be shown, even if you don't have packages of that type uploaded. Otherwise, help will only be shown for packages that are in the repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet packages will be shown only. Defaults to `false`.
-- `skills_versioning` (String) How Cloudsmith versions skills from GitHub upstreams. Valid values are `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that declare a semantic version. Uploaded skills and plugins keep their versions whatever the setting. Defaults to `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`.
+- `skills_versioning` (String) How Cloudsmith versions skills from GitHub upstreams. Valid values are `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.
 - `slug` (String) The slug identifies the repository in URIs.
-- `storage_region` (String) The Cloudsmith region in which package files are stored. Supported regions include: Sydney, Australia (au-sydney), Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon, United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin). Defaults to `default`.
+- `storage_region` (String) The Cloudsmith region in which package files are stored.Supported regions include: Sydney, Australia (au-sydney),Singapore (sg-singapore), Montreal, Canada (ca-montreal), Frankfurt, Germany (de-frankfurt), Oregon,United States (us-oregon), Ohio, United States (us-ohio), Tokyo, Japan (jp-tokyo), London, United Kingdom (gb-london), Dublin, Ireland (ie-dublin) (default)
 - `strict_npm_validation` (Boolean) If checked, npm packages will be validated strictly to ensure the package matches specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at your own risk! Defaults to `false`.
 - `tag_pre_releases_as_latest` (Boolean) If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools. Defaults to `false`.
 - `use_debian_labels` (Boolean) If checked, a 'Label' field will be present in Debian-based repositories. It will contain a string that identifies the entitlement token used to authenticate the repository, in the form of 'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning. Defaults to `false`.
@@ -113,7 +116,7 @@ Required:
 Optional:
 
 - `retention_count_limit` (Number) The maximum number of packages to retain. Must be between 0 and 10000. Defaults to `100`.
-- `retention_days_limit` (Number) The number of days of packages to retain. Must be between 0 and 180. Defaults to `28`.
+- `retention_days_limit` (Number) The number of days of packages to retain. Must be between 0 and 180. Defaults to 28 days.
 - `retention_group_by_format` (Boolean) If true, retention will apply to packages by package formats rather than across all package formats. Defaults to `false`.
 - `retention_group_by_name` (Boolean) If true, retention will apply to groups of packages by name rather than all packages. Defaults to `false`.
 - `retention_group_by_package_type` (Boolean) If true, retention will apply to packages by package type rather than across all package types for one or more formats. Defaults to `false`.

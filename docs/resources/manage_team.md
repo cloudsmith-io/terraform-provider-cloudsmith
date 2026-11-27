@@ -13,6 +13,9 @@ This resource is used to manage teams in Cloudsmith. It allows you to add, updat
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_manage_team" "example" {
   organization = "example_org"
   team_name    = "example_team"

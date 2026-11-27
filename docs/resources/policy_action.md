@@ -13,6 +13,9 @@ Attaches an effect to a [`cloudsmith_policy`](https://registry.terraform.io/prov
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_policy" "p" {
   workspace = "my-workspace"
   name      = "Example"

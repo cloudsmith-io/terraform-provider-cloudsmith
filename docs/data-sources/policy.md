@@ -16,6 +16,9 @@ Get an existing policy in a Cloudsmith workspace.
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 data "cloudsmith_policy" "p" {
   workspace        = "my-workspace"
   policy_slug_perm = "abcdef"

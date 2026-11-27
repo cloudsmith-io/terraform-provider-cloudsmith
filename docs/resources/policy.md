@@ -12,6 +12,9 @@ Manages a workspace policy as code in Cloudsmith. The body is authored as [Rego]
 
 # Example usage
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 resource "cloudsmith_policy" "quarantine_old_packages" {
   workspace   = "my-workspace"
   name        = "Quarantine old packages"

@@ -9,17 +9,12 @@
 * **provider:** OIDC authentication for HCP Terraform (Terraform Cloud). Enable it with an `oidc` block or `CLOUDSMITH_USE_OIDC=true`; the provider reads the workspace's workload identity token, exchanges it for a Cloudsmith token, refreshes that token before expiry, and retries once on 401. No `local-exec` or `external` data source needed. Other CI platforms are not supported yet. ([#128](https://github.com/cloudsmith-io/terraform-provider-cloudsmith/issues/128))
 * **resource:** Add an `enabled` toggle to the SAML Group Sync resource.
 * **resource:** Retention rules can now be managed as a `retention_rule` block on `cloudsmith_repository`. A repository accepts at most one block, applied via the retention partial update (PATCH) endpoint, and removing the block disables retention. Use of the standalone `cloudsmith_repository_retention_rule` resource is discouraged, as multiple instances can target the same repository and clobber each other.
-
-### Changed
-
-* **docs:** Every resource page now documents its import ID format, with an `import` block example for Terraform v1.5.0 and later, and a `terraform import` command example. Optional resource arguments that have a provider default now state it. The `cloudsmith_repository` page also states the defaults that Cloudsmith applies when you do not set an argument.
+* **docs:** Each resource page gives its import ID format, with an `import` block example and a `terraform import` example. More optional arguments now state their default value, including the defaults that Cloudsmith applies on `cloudsmith_repository`.
 
 ### Fixed
 
 * **resource:** `cloudsmith_api_key_rule` supports `enforce_refresh` again. Cloudsmith restored automatic API key rotation, so the setting is no longer deprecated, `true` is accepted, and it is sent to the API on create and update. Omitting it leaves the rule's current setting unchanged.
 * **docs:** Add a description and example usage for `cloudsmith_api_key_rule`.
-* **resource:** `terraform import` of `cloudsmith_entitlement_control` now sets `identifier`. Before this fix, the next plan replaced the imported resource.
-* **resource:** `terraform import` of `cloudsmith_repository` now sets `wait_for_deletion`, and `terraform import` of `cloudsmith_service` now sets `store_api_key`. Before this fix, the first plan after the import showed an update. That update also delayed data sources that read the repository, which could force other resources to be replaced.
 
 ## v0.0.90
 

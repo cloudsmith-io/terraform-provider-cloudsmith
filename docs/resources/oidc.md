@@ -16,6 +16,9 @@ Note: Dynamic mappings (`mapping_claim` and `dynamic_mappings`) are in early acc
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 provider "cloudsmith" {
   api_key = "my-api-key"
 }

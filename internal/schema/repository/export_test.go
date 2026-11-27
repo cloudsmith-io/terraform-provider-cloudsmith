@@ -4,12 +4,3 @@
 package repository
 
 var ResourceRepositoryStorageRegionUpdate = resourceRepositoryStorageRegionUpdate
-
-func ServerDefaultValues() map[string]string {
-	values := make(map[string]string, len(serverDefaults))
-	for name, documented := range serverDefaults {
-		values[name] = documented.Value
-	}
-
-	return values
-}

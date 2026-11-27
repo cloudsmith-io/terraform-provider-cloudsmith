@@ -13,6 +13,9 @@ The `cloudsmith_user_self` data source provides information about the currently 
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 data "cloudsmith_user_self" "current" {}
 
 # Reference user attributes

@@ -185,13 +185,13 @@ func ResourcePolicy() *schema.Resource {
 			},
 			"enabled": {
 				Type:        schema.TypeBool,
-				Description: "If true, the policy is enabled.",
+				Description: "If true, the policy is enabled. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},
 			"is_terminal": {
 				Type:        schema.TypeBool,
-				Description: "If true and the policy matches, no further policies are evaluated.",
+				Description: "If true and the policy matches, no further policies are evaluated. Defaults to `false`.",
 				Optional:    true,
 				Default:     false,
 			},

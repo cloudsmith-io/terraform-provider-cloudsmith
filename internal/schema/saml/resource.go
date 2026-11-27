@@ -310,6 +310,7 @@ func ResourceSAML() *schema.Resource {
 			},
 			"role": {
 				Type:         schema.TypeString,
+				Description:  "Defaults to `Member`.",
 				Optional:     true,
 				Default:      "Member",
 				ValidateFunc: validation.StringInSlice([]string{"Member", "Manager"}, false),

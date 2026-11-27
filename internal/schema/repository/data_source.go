@@ -346,7 +346,7 @@ func DataSourceRepository() *schema.Resource {
 					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` and `STRICT_SEMANTIC_VERSION`. " +
 					"`SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK` versions a skill by the semantic version in its `SKILL.md` file, " +
 					"or by its Git commit SHA if it doesn't declare one. `STRICT_SEMANTIC_VERSION` only offers skills that " +
-					"declare a semantic version. Uploaded skills and plugins keep their versions whatever the setting. Defaults to `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`.",
+					"declare a semantic version. The default is `SEMANTIC_VERSION_WITH_COMMIT_SHA_FALLBACK`. Uploaded skills and plugins keep their versions whatever the setting.",
 				Computed: true,
 			},
 			"slug": {

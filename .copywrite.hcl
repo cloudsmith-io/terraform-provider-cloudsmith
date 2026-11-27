@@ -6,7 +6,8 @@ project {
   copyright_holder = "Cloudsmith Ltd"
 
   header_ignore = [
-    # Examples render verbatim into the registry documentation.
-    "examples/**",
+    # Import examples render verbatim into the registry documentation.
+    "examples/**/import.sh",
+    "examples/**/import-by-string-id.tf",
   ]
 }

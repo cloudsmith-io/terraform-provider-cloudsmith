@@ -16,6 +16,9 @@ See [docs.cloudsmith.com](https://docs.cloudsmith.com/tbc/upstream-proxying-and-
 ## Example Usage
 
 ```terraform
+# Copyright Cloudsmith Ltd 2026
+# SPDX-License-Identifier: MPL-2.0
+
 data "cloudsmith_organization" "my_organization" {
   slug = "my-organization"
 }

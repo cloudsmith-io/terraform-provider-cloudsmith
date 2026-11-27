@@ -74,7 +74,6 @@ func importService(ctx context.Context, d *schema.ResourceData, m interface{}) (
 	d.Set("key", importSentinel)
 
 	d.Set("organization", idParts[0])
-	d.Set("store_api_key", true)
 	d.SetId(idParts[1])
 	return []*schema.ResourceData{d}, nil
 }
@@ -344,7 +343,7 @@ func ResourceService() *schema.Resource {
 			},
 			"store_api_key": {
 				Type:        schema.TypeBool,
-				Description: "Whether to include the service's API key in Terraform state.",
+				Description: "Whether to include the service's API key in Terraform state. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},

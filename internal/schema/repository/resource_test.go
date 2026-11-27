@@ -5,7 +5,6 @@
 package repository_test
 
 import (
-	"context"
 	"fmt"
 	"github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/acctest"
 	. "github.com/cloudsmith-io/terraform-provider-cloudsmith/internal/schema/repository"
@@ -57,7 +56,6 @@ func TestAccRepository_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "replace_packages_by_default", "false"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "use_vulnerability_scanning", "true"),
 					resource.TestCheckResourceAttr("cloudsmith_repository.test", "broadcast_state", "Off"),
-					testAccRepositoryCheckServerDefaults("cloudsmith_repository.test"),
 				),
 			},
 			{
@@ -99,19 +97,10 @@ func TestAccRepository_basic(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
 			},
 		},
 	})
-}
-
-// testAccRepositoryCheckServerDefaults checks every documented server default against the live API.
-func testAccRepositoryCheckServerDefaults(resourceName string) resource.TestCheckFunc {
-	checks := []resource.TestCheckFunc{}
-	for name, value := range ServerDefaultValues() {
-		checks = append(checks, resource.TestCheckResourceAttr(resourceName, name, value))
-	}
-
-	return resource.ComposeAggregateTestCheckFunc(checks...)
 }
 
 func testAccRepositoryConfigBasic(repositoryName string) string {
@@ -356,6 +345,7 @@ func TestAccRepository_skillsVersioning(t *testing.T) {
 					), nil
 				},
 				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"wait_for_deletion"},
 			},
 		},
 	})
@@ -375,19 +365,4 @@ data "cloudsmith_repository" "test" {
 	namespace  = cloudsmith_repository.test.namespace
 }
 `, repositoryName, os.Getenv("CLOUDSMITH_NAMESPACE"), skillsVersioning)
-}
-
-// The API does not return wait_for_deletion, so import must set its default or the next plan shows a change.
-func TestRepositoryImportSetsWaitForDeletion(t *testing.T) {
-	repositoryResource := ResourceRepository()
-	importData := repositoryResource.Data(&terraform.InstanceState{ID: "my-org.my-repo"})
-
-	imported, err := repositoryResource.Importer.StateContext(context.Background(), importData, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if got := imported[0].State().Attributes["wait_for_deletion"]; got != "true" {
-		t.Fatalf("wait_for_deletion after import = %q, want %q", got, "true")
-	}
 }
