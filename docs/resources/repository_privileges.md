@@ -145,3 +145,24 @@ Required:
 
 - `privilege` (String)
 - `slug` (String)
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>
+import {
+  to = cloudsmith_repository_privileges.my_privileges
+  id = "my-workspace.my-repo"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<repository_slug>
+terraform import cloudsmith_repository_privileges.my_privileges my-workspace.my-repo
+```

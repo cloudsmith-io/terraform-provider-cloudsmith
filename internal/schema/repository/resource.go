@@ -488,7 +488,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, missing credentials for this repository where basic authentication " +
 					"is required shall present an enriched value in the 'WWW-Authenticate' header containing " +
 					"the namespace and repository. This can be useful for tooling such as SBT where the " +
-					"authentication realm is used to distinguish and disambiguate credentials.",
+					"authentication realm is used to distinguish and disambiguate credentials. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -497,7 +497,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, users can copy any of their own packages that they have uploaded, " +
 					"assuming that they still have write privilege for the repository. This takes precedence " +
 					"over privileges configured in the 'Access Controls' section of the repository, and any " +
-					"inherited from the org.",
+					"inherited from the org. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -505,7 +505,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to copy packages. " +
 					"Unless the package was uploaded by that user, in which the permission may be overridden by " +
-					"the user-specific copy setting.",
+					"the user-specific copy setting. Defaults to `Read`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write"}, false),
@@ -514,7 +514,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "When enabled, all pushed (or pulled from upstream) OCI packages and artifacts will be signed " +
 					"using cosign with the repository's ECDSA key. This generates a distinct cosign signature artifact " +
-					"per artifact.",
+					"per artifact. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -529,7 +529,7 @@ func ResourceRepository() *schema.Resource {
 					"have for this repository. This does not include collaborators, but applies to any member of the " +
 					"org regardless of their own membership role (i.e. it applies to owners, managers and members). " +
 					"Be careful if setting this to admin, because any member will be able to change settings." +
-					"Valid values include: `Admin`, `Read`, `Write`, `None`.",
+					"Valid values include: `Admin`, `Read`, `Write`, `None`. Defaults to `None`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Read", "Write", "None"}, false),
@@ -539,7 +539,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, users can delete any of their own packages that they have uploaded, " +
 					"assuming that they still have write privilege for the repository. This takes precedence over " +
 					"privileges configured in the 'Access Controls' section of the repository, and any inherited " +
-					"from the org.",
+					"from the org. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -547,7 +547,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to delete packages. " +
 					"Unless the package was uploaded by that user, in which the permission may be overridden by the " +
-					"user-specific delete setting.",
+					"user-specific delete setting. Defaults to `Admin`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
@@ -567,7 +567,7 @@ func ResourceRepository() *schema.Resource {
 			"docker_refresh_tokens_enabled": {
 				Type: schema.TypeBool,
 				Description: "If checked, refresh tokens will be issued in addition to access tokens for Docker " +
-					"authentication. This allows unlimited extension of the lifetime of access tokens.",
+					"authentication. This allows unlimited extension of the lifetime of access tokens. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -575,7 +575,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, files contained in packages will be indexed, which increase the " +
 					"synchronisation time required for packages. Note that it is recommended you keep this " +
-					"enabled unless the synchronisation time is significantly impacted.",
+					"enabled unless the synchronisation time is significantly impacted. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -598,7 +598,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, users can move any of their own packages that they have uploaded, assuming " +
 					"that they still have write privilege for the repository. This takes precedence over privileges " +
-					"configured in the 'Access Controls' section of the repository, and any inherited from the org.",
+					"configured in the 'Access Controls' section of the repository, and any inherited from the org. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -606,7 +606,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to move packages. Unless " +
 					"the package was uploaded by that user, in which the permission may be overridden by the " +
-					"user-specific move setting.",
+					"user-specific move setting. Defaults to `Admin`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
@@ -635,7 +635,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, npm distribution tags from configured upstreams will take precedence over matching " +
 					"local tags. When both upstream and local repositories have the same tag name (e.g., 'latest'), the " +
 					"upstream tag will be used instead of the local one, even if the local repository has a semantically " +
-					"higher version.",
+					"higher version. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -643,7 +643,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "When enabled, all pushed (or pulled from upstream) nuget packages and artifacts will be signed " +
 					"using the repository's X.509 RSA certificate. Additionally, the nuget RepositorySignature index will " +
-					"list all of the repository's signing certificates including the ones from configured upstreams.",
+					"list all of the repository's signing certificates including the ones from configured upstreams. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -651,7 +651,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, Npm packages that are not in the repository when requested by clients will " +
 					"automatically be proxied from the public npmjs.org registry. If there is at least one version for " +
-					"a package, others will not be proxied.",
+					"a package, others will not be proxied. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -659,21 +659,21 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, Python packages that are not in the repository when requested by clients will " +
 					"automatically be proxied from the public pypi.python.org registry. If there is at least one version " +
-					"for a package, others will not be proxied.",
+					"for a package, others will not be proxied. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
 			"raw_package_index_enabled": {
 				Type: schema.TypeBool,
 				Description: "If checked, HTML and JSON indexes will be generated that list all available raw packages in " +
-					"the repository.",
+					"the repository. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
 			"raw_package_index_signatures_enabled": {
 				Type: schema.TypeBool,
 				Description: "If checked, the HTML and JSON indexes will display raw package GPG signatures alongside the " +
-					"index packages.",
+					"index packages. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -682,7 +682,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "This defines the minimum level of privilege required for a user to republish packages. " +
 					"Unless the package was uploaded by that user, in which the permission may be overridden by the " +
 					"user-specific republish setting. Please note that the user still requires the privilege to delete " +
-					"packages that will be replaced by the new package; otherwise the republish will fail.",
+					"packages that will be replaced by the new package; otherwise the republish will fail. Defaults to `Write`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
@@ -691,7 +691,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, uploaded packages will overwrite/replace any others with the same attributes " +
 					"(e.g. same version) by default. This only applies if the user has the required privilege for the " +
-					"republishing AND has the required privilege to delete existing packages that they don't own.",
+					"republishing AND has the required privilege to delete existing packages that they don't own. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -700,7 +700,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "The repository type changes how it is accessed and billed. Private repositories " +
 					"can only be used on paid plans, but are visible only to you or authorised delegates. Public " +
 					"repositories are free to use on all plans and visible to all Cloudsmith users." +
-					"Valid values include: `Private` or `Public`.",
+					"Valid values include: `Private` or `Public`. Defaults to `Private`.",
 				Optional:     true,
 				Default:      "Private",
 				ValidateFunc: validation.StringInSlice([]string{"Private", "Public"}, false),
@@ -718,7 +718,7 @@ func ResourceRepository() *schema.Resource {
 							Type:         schema.TypeInt,
 							Optional:     true,
 							Default:      100,
-							Description:  "The maximum number of packages to retain. Must be between 0 and 10000.",
+							Description:  "The maximum number of packages to retain. Must be between 0 and 10000. Defaults to `100`.",
 							ValidateFunc: validation.IntBetween(0, 10000),
 						},
 						"retention_days_limit": {
@@ -740,28 +740,28 @@ func ResourceRepository() *schema.Resource {
 							Optional: true,
 							Default:  false,
 							Description: "If true, retention will apply to packages by package formats rather " +
-								"than across all package formats.",
+								"than across all package formats. Defaults to `false`.",
 						},
 						"retention_group_by_name": {
 							Type:     schema.TypeBool,
 							Optional: true,
 							Default:  false,
 							Description: "If true, retention will apply to groups of packages by name rather " +
-								"than all packages.",
+								"than all packages. Defaults to `false`.",
 						},
 						"retention_group_by_package_type": {
 							Type:     schema.TypeBool,
 							Optional: true,
 							Default:  false,
 							Description: "If true, retention will apply to packages by package type rather than " +
-								"across all package types for one or more formats.",
+								"across all package types for one or more formats. Defaults to `false`.",
 						},
 						"retention_size_limit": {
 							Type:     schema.TypeInt,
 							Optional: true,
 							Default:  0,
 							Description: "The maximum total size (in bytes) of packages to retain. Must be " +
-								"between 0 and 21474836480 (21.47 GB / 21474.83 MB).",
+								"between 0 and 21474836480 (21.47 GB / 21474.83 MB). Defaults to `0`.",
 							ValidateDiagFunc: util.Int64AtMost(util.RetentionMaxBytes),
 						},
 						"retention_package_query_string": {
@@ -778,7 +778,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, users can resync any of their own packages that they have uploaded, assuming " +
 					"that they still have write privilege for the repository. This takes precedence over privileges " +
-					"configured in the 'Access Controls' section of the repository, and any inherited from the org.",
+					"configured in the 'Access Controls' section of the repository, and any inherited from the org. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -786,7 +786,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to resync packages. Unless " +
 					"the package was uploaded by that user, in which the permission may be overridden by the user-specific " +
-					"resync setting.",
+					"resync setting. Defaults to `Admin`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write"}, false),
@@ -795,7 +795,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, users can scan any of their own packages that they have uploaded, assuming that " +
 					"they still have write privilege for the repository. This takes precedence over privileges configured " +
-					"in the 'Access Controls' section of the repository, and any inherited from the org.",
+					"in the 'Access Controls' section of the repository, and any inherited from the org. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -803,7 +803,7 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeString,
 				Description: "This defines the minimum level of privilege required for a user to scan packages. Unless the " +
 					"package was uploaded by that user, in which the permission may be overridden by the user-specific " +
-					"scan setting.",
+					"scan setting. Defaults to `Read`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
@@ -823,7 +823,7 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, the Set Me Up help for all formats will always be shown, even if you don't have " +
 					"packages of that type uploaded. Otherwise, help will only be shown for packages that are in the " +
 					"repository. For example, if you have uploaded only NuGet packages, then the Set Me Up help for NuGet " +
-					"packages will be shown only.",
+					"packages will be shown only. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -866,13 +866,13 @@ func ResourceRepository() *schema.Resource {
 				Description: "If checked, npm packages will be validated strictly to ensure the package matches " +
 					"specifcation. You can turn this off if you have packages that are old or otherwise mildly off-spec, " +
 					"but we can't guarantee the packages will work with npm-cli or other tooling correctly. Turn off at " +
-					"your own risk!",
+					"your own risk! Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
 			"tag_pre_releases_as_latest": {
 				Type:        schema.TypeBool,
-				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools",
+				Description: "If checked, packages pushed with a pre-release component on that version will be marked with the 'latest' tag. Note that if unchecked, a repository containing ONLY pre-release versions, will have no version marked latest which may cause incompatibility with native tools. Defaults to `false`.",
 				Optional:    true,
 				Default:     false,
 			},
@@ -880,20 +880,20 @@ func ResourceRepository() *schema.Resource {
 				Type: schema.TypeBool,
 				Description: "If checked, a 'Label' field will be present in Debian-based repositories. It will contain a " +
 					"string that identifies the entitlement token used to authenticate the repository, in the form of " +
-					"'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning.",
+					"'source=t-'; or 'source=none' if no token was used. You can use this to help with pinning. Defaults to `false`.",
 				Optional: true,
 				Computed: true,
 			},
 			"manage_entitlements_privilege": {
 				Type:         schema.TypeString,
-				Description:  "This defines the minimum level of privilege required for a user to manage entitlement tokens with private repositories. Management is the ability to create, alter, enable, disable or delete all tokens within a repository. Possible values: Read, Write, Admin.",
+				Description:  "This defines the minimum level of privilege required for a user to manage entitlement tokens with private repositories. Management is the ability to create, alter, enable, disable or delete all tokens within a repository. Possible values: Read, Write, Admin. Defaults to `Admin`.",
 				Computed:     true,
 				Optional:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
 			},
 			"use_entitlements_privilege": {
 				Type:         schema.TypeString,
-				Description:  "This defines the minimum level of privilege required for a user to see/use entitlement tokens with private repositories. If a user does not have the permission, they will only be able to download packages using other credentials, such as email/password via basic authentication. Use this if you want to force users to only use their user-based token, which is tied to their access (if removed, they can't use it). Possible values: Read, Write, Admin.",
+				Description:  "This defines the minimum level of privilege required for a user to see/use entitlement tokens with private repositories. If a user does not have the permission, they will only be able to download packages using other credentials, such as email/password via basic authentication. Use this if you want to force users to only use their user-based token, which is tied to their access (if removed, they can't use it). Possible values: Read, Write, Admin. Defaults to `Read`.",
 				Computed:     true,
 				Optional:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
@@ -904,35 +904,35 @@ func ResourceRepository() *schema.Resource {
 					"\"registry\" will be assumed to be available from crates.io. If unchecked, dependencies with " +
 					"unspecified \"registry\" values will be assumed to be available in the registry being uploaded to. " +
 					"Uncheck this if you want to ensure that dependencies are only ever installed from Cloudsmith unless " +
-					"explicitly specified as belong to another registry.",
+					"explicitly specified as belong to another registry. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
 			"use_noarch_packages": {
 				Type: schema.TypeBool,
 				Description: "If checked, noarch packages (if supported) are enabled in installations/configurations. A " +
-					"noarch package is one that is not tied to specific system architecture (like i686).",
+					"noarch package is one that is not tied to specific system architecture (like i686). Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
 			"use_source_packages": {
 				Type: schema.TypeBool,
 				Description: "If checked, source packages (if supported) are enabled in installations/configurations. A " +
-					"source package is one that contains source code rather than built binaries.",
+					"source package is one that contains source code rather than built binaries. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
 			"use_vulnerability_scanning": {
 				Type: schema.TypeBool,
 				Description: "If checked, vulnerability scanning will be enabled for all supported packages within " +
-					"this repository.",
+					"this repository. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
 			"user_entitlements_enabled": {
 				Type: schema.TypeBool,
 				Description: "If checked, users can use and manage their own user-specific entitlement token for the " +
-					"repository (if private). Otherwise, user-specific entitlements are disabled for all users.",
+					"repository (if private). Otherwise, user-specific entitlements are disabled for all users. Defaults to `true`.",
 				Optional: true,
 				Computed: true,
 			},
@@ -941,14 +941,14 @@ func ResourceRepository() *schema.Resource {
 				Description: "This defines the minimum level of privilege required for a user to view repository statistics, " +
 					"to include entitlement-based usage, if applicable. If a user does not have the permission, they won't be " +
 					"able to view any statistics, either via the UI, API or CLI." +
-					"Valid values include: `Admin`, `Write`, `Read`.",
+					"Valid values include: `Admin`, `Write`, `Read`. Defaults to `Read`.",
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"Admin", "Write", "Read"}, false),
 			},
 			"wait_for_deletion": {
 				Type:        schema.TypeBool,
-				Description: "If true, terraform will wait for a repository to be permanently deleted before finishing.",
+				Description: "If true, terraform will wait for a repository to be permanently deleted before finishing. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},

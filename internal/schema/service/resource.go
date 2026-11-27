@@ -343,7 +343,7 @@ func ResourceService() *schema.Resource {
 			},
 			"store_api_key": {
 				Type:        schema.TypeBool,
-				Description: "Whether to include the service's API key in Terraform state.",
+				Description: "Whether to include the service's API key in Terraform state. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},

@@ -44,9 +44,30 @@ resource "cloudsmith_package_deny_policy" "my_package_deny_policy" {
 ### Optional
 
 - `description` (String) Description of the package deny policy.
-- `enabled` (Boolean) Whether the package deny policy is enabled.
+- `enabled` (Boolean) Whether the package deny policy is enabled. Defaults to `true`.
 - `name` (String) A descriptive name for the package deny policy.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<package_deny_policy_slug_perm>
+import {
+  to = cloudsmith_package_deny_policy.my_policy
+  id = "my-workspace.policy-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<package_deny_policy_slug_perm>
+terraform import cloudsmith_package_deny_policy.my_policy my-workspace.policy-slug-perm
+```

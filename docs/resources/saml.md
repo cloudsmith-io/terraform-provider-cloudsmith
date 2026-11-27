@@ -39,9 +39,30 @@ resource "cloudsmith_saml" "my_saml" {
 ### Optional
 
 - `enabled` (Boolean) Whether SAML Group Sync is enabled for the organization.
-- `role` (String)
+- `role` (String) Defaults to `Member`.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
 - `slug_perm` (String)
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<saml_slug_perm>
+import {
+  to = cloudsmith_saml.my_saml
+  id = "my-workspace.saml-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<saml_slug_perm>
+terraform import cloudsmith_saml.my_saml my-workspace.saml-slug-perm
+```

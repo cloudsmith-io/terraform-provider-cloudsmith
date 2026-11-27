@@ -153,7 +153,7 @@ func PackageDenyPolicy() *schema.Resource {
 			},
 			"enabled": {
 				Type:        schema.TypeBool,
-				Description: "Whether the package deny policy is enabled.",
+				Description: "Whether the package deny policy is enabled. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},

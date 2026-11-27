@@ -46,3 +46,24 @@ resource "cloudsmith_usage_limits" "example" {
 - `bandwidth_maximum` (Number) The maximum package delivery overage allowed by the organization's plan, in GB.
 - `id` (String) The ID of this resource.
 - `storage_maximum` (Number) The maximum artifact data overage allowed by the organization's plan, in GB.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>
+import {
+  to = cloudsmith_usage_limits.my_limits
+  id = "my-workspace"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>
+terraform import cloudsmith_usage_limits.my_limits my-workspace
+```

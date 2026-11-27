@@ -188,7 +188,7 @@ func ResourceRepositoryConnected() *schema.Resource {
 			},
 			IsActive: {
 				Type:        schema.TypeBool,
-				Description: "Whether the connection is active.",
+				Description: "Whether the connection is active. Defaults to `true`.",
 				Optional:    true,
 				Default:     true,
 			},

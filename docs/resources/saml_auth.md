@@ -58,3 +58,24 @@ resource "cloudsmith_saml_auth" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>
+import {
+  to = cloudsmith_saml_auth.my_saml_auth
+  id = "my-workspace"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>
+terraform import cloudsmith_saml_auth.my_saml_auth my-workspace
+```

@@ -97,3 +97,24 @@ Required:
 Optional:
 
 - `template` (String)
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>.<webhook_slug_perm>
+import {
+  to = cloudsmith_webhook.my_webhook
+  id = "my-workspace.my-repo.webhook-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<repository_slug>.<webhook_slug_perm>
+terraform import cloudsmith_webhook.my_webhook my-workspace.my-repo.webhook-slug-perm
+```

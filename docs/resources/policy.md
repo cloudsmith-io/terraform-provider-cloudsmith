@@ -52,8 +52,8 @@ resource "cloudsmith_policy_action" "quarantine" {
 ### Optional
 
 - `description` (String) The description of the policy.
-- `enabled` (Boolean) If true, the policy is enabled.
-- `is_terminal` (Boolean) If true and the policy matches, no further policies are evaluated.
+- `enabled` (Boolean) If true, the policy is enabled. Defaults to `true`.
+- `is_terminal` (Boolean) If true and the policy matches, no further policies are evaluated. Defaults to `false`.
 - `precedence` (Number) The order in which this policy is evaluated relative to other policies.
 
 ### Read-Only
@@ -64,3 +64,24 @@ resource "cloudsmith_policy_action" "quarantine" {
 - `slug_perm` (String) The policy's unique permanent slug.
 - `updated_at` (String) The time the policy was last updated.
 - `version` (Number) The version of the rego code.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<policy_slug_perm>
+import {
+  to = cloudsmith_policy.my_policy
+  id = "my-workspace.policy-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<policy_slug_perm>
+terraform import cloudsmith_policy.my_policy my-workspace.policy-slug-perm
+```

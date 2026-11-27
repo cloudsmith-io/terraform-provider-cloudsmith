@@ -62,7 +62,7 @@ resource "cloudsmith_repository_connected" "link" {
 
 ### Optional
 
-- `is_active` (Boolean) Whether the connection is active.
+- `is_active` (Boolean) Whether the connection is active. Defaults to `true`.
 - `priority` (Number) Order in which connected repositories are checked (ascending, starting at 1). Ties are broken by age (oldest first).
 
 ### Read-Only
@@ -70,3 +70,24 @@ resource "cloudsmith_repository_connected" "link" {
 - `created_at` (String) The date and time when the connection was created (RFC 3339).
 - `id` (String) The ID of this resource.
 - `slug_perm` (String) The immutable slug identifier of the connection.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>.<connected_repository_slug_perm>
+import {
+  to = cloudsmith_repository_connected.my_connected
+  id = "my-workspace.my-repo.connected-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<repository_slug>.<connected_repository_slug_perm>
+terraform import cloudsmith_repository_connected.my_connected my-workspace.my-repo.connected-slug-perm
+```

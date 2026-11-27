@@ -65,3 +65,24 @@ resource "cloudsmith_entitlement_control" "my_entitlement_control" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<repository_slug>.<entitlement_slug_perm>
+import {
+  to = cloudsmith_entitlement_control.my_control
+  id = "my-workspace.my-repo.entitlement-slug-perm"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<repository_slug>.<entitlement_slug_perm>
+terraform import cloudsmith_entitlement_control.my_control my-workspace.my-repo.entitlement-slug-perm
+```

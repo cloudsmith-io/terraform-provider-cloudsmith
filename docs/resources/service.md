@@ -55,7 +55,7 @@ resource "cloudsmith_service" "my_service" {
 - `description` (String) A description of the service's purpose.
 - `role` (String) The service's role in the organization.
 - `rotate_api_key` (Number) Arbitrary integer used to trigger rotation of the service's API key. Only increments rotate the key; decreasing the value does not.
-- `store_api_key` (Boolean) Whether to include the service's API key in Terraform state.
+- `store_api_key` (Boolean) Whether to include the service's API key in Terraform state. Defaults to `true`.
 - `team` (Block Set) (see [below for nested schema](#nestedblock--team))
 
 ### Read-Only
@@ -74,3 +74,26 @@ Required:
 Optional:
 
 - `role` (String) The service's role in the organization.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+# ID format: <workspace_slug>.<service_slug>
+# The API does not return the service's API key, so the `key` attribute is not available after import.
+import {
+  to = cloudsmith_service.my_service
+  id = "my-workspace.my-service"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# ID format: <workspace_slug>.<service_slug>
+# The API does not return the service's API key, so the `key` attribute is not available after import.
+terraform import cloudsmith_service.my_service my-workspace.my-service
+```
