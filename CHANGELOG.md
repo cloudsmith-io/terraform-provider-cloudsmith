@@ -9,6 +9,7 @@
 * **provider:** OIDC authentication for HCP Terraform (Terraform Cloud). Enable it with an `oidc` block or `CLOUDSMITH_USE_OIDC=true`; the provider reads the workspace's workload identity token, exchanges it for a Cloudsmith token, refreshes that token before expiry, and retries once on 401. No `local-exec` or `external` data source needed. Other CI platforms are not supported yet. ([#128](https://github.com/cloudsmith-io/terraform-provider-cloudsmith/issues/128))
 * **resource:** Add an `enabled` toggle to the SAML Group Sync resource.
 * **resource:** Retention rules can now be managed as a `retention_rule` block on `cloudsmith_repository`. A repository accepts at most one block, applied via the retention partial update (PATCH) endpoint, and removing the block disables retention. Use of the standalone `cloudsmith_repository_retention_rule` resource is discouraged, as multiple instances can target the same repository and clobber each other.
+* **resource:** `cloudsmith_repository_upstream` supports setting up [strict mode for policies](https://docs.cloudsmith.com/supply-chain-security/strict-mode), which applies only to upstreams with `mode = "Cache Only"`. A plan now rejects `mode = "Cache Only"` for `nix` and `swift` upstreams, which don't support it, instead of failing at apply. The docs list the valid `mode` values, explain what each one does, and include a strict mode example. Cloudsmith enables strict mode for your workspace.
 
 ### Fixed
 
